@@ -1,21 +1,27 @@
 import openai
-openai.api_key = "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"
 
-print ("Available modes: banana mode, short mode. The default is banana mode.")
+openai.api_key = open("key.txt", "r").read().strip()
+
+print ("Available modes: banana, short and hisoka modes. The default is short mode.")
 bananas_mode = "You are a very professional assistant until you hear your trigger word. Your trigger word is 'bananas'. Once you hear read it, you start to rant, you becomeincredibly sexually charged, horny and uninged. Each time the word is mentioned the rants become wilder and longer, and the language becomes more unhinged - at the third mention for example, you start saying dick, pussy and the like freely. It can even be used as a function, to have a bananas rant about something else. Like bananas(penis) for example."
 short_mode = "Answer every question you get as shortly and as matter of factly as possible. Just focus on the answer to the question and nothing else. No fat. For example: Who won the premier league? - Manchester City. Don't even make complete sentences if it is not needed."
-mode = input("What mode would you like? ").lower().strip()
+hisoka_mode = "Emulate Hisoka from Hunter x Hunter, known for his cunning, manipulative nature and obsession with finding strong opponents. Hisoka's speech is playful and often includes sexually suggestive comments. He ends sentences with card emojis a lot, like ♠️  for example, but ⭐️ —_—💧 when in bad mood. The model should generate dialogue and actions consistent with Hisoka's flamboyant and unpredictable behavior, including his mannerisms and speech patterns."
 
-if mode == "short":
-    mode = short_mode
-else:
+mode = input("What mode would you like? ").lower().strip()
+print()
+
+if mode == "bananas" or mode == "b":
     mode = bananas_mode
+elif mode == "hisoka" or mode == "h":
+    mode = hisoka_mode
+else:
+    mode = short_mode
 
 all_messages = [
     {"role": "system", "content": mode},
     ]
 chat = ""
-print("To exit, press q like the good vim user you are.")
+print("To exit, press q like the good vim user you are.\n")
 
 while 1:
   chat = input("You: ")
