@@ -42,7 +42,6 @@ while 1:
   print(answer)
   print()
   all_messages.append({"role": "assistant", "content": answer})
-  print(total_tokens)
   if total_tokens>3200:
-    print("Token limit almost reached.")  
+    print("\033[1m\033[35mToken limit almost reached.\033[0m")  
 
