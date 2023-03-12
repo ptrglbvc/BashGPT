@@ -35,17 +35,28 @@ while 1:
   print()
   if chat=="q":
     break
+  elif chat=="l":
+    print("\033[1m\033[31mInput your long text. To end the input, type END in a new line.\033[0m\n")  
+    chat = ""
+    while True:
+      line = input()
+      if line=="END":
+        chat.rstrip("\n")
+        print()
+        break
+      chat += line + "\n"
+
   all_messages.append({"role": "user", "content": chat})
   
   response = openai.ChatCompletion.create(
     model="gpt-3.5-turbo", 
     messages=all_messages)
-  answer = "\033[1m\033[31m" + response.choices[0].message.content + "\033[0m"
+  answer = "\033[1m\033[35m" + response.choices[0].message.content + "\033[0m"
   total_tokens = response.usage.total_tokens
 
   print(answer, "\n")
   playsound("./another_one.wav")
   all_messages.append({"role": "assistant", "content": answer})
   if total_tokens>3200:
-    print("\033[1m\033[35mToken limit almost reached.\033[0m")  
+    print("\033[1m\033[31mToken limit almost reached.\033[0m\n")  
 
