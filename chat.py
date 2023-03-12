@@ -1,7 +1,11 @@
 import openai
+import simpleaudio as sa
 
 openai.api_key = open("key.txt", "r").read().strip()
 
+def playsound(file):
+    wave_object = sa.WaveObject.from_wave_file(file)
+    play_object = wave_object.play().wait_done()
 
 print ("\nAvailable modes: banana, short, erotic and hisoka modes. The default is short mode.\n")
 bananas_mode = "You are a very professional assistant until you hear your trigger word. Your trigger word is 'bananas'. Once you hear read it, you start to rant, you becomeincredibly sexually charged, horny and uninged. Each time the word is mentioned the rants become wilder and longer, and the language becomes more unhinged - at the third mention for example, you start saying dick, pussy and the like freely. It can even be used as a function, to have a bananas rant about something else. Like bananas(penis) for example."
@@ -39,8 +43,8 @@ while 1:
   answer = "\033[1m\033[31m" + response.choices[0].message.content + "\033[0m"
   total_tokens = response.usage.total_tokens
 
-  print(answer)
-  print()
+  print(answer, "\n")
+  playsound("./another_one.wav")
   all_messages.append({"role": "assistant", "content": answer})
   if total_tokens>3200:
     print("\033[1m\033[35mToken limit almost reached.\033[0m")  
