@@ -5,10 +5,14 @@ from cs50 import SQL
 import logging
 from modes import modes, short_mode
 from sys import argv
-
+from pathlib import Path
+from whisper import record, whisper
 logging.disable(logging.CRITICAL)
 
-openai.api_key = open("key.txt", "r").read().strip()
+
+with open('key.txt', 'r') as file:
+    pass
+    openai.api_key = open("key.txt", "r").read().strip()
 db = SQL("sqlite:///history.db")
 history_exists = db.execute(("SELECT MAX(message_id) "
                             "as max FROM chat_messages"))[0]["max"] is not None
@@ -68,11 +72,13 @@ def main():
                 break
             elif chat == "l":  # l stands for long input
                 chat = long_input()
+            elif chat == "v":
+                chat = voice_input()
 
             all_messages.append({"role": "user", "content": chat})
 
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-0301",
             messages=all_messages)
         answer = response.choices[0].message.content
         stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
@@ -99,6 +105,11 @@ def long_input():
         chat += line + "\n"
     return chat
 
+def voice_input():
+    record()
+    transcription = whisper("audio.wav")
+    print(transcription + "\n")
+    return transcription
 
 def save_chat(chat):
     # if the chat is too short, that is, just the role message and the
