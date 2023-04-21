@@ -2,7 +2,7 @@ import pyaudio
 import wave
 import openai
 import sys
-from pynput import keyboard
+from file_locations import key_location, audio_location
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -17,11 +17,11 @@ def main():
 
     else:
         record()
-        print(whisper("audio.wav"))
+        print(whisper(audio_location))
         
 
 def record():
-    with wave.open('audio.wav', 'wb') as wf:
+    with wave.open(audio_location, 'wb') as wf:
         p = pyaudio.PyAudio()
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(p.get_sample_size(FORMAT))
@@ -41,8 +41,8 @@ def record():
         p.terminate()
 
 def whisper(file):
-    openai.api_key = open("key.txt", "r").read().strip()
-    audio_file= open(file, "rb")
+    openai.api_key = open(key_location, "r").read().strip()
+    audio_file = open(file, "rb")
     transcript = openai.Audio.transcribe("whisper-1", audio_file).text
     return transcript
 

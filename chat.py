@@ -1,4 +1,3 @@
-#!/opt/homebrew/bin/python3
 import openai
 import simpleaudio as sa
 import logging
@@ -8,38 +7,12 @@ import threading
 from cs50 import SQL
 from modes import modes, short_mode
 from sys import argv
-from pathlib import Path
 from whisper import record, whisper
+from file_locations import key_location, db_location, another_one_location, audio_location
+
 logging.disable(logging.CRITICAL)
 
 
-with open('key.txt', 'r') as file:
-    pass
-    openai.api_key = open("key.txt", "r").read().strip()
-
-#checks if the user already has a db file in the directory, if not, creates it.
-if not os.path.isfile("history.db"):
-    try:
-        conn = sqlite3.connect("history.db")
-        print(sqlite3.version)
-    except sqlite3.Error as e:
-        print(e)
-    finally:
-        if conn:
-            conn.close()
-
-    db = SQL("sqlite:///history.db")
-    db.execute(("CREATE TABLE chat_messages ("
-    "chat_id INTEGER,"
-    "message_id INTEGER PRIMARY KEY,"
-    "user_name TEXT,"
-    "message TEXT,"
-    "description TEXT);"))
-else:
-    db = SQL("sqlite:///history.db")
-
-history_exists = db.execute(("SELECT MAX(message_id) "
-                            "as max FROM chat_messages"))[0]["max"] is not None
 
 # checks if the chat is resumed,
 # also stores the number of the loaded chatg
@@ -50,6 +23,9 @@ all_messages = []
 
 
 def main():
+    db = setup_db_and_key()
+    history_exists = db.execute(("SELECT MAX(message_id) "
+                                "as max FROM chat_messages"))[0]["max"] is not None
     global is_new_mode
     global all_messages
 
@@ -81,7 +57,7 @@ def main():
             ("Would you like to resume a previous conversation? "
              "(y/n) ")).lower().strip()
         if history_input == "y":
-            all_messages = resume_chat()
+            all_messages = resume_chat(db)
 
         else:
             modes_text = "Modes to choose from: "
@@ -108,8 +84,9 @@ def main():
             print()
 
             if chat == "q":
-                save_chat(all_messages)
+                save_chat(all_messages, db)
                 break
+                exit()
             elif chat == "l":  # l stands for long input
                 chat = long_input()
             elif chat == "v":
@@ -128,11 +105,39 @@ def main():
 
         #play the "another one" sound effect thread from time to time (in another thread)
         if len(all_messages)%10==0:
-            threading.Thread(target=playsound, args=["./another_one.wav"]).start()
+            threading.Thread(target=playsound, args=[another_one_location]).start()
         all_messages.append({"role": "assistant", "content": answer})
 
         if total_tokens > 3200:
             print("\033[1m\033[31mToken limit almost reached.\033[0m\n")
+
+
+def setup_db_and_key():
+    with open(key_location, 'r') as key:
+        pass
+        openai.api_key = key.read().strip()
+
+    #checks if the user already has a db file in the directory, if not, creates it.
+    #replace the file path with yours here
+    if not os.path.isfile(db_location):
+        try:
+            conn = sqlite3.connect(db_location)
+        except sqlite3.Error as e:
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        #replace the file path with your file path here
+        db = SQL("sqlite:///" + db_location)
+        db.execute(("CREATE TABLE chat_messages ("
+        "chat_id INTEGER,"
+        "message_id INTEGER PRIMARY KEY,"
+        "user_name TEXT,"
+        "message TEXT,"
+        "description TEXT);"))
+    else:
+        db = SQL("sqlite:///" + db_location)
+    return db
 
 
 def long_input():
@@ -150,11 +155,11 @@ def long_input():
 
 def voice_input():
     record()
-    transcription = whisper("audio.wav")
+    transcription = whisper(audio_location)
     print(transcription + "\n")
     return transcription
 
-def save_chat(chat):
+def save_chat(chat, db):
     # if the chat is too short, that is, just the role message and the
     # first user message, there's no need to save it.
     if len(chat) > 2:
@@ -183,7 +188,7 @@ def playsound(file):
     wave_object.play().wait_done()
 
 
-def resume_chat():
+def resume_chat(db):
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
     print()
@@ -220,4 +225,5 @@ def get_description(all_messages):
     return chat_description
 
 
-main()
+if __name__ == "__main__":
+    main()

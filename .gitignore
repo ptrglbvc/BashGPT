@@ -1,4 +1,6 @@
 key.txt
 history.db
 audio.wav
-history.db
+.DS_Store
+__pycache__/
+file_locations.py
