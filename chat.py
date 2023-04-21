@@ -1,8 +1,11 @@
 #!/opt/homebrew/bin/python3
 import openai
 import simpleaudio as sa
-from cs50 import SQL
 import logging
+import os
+import sqlite3
+import threading
+from cs50 import SQL
 from modes import modes, short_mode
 from sys import argv
 from pathlib import Path
@@ -13,28 +16,65 @@ logging.disable(logging.CRITICAL)
 with open('key.txt', 'r') as file:
     pass
     openai.api_key = open("key.txt", "r").read().strip()
-db = SQL("sqlite:///history.db")
+
+#checks if the user already has a db file in the directory, if not, creates it.
+if not os.path.isfile("history.db"):
+    try:
+        conn = sqlite3.connect("history.db")
+        print(sqlite3.version)
+    except sqlite3.Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+    db = SQL("sqlite:///history.db")
+    db.execute(("CREATE TABLE chat_messages ("
+    "chat_id INTEGER,"
+    "message_id INTEGER PRIMARY KEY,"
+    "user_name TEXT,"
+    "message TEXT,"
+    "description TEXT);"))
+else:
+    db = SQL("sqlite:///history.db")
+
 history_exists = db.execute(("SELECT MAX(message_id) "
                             "as max FROM chat_messages"))[0]["max"] is not None
-# checks if the chat is resumed, for the number,
+
+# checks if the chat is resumed,
 # also stores the number of the loaded chatg
 is_loaded = [False]
 is_argv = False if len(argv) == 1 else True
+is_new_mode = True if is_argv and argv[1] in ("--new-mode", "--add-mode") else False
 all_messages = []
 
 
 def main():
+    global is_new_mode
     global all_messages
+
     if is_argv:
+
+        # First of all 
+        if len(argv)>3:
+            print("Too many arguments")
+            return 0
+
         prompt = argv[-1]
         all_messages.append({"role": "system", "content": short_mode})
         all_messages.append({"role": "user", "content": prompt})
         print()
+
         if len(argv) == 3:
-            for mod in modes:
-                if ("-"+mod["shortcut"]) == argv[1]:
-                    all_messages[0] = {"role": "user",
-                                       "content": mod["description"]}
+            if argv[1] == "--new-mode":
+                all_messages[0] = {"role": "user",
+                                   "content": argv[2]}
+
+            else:
+                for mod in modes:
+                    if ("-"+mod["shortcut"]) == argv[1]:
+                        all_messages[0] = {"role": "user",
+                                           "content": mod["description"]}
 
     elif history_exists:
         history_input = input(
@@ -63,7 +103,7 @@ def main():
             all_messages.append({"role": "system", "content": mode})
 
     while 1:
-        if not is_argv or len(all_messages) > 2:
+        if not is_argv or len(all_messages) > 2 or is_new_mode:
             chat = input("You: ")
             print()
 
@@ -85,7 +125,10 @@ def main():
         total_tokens = response.usage.total_tokens
 
         print(stylized_answer, "\n")
-        playsound("./another_one.wav")  # to-do: play this in another thread
+
+        #play the "another one" sound effect thread from time to time (in another thread)
+        if len(all_messages)%10==0:
+            threading.Thread(target=playsound, args=["./another_one.wav"]).start()
         all_messages.append({"role": "assistant", "content": answer})
 
         if total_tokens > 3200:
@@ -94,11 +137,11 @@ def main():
 
 def long_input():
     print(("\033[1m\033[31mInput your long text. "
-           "To end the input, type END in a new line.\033[0m\n"))
+           "To end the input, type 'q' in a new line.\033[0m\n"))
     chat = ""
     while True:
         line = input()
-        if line.rstrip() == "END":
+        if line.rstrip() == "q":
             chat.rstrip("\n")
             print()
             break
@@ -121,8 +164,10 @@ def save_chat(chat):
             "SELECT MAX(chat_id) AS max FROM chat_messages")[0]["max"]
         if max_chat_id is None:
             max_chat_id = 0
+
         elif is_loaded[0]:
             global chat_id
+
             # deletes the chat, but the now chat is saved under a newer number.
             db.execute(
                 "DELETE FROM chat_messages WHERE chat_id=?", is_loaded[1])
