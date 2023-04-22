@@ -14,6 +14,9 @@ class PreInstallCommand(install):
         with open("file_locations.py", "a") as file:
             file.write('audio_location = ' + '"' + audio + '"' + '\nanother_one_location = ' + '"' + another_one + '"' + '\n')
 
+        key = input("What is your OpenAI API key? ")
+        with open("key.txt", "w") as key_file:
+            key_file.write(key)
         install.run(self)
 
 setup(

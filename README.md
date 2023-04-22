@@ -41,7 +41,8 @@ This example produces the following result:
 
 ```
     You: What is your name?
-
+```
+```
     My name is Sir Lancelot the Brave.
 ```
 While in chat, you can go in the long input mode with **v**, which allows you to input multiple paragraphs of text. 
