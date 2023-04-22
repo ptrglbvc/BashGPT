@@ -45,4 +45,14 @@ This example produces the following result:
 ```
     My name is Sir Lancelot the Brave.
 ```
-While in chat, you can go in the long input mode with **v**, which allows you to input multiple paragraphs of text. 
+While in chat, you can go in the long input mode with **v**, which allows you to input multiple paragraphs of text.
+
+## The files
+### chat.py
+This file is the core of the program. It contains most of the logic of the program, really, the whisper.py is the only other file that contains logic. Main function, along with the other functions, the function of which is described in the file itself. The most important components are the **openai** library and the SQL module of the **cs50** library. It handles the interaction with the gpt-3.5-turbo API by sending a list of dictionaries (__all_messages__) trough the **openai** library.  
+
+### whisper.py
+This module provides the interaction with the whisper API for the voice recognition. The **openai** again handles most of the logic for the whisper() function. The other important part is the record function, which is provides the voice recording functionality through the **PyAudio** and **wave** libraries.
+
+### key.txt
+This file is used to store the OpenAI API key. I used a simple text file simply for ease of use. If the key.txt file is not present, the __check_db_and_key()__ function inside of chat.py ensures that the user is asked for his key and makes the file.

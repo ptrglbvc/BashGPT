@@ -95,7 +95,7 @@ def main():
             all_messages.append({"role": "user", "content": chat})
 
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-0301",
+            model="gpt-3.5-turbo",
             messages=all_messages,
             temperature=0.9)
         answer = response.choices[0].message.content
