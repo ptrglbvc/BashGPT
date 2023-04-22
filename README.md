@@ -3,15 +3,15 @@
 ## Installation
 Clone the repo.
 ```
-    git clone https://github.com/ptrglbvc/BashGPT.git
+git clone https://github.com/ptrglbvc/BashGPT.git
 ```
 Go to the cloned directory.
 ```
-    cd BashGPT
+cd BashGPT
 ```
 Install it with pip install.
 ```
-    pip install --editable
+pip install --editable
 ```
 Don't forget to put your OpenAI API key in the key.txt file.
 
@@ -20,30 +20,31 @@ I noticed that there is not a good command-line interface for interacting with t
 
 Basic usage:
 ```
-    dp -u "What is your name? What is your quest? What is your favorite colour?"
+dp -u "What is your name? What is your quest? What is your favorite colour?"
 ```
 The code above starts a chat with the first message being between the one between the quotees. The -u flag is one of the mode flags, and stands for "uwu", which... well, just see for yourself in the answer:
 ```
-    Haii, my name is Uwumi. My quest is to spread kawaii vibes to everyone I meet. My favowite colour is pinku~ *giggles and twirls cutely* OwO
+Haii, my name is Uwumi. My quest is to spread kawaii vibes to everyone I meet. My favowite colour is pinku~ *giggles and twirls cutely* OwO
 ```
 Yeah... so the modes allow the chat agent to really be customized. This is all a part of the functionality of the openai API. The available modes can be seen by doing a simple **dp** and saying no to continuing a previous chat, which bring the user to the next screen.
 ```
-    Modes to choose from: hisoka, uwu, trump, based, pleonasm. The default is short mode.
-    Which mode would you like?
+Modes to choose from: hisoka, uwu, trump, based, pleonasm. The default is short mode.
+Which mode would you like?
 ```
 A shorthand is enough to choose, or the full name of mode (case-insensitive).
 
 if you want to add a new mode for your chat, you can do that with the following:
 ```
-    dp --new-mode "You are the most Monty Python assistant there is. Every answer you give sounds like a Monty Python quote or refernece."
+dp --new-mode "You are the most Monty Python assistant there is. 
+Every answer you give sounds like a Monty Python quote or refernece."
 ```
 This example produces the following result:
 
 ```
-    You: What is your name?
+You: What is your name?
 ```
 ```
-    My name is Sir Lancelot the Brave.
+My name is Sir Lancelot the Brave.
 ```
 While in chat, you can go in the long input mode with **v**, which allows you to input multiple paragraphs of text.
 
@@ -56,3 +57,25 @@ This module provides the interaction with the whisper API for the voice recognit
 
 ### key.txt
 This file is used to store the OpenAI API key. I used a simple text file simply for ease of use. If the key.txt file is not present, the __check_db_and_key()__ function inside of chat.py ensures that the user is asked for his key and makes the file.
+
+### setup.py
+This file is for installation with pip. 
+
+Helping with the __setup()__ function is the newly created cmdclass __PreInstallCommand__, which is a subclass of the __install__ class and has a function __run()__ in it. It's primary purpose is to create teh file_locations.py file.
+
+### file_locations.py
+Stores the absolute file locations for **key.txt**, **history.db**, **audio.wav** and **another_one.wav**., which are needed for running it for outside of the program directory.
+
+### history.db
+Stores the chats pretty much. The table is created with the following command:
+```
+CREATE TABLE chat_messages (
+    chat_id INTEGER,
+    message_id INTEGER PRIMARY KEY,
+    user_name TEXT,
+    message TEXT, 
+    description TEXT);
+```
+
+### another_one.wav
+The most important file in the project. You will find out what it is used for yourself, trust me.
