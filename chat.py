@@ -114,6 +114,11 @@ def main():
 
 
 def setup_db_and_key():
+    if not os.path.isfile(key_location):
+        key = input("What is your OpenAI API key? ")
+        with open(key_location, "w") as key_file:
+            key_file.write(key)
+    
     with open(key_location, 'r') as key:
         pass
         openai.api_key = key.read().strip()
