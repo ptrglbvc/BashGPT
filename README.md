@@ -1,5 +1,21 @@
 # BashGPT
 
+## Installation
+Clone the repo.
+```
+    git clone https://github.com/ptrglbvc/BashGPT.git
+```
+Go to the cloned directory.
+```
+    cd BashGPT
+```
+Install it with pip install.
+```
+    pip install --editable
+```
+Don't forget to put your OpenAI API key in the key.txt file.
+
+## Use
 I noticed that there is not a good command-line interface for interacting with the GPT api-s, so I made basically a ChatGPT for the command line.
 
 Basic usage:
@@ -21,3 +37,11 @@ if you want to add a new mode for your chat, you can do that with the following:
 ```
     dp --new-mode "You are the most Monty Python assistant there is. Every answer you give sounds like a Monty Python quote or refernece."
 ```
+This example produces the following result:
+
+```
+    You: What is your name?
+
+    My name is Sir Lancelot the Brave.
+```
+While in chat, you can go in the long input mode with **v**, which allows you to input multiple paragraphs of text. 

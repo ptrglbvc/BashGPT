@@ -215,8 +215,6 @@ def resume_chat(db):
 
     return all_messages
 
-# todo: make this multithreaded
-
 
 def get_description(all_messages):
     chat_description = openai.ChatCompletion.create(
