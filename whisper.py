@@ -29,7 +29,7 @@ def record():
 
         stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True)
 
-        print("\033[1m\033Recording 🎶 (press C-c to stop)\033[0m")
+        print("\033[1m\033[31mRecording 🎶 (press C-c to stop)\033[0m")
         try:
             while True: 
                 wf.writeframes(stream.read(CHUNK))

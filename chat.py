@@ -31,7 +31,7 @@ def main():
 
     if is_argv:
 
-        # First of all 
+        # check for too many args
         if len(argv)>3:
             print("Too many arguments")
             return 0
@@ -43,13 +43,13 @@ def main():
 
         if len(argv) == 3:
             if argv[1] == "--new-mode":
-                all_messages[0] = {"role": "user",
+                all_messages[0] = {"role": "system",
                                    "content": argv[2]}
 
             else:
                 for mod in modes:
                     if ("-"+mod["shortcut"]) == argv[1]:
-                        all_messages[0] = {"role": "user",
+                        all_messages[0] = {"role": "system",
                                            "content": mod["description"]}
 
     elif history_exists:
@@ -96,7 +96,8 @@ def main():
 
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-0301",
-            messages=all_messages)
+            messages=all_messages,
+            temperature=0.9)
         answer = response.choices[0].message.content
         stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
         total_tokens = response.usage.total_tokens
