@@ -59,15 +59,16 @@ This module provides the interaction with the whisper API for the voice recognit
 This file is used to store the OpenAI API key. I used a simple text file simply for ease of use. If the key.txt file is not present, the __check_db_and_key()__ function inside of chat.py ensures that the user is asked for his key and makes the file.
 
 ### setup.py
-This file is for installation with pip. 
-
-Helping with the __setup()__ function is the newly created cmdclass __PreInstallCommand__, which is a subclass of the __install__ class and has a function __run()__ in it. It's primary purpose is to create teh file_locations.py file.
+This file is for installation with pip. I recommend installing it with the --editable flag, because it doesn't work on my system without it.
 
 ### file_locations.py
 Stores the absolute file locations for **key.txt**, **history.db**, **audio.wav** and **another_one.wav**., which are needed for running it for outside of the program directory.
 
+### modes.py
+Stores the prebuilt modes in a list of dictionaries, like god intended. By storing them all here, including some really long descriptions, the chat.py file looks much cleaner and more readable.
+
 ### history.db
-Stores the chats pretty much. The table is created with the following command:
+Stores the chats. The table is created with the following command:
 ```
 CREATE TABLE chat_messages (
     chat_id INTEGER,
