@@ -8,11 +8,9 @@ from cs50 import SQL
 from modes import modes, short_mode
 from sys import argv
 from whisper import record, whisper
-from file_locations import key_location, db_location, another_one_location, audio_location
+from pathlib import Path
 
 logging.disable(logging.CRITICAL)
-
-
 
 # checks if the chat is resumed,
 # also stores the number of the loaded chatg
@@ -21,13 +19,21 @@ is_argv = False if len(argv) == 1 else True
 is_new_mode = True if is_argv and argv[1] in ("--new-mode", "--add-mode") else False
 all_messages = []
 
+#this has honestly been the hardest part of the project. Without the library, I had to resort to really big workarounds
+path = str(Path(__file__).parent.resolve()) + "/"
+key_location = path + "key.txt"
+db_location = path + "history.db"
+another_one_location = path + "another_one.wav"
+audio_location = path + "audio.wav"
+
 
 def main():
+    global is_new_mode
+    global all_messages
+    global key_location, db_location, another_one_location
     db = setup_db_and_key()
     history_exists = db.execute(("SELECT MAX(message_id) "
                                 "as max FROM chat_messages"))[0]["max"] is not None
-    global is_new_mode
-    global all_messages
 
     if is_argv:
 

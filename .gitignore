@@ -4,3 +4,5 @@ audio.wav
 .DS_Store
 __pycache__/
 file_locations.py
+bashgpt.egg-info/
+build
