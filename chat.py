@@ -168,7 +168,7 @@ def long_input():
 def voice_input():
     record()
     transcription = whisper(audio_location)
-    print(transcription + "\n")
+    print("You: " + transcription + "\n")
     return transcription
 
 def save_chat(chat, db):
