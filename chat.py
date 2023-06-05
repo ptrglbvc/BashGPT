@@ -9,6 +9,7 @@ from modes import modes, short_mode
 from sys import argv
 from whisper import record, whisper
 from pathlib import Path
+from bash import execute_command
 
 logging.disable(logging.CRITICAL)
 
@@ -18,6 +19,7 @@ is_loaded = [False]
 is_argv = False if len(argv) == 1 else True
 is_new_mode = True if is_argv and argv[1] in ("--new-mode", "--add-mode") else False
 all_messages = []
+
 
 #this has honestly been the hardest part of the project. Without the library, I had to resort to really big workarounds
 path = str(Path(__file__).parent.resolve()) + "/"
@@ -109,11 +111,25 @@ def main():
         total_tokens = response.usage.total_tokens
 
         print(stylized_answer, "\n")
+        all_messages.append({"role": "assistant", "content": answer})
+        #bashgpt mode starts here baby
+        if all_messages[0]["content"].split()[2] == "bashGPT.":
+            try:
+                command = answer.split("```")[1]
+                output = execute_command(command)
+                if output.strip():
+                    nicely_formated_output = "\033[1m\033[31m\n"+output+"\033[0m\n"
+                    print(nicely_formated_output)
+                    if len(output)<400:
+                        all_messages[-1]["content"]+= ("\n\nOutput: "+ output)
+                    
+            except Exception as e:
+                print(f"Exception: {e}\n")
+
 
         #play the "another one" sound effect thread from time to time (in another thread)
         if len(all_messages)%10==0:
             threading.Thread(target=playsound, args=[another_one_location]).start()
-        all_messages.append({"role": "assistant", "content": answer})
 
         if total_tokens > 3200:
             print("\033[1m\033[31mToken limit almost reached.\033[0m\n")
@@ -126,7 +142,6 @@ def setup_db_and_key():
             key_file.write(key)
     
     with open(key_location, 'r') as key:
-        pass
         openai.api_key = key.read().strip()
 
     #checks if the user already has a db file in the directory, if not, creates it.

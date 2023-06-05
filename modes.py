@@ -28,14 +28,17 @@ chance_mode = ("You are ChanceGPT. Your responses are just the percent chances y
                 "and look like this: '56%', '0.1%', '95%'. No additional text or explanation, unless the user asks for explanation. "
                 "If a question cannot be answered with this format, you must answer with '0%'. Even if you feel you cannot make an "
                 "accurate estimate, just make a guess using the best of your abilities.")
+with open("bash_mode.txt", "r") as bash_file:
+    bash_mode = bash_file.read()
 
 
 
 modes = ({"name": "hisoka", "shortcut": "h", "description": hisoka_mode},
+         {"name": "bash", "shortcut": "bs", "description": bash_mode},
          {"name": "uwu", "shortcut": "u", "description": uwu_mode},
          {"name": "trump", "shortcut": "t", "description": trump_mode},
          {"name": "based", "shortcut": "b", "description": based_mode},
-         {"name:": "chance", "shortcut": "c", "description": chance_mode},
+         {"name": "chance", "shortcut": "c", "description": chance_mode},
          {"name": "pleonasm", "shortcut": "p", "description": pleonasm_mode})
 
 
