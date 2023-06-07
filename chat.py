@@ -17,10 +17,8 @@ logging.disable(logging.CRITICAL)
 # checks if the chat is resumed,
 # also stores the number of the loaded chat from the database
 # ignore my retarded naming conventions
-
 chat_is_loaded = [False]
-#is_argv = False if len(argv) == 1 else True
-#is_new_mode = True if argv and argv[1] in ("--new-mode", "--add-mode") else False
+
 all_messages = []
 current_mode = "short"
 
