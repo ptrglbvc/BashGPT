@@ -10,92 +10,103 @@ from sys import argv
 from whisper import record, whisper
 from pathlib import Path
 from bash import execute_command
+from setup_db_and_key import setup_db, setup_key
 
 logging.disable(logging.CRITICAL)
 
 # checks if the chat is resumed,
-# also stores the number of the loaded chatg
-is_loaded = [False]
-is_argv = False if len(argv) == 1 else True
-is_new_mode = True if is_argv and argv[1] in ("--new-mode", "--add-mode") else False
+# also stores the number of the loaded chat from the database
+# ignore my retarded naming conventions
+
+chat_is_loaded = [False]
+#is_argv = False if len(argv) == 1 else True
+#is_new_mode = True if argv and argv[1] in ("--new-mode", "--add-mode") else False
 all_messages = []
+current_mode = "short"
 
 
 #this has honestly been the hardest part of the project. Without the library, I had to resort to really big workarounds
 path = str(Path(__file__).parent.resolve()) + "/"
-key_location = path + "key.txt"
-db_location = path + "history.db"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
+db = setup_db(path) if argv==1 else ""
+setup_key(path)
+
 
 def main():
-    global is_new_mode
     global all_messages
-    global key_location, db_location, another_one_location
-    db = setup_db_and_key()
-    history_exists = db.execute(("SELECT MAX(message_id) "
-                                "as max FROM chat_messages"))[0]["max"] is not None
+    current_mode = "short"
 
-    if is_argv:
+    # check for too many args
+    if len(argv)>3:
+        print("Too many arguments. For help with usage type 'dp help'.")
+        return 0
 
-        # check for too many args
-        if len(argv)>3:
-            print("Too many arguments")
-            return 0
+    elif len(argv)==2:
+        if argv[1]=="help":
+            help_me()
+            exit()
 
-        prompt = argv[-1]
+        prompt = argv[1]
         all_messages.append({"role": "system", "content": short_mode})
         all_messages.append({"role": "user", "content": prompt})
         print()
 
-        if len(argv) == 3:
-            if argv[1] == "--new-mode":
-                all_messages[0] = {"role": "system",
-                                   "content": argv[2]}
-
-            else:
-                for mod in modes:
-                    if ("-"+mod["shortcut"]) == argv[1]:
-                        all_messages[0] = {"role": "system",
-                                           "content": mod["description"]}
-
-    elif history_exists:
-        history_input = input(
-            ("Would you like to resume a previous conversation? "
-             "(y/n) ")).lower().strip()
-        if history_input == "y":
-            all_messages = resume_chat(db)
+    elif len(argv) == 3:
+        if argv[1] == "--new-mode":
+            all_messages.append({"role": "system",
+                                "content": argv[2]})
 
         else:
-            modes_text = "Modes to choose from: "
-            for option in modes:
-                modes_text += option["name"]+", "
-                if option["shortcut"] is modes[-1]["shortcut"]:
-                    modes_text = modes_text.rstrip(", ")+"."
-            print("\n" + modes_text, end=" ")
+            for mod in modes:
+                if ("-"+mod["shortcut"]) == argv[1]:
+                    all_messages.append({"role": "system", "content": mod["description"]})
+                    current_mode = mod["name"]
 
-            mode_input = input(
-                "The default is short mode.\n"
-                "What mode would you like? ").lower().strip()
-            print()
-            mode = short_mode
-            for option in modes:
-                if mode_input == option["name"] or mode_input == option["shortcut"]:
-                    mode = option["description"]
-                    break
-            all_messages.append({"role": "system", "content": mode})
+            if not all_messages:
+                print("Invalid mode. For available modes type 'dp help'.")
+                exit()
+            
+            all_messages.append({"role": "user", "content": argv[2]})
+
+    # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
+
+    else:
+        db = setup_db(path)
+        history_exists = db.execute(("SELECT MAX(message_id) "
+                                    "AS max FROM chat_messages"))[0]["max"] is not None 
+        if history_exists:
+            history_input = input(
+                ("\nWould you like to resume a previous conversation? "
+                "(y/n) ")).lower().strip()
+            if history_input == "y":
+                all_messages = resume_chat(db)
+
+            # we need to ask the user for the mod if he doesn't load history.
+            else:
+                mode_input = input("What mode would you like? ").lower().strip()
+                print()
+
+                mode_description = short_mode
+                for option in modes:
+                    if mode_input == option["name"] or mode_input == option["shortcut"]:
+                        mode_description = option["description"]
+                        current_mode = option["name"]
+                        break
+                all_messages.append({"role": "system", "content": mode_description})
+    
 
     while 1:
-        if not is_argv or len(all_messages) > 2 or is_new_mode:
+        # If there is only 2 messages, then we know that it is a user sending a message via command line argiments.
+        if not len(all_messages) == 2:
             chat = input("You: ")
             print()
 
             if chat == "q":
-                save_chat(all_messages, db)
+                save_chat()
                 break
-                exit()
-            elif chat == "l":  # l stands for long input
+            elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
                 chat = voice_input()
@@ -112,22 +123,22 @@ def main():
 
         print(stylized_answer, "\n")
         all_messages.append({"role": "assistant", "content": answer})
+
         #bashgpt mode starts here baby
-        if all_messages[0]["content"].split()[2] == "bashGPT.":
+        if current_mode == "bash":
             try:
                 command = answer.split("```")[1]
                 output = execute_command(command)
                 if output.strip():
-                    nicely_formated_output = "\033[1m\033[31m\n"+output+"\033[0m\n"
+                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
                     print(nicely_formated_output)
-                    if len(output)<400:
-                        all_messages[-1]["content"]+= ("\n\nOutput: "+ output)
+                    if len(output)<1000:
+                        all_messages.append({"role": "user", "content": "Shell: "+ output})
                     
-            except Exception as e:
-                print(f"Exception: {e}\n")
+            except Exception:
+                pass
 
-
-        #play the "another one" sound effect thread from time to time (in another thread)
+        #play the "another one" sound effect thread from time to time (in another thread). just cause.
         if len(all_messages)%10==0:
             threading.Thread(target=playsound, args=[another_one_location]).start()
 
@@ -135,36 +146,6 @@ def main():
             print("\033[1m\033[31mToken limit almost reached.\033[0m\n")
 
 
-def setup_db_and_key():
-    if not os.path.isfile(key_location):
-        key = input("What is your OpenAI API key? ")
-        with open(key_location, "w") as key_file:
-            key_file.write(key)
-    
-    with open(key_location, 'r') as key:
-        openai.api_key = key.read().strip()
-
-    #checks if the user already has a db file in the directory, if not, creates it.
-    #replace the file path with yours here
-    if not os.path.isfile(db_location):
-        try:
-            conn = sqlite3.connect(db_location)
-        except sqlite3.Error as e:
-            print(e)
-        finally:
-            if conn:
-                conn.close()
-        #replace the file path with your file path here
-        db = SQL("sqlite:///" + db_location)
-        db.execute(("CREATE TABLE chat_messages ("
-        "chat_id INTEGER,"
-        "message_id INTEGER PRIMARY KEY,"
-        "user_name TEXT,"
-        "message TEXT,"
-        "description TEXT);"))
-    else:
-        db = SQL("sqlite:///" + db_location)
-    return db
 
 
 def long_input():
@@ -186,26 +167,28 @@ def voice_input():
     print("You: " + transcription + "\n")
     return transcription
 
-def save_chat(chat, db):
-    # if the chat is too short, that is, just the role message and the
+def save_chat():
+    global db
+    if not db:
+        db = setup_db(path)
+    # if the chat is too short, that is, it's the role message and the
     # first user message, there's no need to save it.
-    if len(chat) > 2:
+    if len(all_messages) > 2:
         print("Saving chat. Hold on a minute...")
-        chat_description = get_description(chat)
+        chat_description = get_description(all_messages)
         max_chat_id = db.execute(
             "SELECT MAX(chat_id) AS max FROM chat_messages")[0]["max"]
-        if max_chat_id is None:
+        if not max_chat_id:
             max_chat_id = 0
 
-        elif is_loaded[0]:
+        elif chat_is_loaded[0]:
             global chat_id
 
             # deletes the chat, but the now chat is saved under a newer number.
-            db.execute(
-                "DELETE FROM chat_messages WHERE chat_id=?", is_loaded[1])
-            max_chat_id = is_loaded[1]-1
+            db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat_is_loaded[1])
+            max_chat_id = chat_is_loaded[1]-1
 
-        for message in chat:
+        for message in all_messages:
             db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
                        max_chat_id+1, message["role"], message["content"], chat_description)
 
@@ -223,9 +206,9 @@ def resume_chat(db):
         print(f"{option['chat_id']}: {option['description']}")
     # todo: error handing
     chat_id = int(input("\nWhich chat do you want to continue? "))
-    global is_loaded
-    is_loaded.append(chat_id)
-    is_loaded[0] = True
+    global chat_is_loaded
+    chat_is_loaded.append(chat_id)
+    chat_is_loaded[0] = True
 
     rows = db.execute("select * from chat_messages where chat_id=?", chat_id)
     global all_messages
@@ -248,6 +231,15 @@ def get_description(all_messages):
         messages=[{"role": "system", "content": "describe the chat using 12 words or less. focus mainly on the human."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
     return chat_description
+
+def help_me():
+    print("Valid usages: dp -bs 'delete every file from my downloads folder' (do not try this at home).\n")
+    print("Also valid usages: dp; dp 'what is the height of the Eiffel Tower'\n")
+    print("You can also add a new mode: dp --add-mode 'You are a DumbGPT. You get every question wrong.")
+
+    print("Available modes: ", end="")
+    for mode in modes:
+        print(f'{mode["shortcut"]} ({mode["name"]} mode),', end=" ")
 
 
 if __name__ == "__main__":

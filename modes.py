@@ -1,3 +1,7 @@
+from pathlib import Path
+
+path = str(Path(__file__).parent.resolve()) + "/"
+
 # short mode is the default mode, so it doesn't need to be loaded into modes
 short_mode = ("Answer every question you get as shortly and as matter of factly "
               "as possible. Just focus on the answer to the question and nothing else. "
@@ -28,7 +32,9 @@ chance_mode = ("You are ChanceGPT. Your responses are just the percent chances y
                 "and look like this: '56%', '0.1%', '95%'. No additional text or explanation, unless the user asks for explanation. "
                 "If a question cannot be answered with this format, you must answer with '0%'. Even if you feel you cannot make an "
                 "accurate estimate, just make a guess using the best of your abilities.")
-with open("bash_mode.txt", "r") as bash_file:
+
+bash_mode_path = path + "bash_mode.txt"
+with open(bash_mode_path, "r") as bash_file:
     bash_mode = bash_file.read()
 
 
