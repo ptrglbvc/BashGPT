@@ -1,8 +1,6 @@
 import openai
 import simpleaudio as sa
 import logging
-import os
-import sqlite3
 import threading
 from cs50 import SQL
 from modes import modes, short_mode
@@ -80,6 +78,7 @@ def main():
                 "(y/n) ")).lower().strip()
             if history_input == "y":
                 all_messages = resume_chat(db)
+                current_mode = remember_mode()
 
             # we need to ask the user for the mod if he doesn't load history.
             else:
@@ -95,7 +94,7 @@ def main():
                 all_messages.append({"role": "system", "content": mode_description})
     
 
-    while 1:
+    while True:
         # If there is only 2 messages, then we know that it is a user sending a message via command line argiments.
         if not len(all_messages) == 2:
             chat = input("You: ")
@@ -110,6 +109,10 @@ def main():
                 chat = voice_input()
 
             all_messages.append({"role": "user", "content": chat})
+            
+        # just making sure it look more nice when entered through quick mode.
+        else:
+            print()
 
         (stylized_answer, total_tokens) = get_and_parse_response()
         print(stylized_answer, "\n")
@@ -201,8 +204,14 @@ def resume_chat(db):
         elif row["user_name"] == "system":
             stylized_message = ""
         print(stylized_message)
-
     return all_messages
+
+def remember_mode():
+    for mod in modes:
+        if mod["description"][:15] == all_messages[0]["content"][:15]:
+            return mod["name"];
+            
+
 
 
 def get_description(all_messages):
@@ -252,8 +261,8 @@ def bash_mode(answer):
             if len(output)<1000:
                 all_messages.append({"role": "user", "content": "Shell: "+ output})
             
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Exception: {e}")
 
 if __name__ == "__main__":
     main()
