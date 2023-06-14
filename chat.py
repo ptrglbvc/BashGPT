@@ -111,37 +111,19 @@ def main():
 
             all_messages.append({"role": "user", "content": chat})
 
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=all_messages,
-            temperature=0.9)
-        answer = response.choices[0].message.content
-        stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
-        total_tokens = response.usage.total_tokens
-
+        (stylized_answer, total_tokens) = get_and_parse_response()
         print(stylized_answer, "\n")
-        all_messages.append({"role": "assistant", "content": answer})
 
-        #bashgpt mode starts here baby
+        if total_tokens > 3200:
+            print("\033[1m\033[31mToken limit almost reached.\033[0m\n")
+
         if current_mode == "bash":
-            try:
-                command = answer.split("```")[1]
-                output = execute_command(command)
-                if output.strip():
-                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
-                    print(nicely_formated_output)
-                    if len(output)<1000:
-                        all_messages.append({"role": "user", "content": "Shell: "+ output})
-                    
-            except Exception:
-                pass
+            bash_mode(stylized_answer)
 
         #play the "another one" sound effect thread from time to time (in another thread). just cause.
         if len(all_messages)%10==0:
             threading.Thread(target=playsound, args=[another_one_location]).start()
 
-        if total_tokens > 3200:
-            print("\033[1m\033[31mToken limit almost reached.\033[0m\n")
 
 
 
@@ -239,6 +221,39 @@ def help_me():
     for mode in modes:
         print(f'{mode["shortcut"]} ({mode["name"]} mode),', end=" ")
 
+
+def get_and_parse_response():
+    for _ in range(5):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=all_messages,
+                temperature=0.9)
+
+            answer = response.choices[0].message.content
+            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
+            total_tokens = response.usage.total_tokens
+
+            all_messages.append({"role": "assistant", "content": answer})
+            return (stylized_answer, total_tokens)
+        except:
+            print("Retrying request...")
+    
+    save_chat()
+    exit()
+
+def bash_mode(answer):
+    try:
+        command = answer.split("```")[1]
+        output = execute_command(command)
+        if output.strip():
+            nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
+            print(nicely_formated_output)
+            if len(output)<1000:
+                all_messages.append({"role": "user", "content": "Shell: "+ output})
+            
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     main()
