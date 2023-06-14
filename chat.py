@@ -10,10 +10,10 @@ from pathlib import Path
 from bash import execute_command
 from setup_db_and_key import setup_db, setup_key
 
+# hides the logging that is enabled by default by the cs50 library.
 logging.disable(logging.CRITICAL)
 
-# checks if the chat is resumed,
-# also stores the number of the loaded chat from the database
+# also stores the number of the loaded chat from the database in the 1th index
 # ignore my retarded naming conventions
 chat_is_loaded = [False]
 
