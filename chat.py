@@ -106,7 +106,11 @@ def main():
             elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
-                chat = voice_input()
+                try:
+                    chat = voice_input()
+                except:
+                    print("Recording doesn't work on you device. \nLong input mode activated.")
+                    chat = long_input()
 
             all_messages.append({"role": "user", "content": chat})
             
