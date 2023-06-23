@@ -29,7 +29,6 @@ audio_location = path + "audio.wav"
 db = setup_db(path) if argv==1 else ""
 setup_key(path)
 
-
 def main():
     global all_messages
     current_mode = "short"
@@ -47,7 +46,6 @@ def main():
         prompt = argv[1]
         all_messages.append({"role": "system", "content": short_mode})
         all_messages.append({"role": "user", "content": prompt})
-        print()
 
     elif len(argv) == 3:
         if argv[1] == "--new-mode":
@@ -156,24 +154,29 @@ def voice_input():
 
 def save_chat():
     global db
+    global chat_is_loaded
     if not db:
         db = setup_db(path)
     # if the chat is too short, that is, it's the role message and the
     # first user message, there's no need to save it.
     if len(all_messages) > 2:
         print("Saving chat. Hold on a minute...")
-        chat_description = get_description(all_messages)
-        max_chat_id = db.execute(
-            "SELECT MAX(chat_id) AS max FROM chat_messages")[0]["max"]
-        if not max_chat_id:
-            max_chat_id = 0
-
-        elif chat_is_loaded[0]:
+        if chat_is_loaded[0]:
             global chat_id
+            chat_description = db.execute(
+                "SELECT description FROM chat_messages WHERE chat_id = ?", chat_is_loaded[1])[0]["description"]
 
             # deletes the chat, but the now chat is saved under a newer number.
             db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat_is_loaded[1])
             max_chat_id = chat_is_loaded[1]-1
+
+        else:
+            max_chat_id = db.execute(
+                "SELECT MAX(chat_id) AS max FROM chat_messages")[0]["max"]
+            if not max_chat_id:
+                max_chat_id = 0
+
+            chat_description = get_description(all_messages)
 
         for message in all_messages:
             db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
@@ -193,6 +196,7 @@ def resume_chat(db):
         print(f"{option['chat_id']}: {option['description']}")
     # todo: error handing
     chat_id = int(input("\nWhich chat do you want to continue? "))
+
     global chat_is_loaded
     chat_is_loaded.append(chat_id)
     chat_is_loaded[0] = True
@@ -210,20 +214,21 @@ def resume_chat(db):
         print(stylized_message)
     return all_messages
 
+
 def remember_mode():
     for mod in modes:
         if mod["description"][:15] == all_messages[0]["content"][:15]:
             return mod["name"];
             
 
-
-
 def get_description(all_messages):
     chat_description = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "describe the chat using 12 words or less. focus mainly on the human."},
+        messages=[{"role": "system", "content": "describe the chat using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
+        
     return chat_description
+
 
 def help_me():
     print("Valid usages: dp -bs 'delete every file from my downloads folder' (do not try this at home).\n")
