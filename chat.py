@@ -14,7 +14,7 @@ from setup_db_and_key import setup_db, setup_key
 logging.disable(logging.CRITICAL)
 
 # also stores the number of the loaded chat from the database in the 1th index
-# ignore my retarded naming conventions
+# please ignore my stupid naming conventions
 chat_is_loaded = [False]
 
 all_messages = []
@@ -32,6 +32,7 @@ setup_key(path)
 def main():
     global all_messages
     current_mode = "short"
+    model = "gpt-3.5-turbo"
 
     # check for too many args
     if len(argv)>3:
@@ -42,27 +43,35 @@ def main():
         if argv[1]=="help":
             help_me()
             exit()
+        
+        elif argv[1]=="--gpt-4" or argv[1]=="-4":
+            model = "gpt-4"
 
-        prompt = argv[1]
-        all_messages.append({"role": "system", "content": short_mode})
-        all_messages.append({"role": "user", "content": prompt})
+        else:
+            prompt = argv[1]
+            all_messages.append({"role": "system", "content": short_mode})
+            all_messages.append({"role": "user", "content": prompt})
 
     elif len(argv) == 3:
         if argv[1] == "--new-mode":
-            all_messages.append({"role": "system",
-                                "content": argv[2]})
+            current_mode = argv[2]
+
+        elif argv[1] == "-4" or "--gpt-4":
+            model = "gpt-4"
+            all_messages.append({"role": "user", "content": argv[2]})
+            current_mode = short_mode
 
         else:
             for mod in modes:
                 if ("-"+mod["shortcut"]) == argv[1]:
-                    all_messages.append({"role": "system", "content": mod["description"]})
                     current_mode = mod["name"]
 
-            if not all_messages:
+            if current_mode == "short":
                 print("Invalid mode. For available modes type 'dp help'.")
-                exit()
             
             all_messages.append({"role": "user", "content": argv[2]})
+
+        all_messages.insert(0, {"role": "system", "content": current_mode})
 
     # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
 
@@ -116,7 +125,7 @@ def main():
         else:
             print()
 
-        (stylized_answer, total_tokens) = get_and_parse_response()
+        (stylized_answer, total_tokens) = get_and_parse_response(model)
         print(stylized_answer, "\n")
 
         if total_tokens > 3200:
@@ -240,13 +249,13 @@ def help_me():
         print(f'{mode["shortcut"]} ({mode["name"]} mode),', end=" ")
 
 
-def get_and_parse_response():
+def get_and_parse_response(model):
     for _ in range(5):
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model=model,
                 messages=all_messages,
-                temperature=0.9)
+                temperature=0.8)
 
             answer = response.choices[0].message.content
             stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
