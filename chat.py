@@ -3,7 +3,7 @@ import simpleaudio as sa
 import logging
 import threading
 from cs50 import SQL
-from modes import modes, short_mode
+from modes_and_models import modes, models, short_mode
 from sys import argv
 from whisper import record, whisper
 from pathlib import Path
@@ -18,7 +18,6 @@ logging.disable(logging.CRITICAL)
 chat_is_loaded = [False]
 
 all_messages = []
-current_mode = "short"
 
 
 #this has honestly been the hardest part of the project. Without the library, I had to resort to really big workarounds
@@ -31,50 +30,11 @@ setup_key(path)
 
 def main():
     global all_messages
-    current_mode = "short"
-    model = "gpt-3.5-turbo"
 
-    # check for too many args
-    if len(argv)>3:
-        print("Too many arguments. For help with usage type 'dp help'.")
-        return 0
-
-    elif len(argv)==2:
-        if argv[1]=="help":
-            help_me()
-            exit()
-        
-        elif argv[1]=="--gpt-4" or argv[1]=="-4":
-            model = "gpt-4"
-
-        else:
-            prompt = argv[1]
-            all_messages.append({"role": "system", "content": short_mode})
-            all_messages.append({"role": "user", "content": prompt})
-
-    elif len(argv) == 3:
-        if argv[1] == "--new-mode":
-            current_mode = argv[2]
-
-        elif argv[1] == "-4" or "--gpt-4":
-            model = "gpt-4"
-            all_messages.append({"role": "user", "content": argv[2]})
-            current_mode = short_mode
-
-        else:
-            for mod in modes:
-                if ("-"+mod["shortcut"]) == argv[1]:
-                    current_mode = mod["name"]
-
-            if current_mode == "short":
-                print("Invalid mode. For available modes type 'dp help'.")
-            
-            all_messages.append({"role": "user", "content": argv[2]})
-
-        all_messages.insert(0, {"role": "system", "content": current_mode})
+    if len(argv)>1:
+        (current_mode, current_model) = quick_mode()
 
     # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
-
     else:
         db = setup_db(path)
         history_exists = db.execute(("SELECT MAX(message_id) "
@@ -125,7 +85,7 @@ def main():
         else:
             print()
 
-        (stylized_answer, total_tokens) = get_and_parse_response(model)
+        (stylized_answer, total_tokens) = get_and_parse_response(current_model)
         print(stylized_answer, "\n")
 
         if total_tokens > 3200:
@@ -249,11 +209,11 @@ def help_me():
         print(f'{mode["shortcut"]} ({mode["name"]} mode),', end=" ")
 
 
-def get_and_parse_response(model):
+def get_and_parse_response(current_model):
     for _ in range(5):
         try:
             response = openai.ChatCompletion.create(
-                model=model,
+                model=current_model,
                 messages=all_messages,
                 temperature=0.8)
 
@@ -281,6 +241,75 @@ def bash_mode(answer):
             
     except Exception as e:
         print(f"Exception: {e}")
+
+
+def quick_mode():
+    global all_messages
+    current_mode = "short"
+    current_model = "gpt-3.5-turbo"
+
+    # check for too many args
+    if len(argv)>4:
+        print("Too many arguments. For help with usage type 'dp help'.")
+        return 0
+
+    elif len(argv)==2:
+        if argv[1]=="help":
+            help_me()
+            exit()
+        
+        elif argv[1]=="--gpt-4" or argv[1]=="-4":
+            current_model = "gpt-4"
+
+        else:
+            prompt = argv[1]
+            all_messages.append({"role": "system", "content": short_mode})
+            all_messages.append({"role": "user", "content": prompt})
+
+    elif len(argv) == 3:
+        if argv[1] == "--new-mode":
+            current_mode = argv[2]
+
+        else:
+            for mod in modes:
+                if ("-"+mod["shortcut"]) == argv[1]:
+                    current_mode = mod["name"]
+                    break
+            
+            if current_mode != "short":
+                for model in models:
+                    if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
+                        current_model == model["name"]
+                        current_mode = short_mode
+                        break
+
+            if current_mode == "short":
+                print("Invalid mode. For available modes type 'dp help'.")
+            
+            all_messages.append({"role": "user", "content": argv[2]})
+
+        all_messages.insert(0, {"role": "system", "content": current_mode})
+
+    elif len(argv) == 4:
+        for model in models:
+            if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]):
+                current_model = model["name"]
+                break
+
+        for mode in modes:
+            if ("-" + mode["shortcut"])==argv[2] or ("--" + mode["name"])==argv[2]:  
+                current_mode = mode["name"]
+                all_messages.append({"role": "system", "content": mode["description"]})
+            
+        if not all_messages:
+            all_messages.append({"role": "system", "content": short_mode})
+        
+        all_messages.append({"role": "user", "content": argv[3]})
+            
+
+    return (current_mode, current_model) 
+
+
 
 if __name__ == "__main__":
     main()

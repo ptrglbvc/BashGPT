@@ -1,0 +1,8 @@
+[
+    {"name": "gpt-3.5-turbo", "shortcut": "3.5"},
+    {"name": "gpt-3-5-turbo-16k", "shortcut": "16k"},
+    {"name": "gpt-4", "shortcut": "4"},
+    {"name": "gpt-4-32k", "shortcut": "32k"},
+    {"name": "gpt-3.5-turbo-0301", "shortcut": "0301"}
+]
+

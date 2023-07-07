@@ -2,7 +2,8 @@ from pathlib import Path
 import json
 
 path = str(Path(__file__).parent.resolve()) + "/"
-jason_path = path + "modes.json"
+modes_path = path + "modes.json"
+models_path = path + "models.json"
 
 # short mode is the default mode, it has to exist, even if the json is deleted 
 short_mode = ("Answer every question you get as shortly and as matter of factly "
@@ -10,5 +11,8 @@ short_mode = ("Answer every question you get as shortly and as matter of factly 
               "No fat. For example: Who won the premier league? - Manchester City. "
               "Don't even use complete sentences if not needed.")
 
-with open(jason_path, 'r') as jason:
+with open(modes_path, 'r') as jason:
     modes = json.load(jason)
+
+with open(models_path, "r") as jasonn:
+    models = json.load(jasonn)
