@@ -2,13 +2,17 @@ import openai
 import simpleaudio as sa
 import logging
 import threading
-from cs50 import SQL
-from modes_and_models import modes, models, short_mode
-from sys import argv
-from whisper import record, whisper
+import os
+import requests
+import subprocess
+
+from sys import argv, platform
 from pathlib import Path
-from bash import execute_command
+
+from modes_and_models import modes, models, short_mode
 from setup_db_and_key import setup_db, setup_key
+from whisper import record, whisper
+
 
 # hides the logging that is enabled by default by the cs50 library.
 logging.disable(logging.CRITICAL)
@@ -35,7 +39,7 @@ def main():
         (current_mode, current_model) = quick_mode()
 
     # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
-    else:
+    if not all_messages:
         db = setup_db(path)
         history_exists = db.execute(("SELECT MAX(message_id) "
                                     "AS max FROM chat_messages"))[0]["max"] is not None 
@@ -93,6 +97,9 @@ def main():
 
         if current_mode == "bash":
             bash_mode(stylized_answer)
+
+        if current_mode == "dalle":
+            threading.Thread(target=dalle_mode, args=[stylized_answer]).start()
 
         #play the "another one" sound effect thread from time to time (in another thread). just cause.
         if len(all_messages)%10==0:
@@ -187,7 +194,7 @@ def resume_chat(db):
 def remember_mode():
     for mod in modes:
         if mod["description"][:15] == all_messages[0]["content"][:15]:
-            return mod["name"];
+            return mod["name"]
             
 
 def get_description(all_messages):
@@ -228,6 +235,7 @@ def get_and_parse_response(current_model):
     
     save_chat()
     exit()
+
 
 def bash_mode(answer):
     try:
@@ -271,33 +279,30 @@ def quick_mode():
             current_mode = argv[2]
 
         else:
-            for mod in modes:
-                if ("-"+mod["shortcut"]) == argv[1]:
-                    current_mode = mod["name"]
+            for mode in modes:
+                if ("-"+mode["shortcut"]) == argv[1]:
+                    current_mode = mode["name"]
+                    all_messages.append({"role": "system", "content": mode["description"]})
                     break
             
-            if current_mode != "short":
+            if current_mode == "short":
                 for model in models:
                     if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                        current_model == model["name"]
-                        current_mode = short_mode
+                        current_model = model["name"]
+                        all_messages.append({"role": "system", "content": short_mode})
                         break
 
-            if current_mode == "short":
-                print("Invalid mode. For available modes type 'dp help'.")
-            
             all_messages.append({"role": "user", "content": argv[2]})
 
-        all_messages.insert(0, {"role": "system", "content": current_mode})
 
     elif len(argv) == 4:
         for model in models:
-            if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]):
+            if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
                 current_model = model["name"]
                 break
 
         for mode in modes:
-            if ("-" + mode["shortcut"])==argv[2] or ("--" + mode["name"])==argv[2]:  
+            if ("-" + mode["shortcut"]) == argv[2] or ("--" + mode["name"]) == argv[2]:
                 current_mode = mode["name"]
                 all_messages.append({"role": "system", "content": mode["description"]})
             
@@ -306,9 +311,44 @@ def quick_mode():
         
         all_messages.append({"role": "user", "content": argv[3]})
             
-
     return (current_mode, current_model) 
 
+
+def dalle_mode(text):
+    try:
+        prompt = text.split("```")[1].strip()
+        response = openai.Image.create(
+            prompt=prompt,
+            n=1,
+            size="1024x1024"
+        )
+        image_url = response['data'][0]['url']
+        prompt_words = prompt.split()
+        if len(prompt_words)>10:
+            prompt_words = prompt_words[:10]
+
+        prompt_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
+
+        image_name = "_".join(prompt_words) + ".png"
+        response = requests.get(image_url)
+        with open(image_name, "wb") as image:
+            image.write(response.content)
+            
+        if platform == "win32":
+            os.startfile(image_name)
+        elif platform == "darwin":
+            subprocess.Popen(["open", image_name])
+        else:
+            subprocess.Popen(["xdg-open", image_name])
+    except:
+        pass
+
+
+def execute_command(command):
+    output = subprocess.check_output(command, shell=True, universal_newlines=True)
+    return output
+
+#def loading_bar():
 
 
 if __name__ == "__main__":
