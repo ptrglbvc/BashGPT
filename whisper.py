@@ -1,7 +1,9 @@
 import pyaudio
 import wave
 import openai
+
 import sys
+import os
 from pathlib import Path
 
 chunk = 1024
@@ -46,8 +48,13 @@ def record():
 
 def whisper(file):
     openai.api_key = open(key_location, "r").read().strip()
-    audio_file = open(file, "rb")
-    transcript = openai.Audio.transcribe("whisper-1", audio_file).text
+    with open(file, "rb") as audio_file:
+        try:
+            transcript = openai.Audio.transcribe("whisper-1", audio_file).text
+        except:
+            transcript = "Voice recording didn't work."
+
+    os.remove(file)
     return transcript
 
 if (__name__)=="__main__":

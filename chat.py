@@ -1,11 +1,11 @@
 import openai
 import simpleaudio as sa
+
 import logging
 import threading
 import os
 import requests
 import subprocess
-
 from sys import argv, platform
 from pathlib import Path
 
@@ -198,22 +198,23 @@ def remember_mode():
             
 
 def get_description(all_messages):
-    chat_description = openai.ChatCompletion.create(
+    return openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "describe the chat using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
         
-    return chat_description
-
 
 def help_me():
-    print("Valid usages: dp -bs 'delete every file from my downloads folder' (do not try this at home).\n")
-    print("Also valid usages: dp; dp 'what is the height of the Eiffel Tower'\n")
-    print("You can also add a new mode: dp --add-mode 'You are a DumbGPT. You get every question wrong.")
+    print("Valid usage:\n dp -bs 'delete every file from my downloads folder' (it will work, do not try it).\n")
+    print("Also valid usages:\n dp (this brings you to the the history tab\n dp 'what is the height of the Eiffel Tower'\n dp --gpt-4 -h 'Why did you lose to Chrollo?'\n")
+    print("You can also add a new mode like this: dp --add-mode 'You are a DumbGPT. You get every question wrong.\n")
 
-    print("Available modes: ", end="")
+    available_modes = "Available modes: "
     for mode in modes:
-        print(f'{mode["shortcut"]} ({mode["name"]} mode),', end=" ")
+        available_modes += f'{mode["shortcut"]} ({mode["name"]} mode), '
+    
+    available_modes = available_modes.strip(" ,") + "."
+    print(available_modes)
 
 
 def get_and_parse_response(current_model):

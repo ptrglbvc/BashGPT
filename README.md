@@ -11,27 +11,28 @@ cd BashGPT
 ```
 Install it with pip install.
 ```
-pip install --editable
+pip install --editable .
 ```
-Don't forget to put your OpenAI API key in the key.txt file.
+
+## Dependencies
+There is not much dependencies to install, pretty much just Python 3.0+, [PortAudio v19](https://github.com/PortAudio/portaudio) for voice recording and sqlite for database manipulation (pretty much already on every non-Windows device). All the necessary Python libraries will automatically be installed with _pip install_, but you can manually install them yourself. All the libraries can be seen in the **setup.py** file.    
 
 ## Use
-I noticed that there is not a good command-line interface for interacting with the GPT api-s, so I made basically a ChatGPT for the command line.
+Basically, a quicker way to interact with the gpt models than booting up a site or an application, and is primarely intended for getting small code inserts or some nuggets of information. 
 
 Basic usage:
 ```
 dp -u "What is your name? What is your quest? What is your favorite colour?"
 ```
-The code above starts a chat with the first message being between the one between the quotees. The -u flag is one of the mode flags, and stands for "uwu", which... well, just see for yourself in the answer:
+The code above starts a chat with the first message being the one between the quotes. The -u flag is one of the mode flags, and stands for "uwu", which... well, just see for yourself in the answer:
 ```
 Haii, my name is Uwumi. My quest is to spread kawaii vibes to everyone I meet. My favowite colour is pinku~ *giggles and twirls cutely* OwO
 ```
-Yeah... so the modes allow the chat agent to really be customized. This is all a part of the functionality of the openai API. The available modes can be seen by doing a simple **dp** and saying no to continuing a previous chat, which bring the user to the next screen.
+Yeah... so the modes allow the chat agent to really be customized. This is all a part of the functionality of the OpenAI API. The available modes can be seen by doing a simple _dp help_ and saying no to continuing a previous chat, which bring the user to the next screen.
 ```
-Modes to choose from: hisoka, uwu, trump, based, pleonasm. The default is short mode.
-Which mode would you like?
+Available modes: h (hisoka mode), bs (bash mode), u (uwu mode), t (trump mode), b (based mode), c (chance mode), d (dalle mode), p (pleonasm mode).
 ```
-A shorthand is enough to choose, or the full name of mode (case-insensitive).
+A shorthand is enough to choose, or the full name of mode (case-insensitive either way).
 
 if you want to add a new mode for your chat, you can do that with the following:
 ```
