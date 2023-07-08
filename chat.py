@@ -36,7 +36,7 @@ def main():
     global all_messages
 
     if len(argv)>1:
-        (current_mode, current_model) = quick_mode()
+        (current_mode, current_model) = quick_input()
 
     # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
     if not all_messages:
@@ -74,6 +74,8 @@ def main():
             if chat == "q":
                 save_chat()
                 break
+            if chat == "q!":
+                exit()
             elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
@@ -252,7 +254,7 @@ def bash_mode(answer):
         print(f"Exception: {e}")
 
 
-def quick_mode():
+def quick_input():
     global all_messages
     current_mode = "short"
     current_model = "gpt-3.5-turbo"
