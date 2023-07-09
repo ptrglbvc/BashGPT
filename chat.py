@@ -17,28 +17,29 @@ from whisper import record, whisper
 # hides the logging that is enabled by default by the cs50 library.
 logging.disable(logging.CRITICAL)
 
-# also stores the number of the loaded chat from the database in the 1th index
-# please ignore my stupid naming conventions
-chat_is_loaded = [False]
-
 all_messages = []
 
 
-#this has honestly been the hardest part of the project. Without the library, I had to resort to really big workarounds
+#this has honestly been the hardest part of this project. Without the library, I had to resort to really big workarounds
 path = str(Path(__file__).parent.resolve()) + "/"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
-db = setup_db(path) if argv==1 else ""
 setup_key(path)
 
 def main():
+
+    # also stores the number of the loaded chat from the database in the 1st index
+    # please ignore my stupid naming conventions
+    chat_is_loaded = [False]
     global all_messages
 
     if len(argv)>1:
         (current_mode, current_model) = quick_input()
+    else:
+        current_model = "gpt-3.5-turbo"
 
-    # we don't need to load the history if we enter the app from the quick mode. We only need to once we save
+    # we don't need to load the history if we enter the app from the quick input mode. We only need to once we save
     if not all_messages:
         db = setup_db(path)
         history_exists = db.execute(("SELECT MAX(message_id) "
@@ -48,10 +49,10 @@ def main():
                 ("\nWould you like to resume a previous conversation? "
                 "(y/n) ")).lower().strip()
             if history_input == "y":
-                all_messages = resume_chat(db)
+                all_messages = resume_chat(db, chat_is_loaded)
                 current_mode = remember_mode()
 
-            # we need to ask the user for the mod if he doesn't load history.
+            # ask user for the mode if he doesn't load history.
             else:
                 mode_input = input("What mode would you like? ").lower().strip()
                 print()
@@ -68,14 +69,16 @@ def main():
     while True:
         # If there is only 2 messages, then we know that it is a user sending a message via command line argiments.
         if not len(all_messages) == 2:
-            chat = input("You: ")
+            chat = input("You: ").strip()
             print()
 
             if chat == "q":
-                save_chat()
+                save_chat(db, chat_is_loaded)
                 break
-            if chat == "q!":
+            elif chat == "q!":
                 exit()
+            elif chat == "rm!":
+                delete_chat(db, chat_is_loaded)
             elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
@@ -130,9 +133,7 @@ def voice_input():
     print("You: " + transcription + "\n")
     return transcription
 
-def save_chat():
-    global db
-    global chat_is_loaded
+def save_chat(db, chat_is_loaded):
     if not db:
         db = setup_db(path)
     # if the chat is too short, that is, it's the role message and the
@@ -159,6 +160,8 @@ def save_chat():
         for message in all_messages:
             db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
                        max_chat_id+1, message["role"], message["content"], chat_description)
+        
+        update_chat_ids(db)
 
 
 def playsound(file):
@@ -166,7 +169,7 @@ def playsound(file):
     wave_object.play().wait_done()
 
 
-def resume_chat(db):
+def resume_chat(db, chat_is_loaded):
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
     print()
@@ -175,7 +178,6 @@ def resume_chat(db):
     # todo: error handing
     chat_id = int(input("\nWhich chat do you want to continue? "))
 
-    global chat_is_loaded
     chat_is_loaded.append(chat_id)
     chat_is_loaded[0] = True
 
@@ -350,6 +352,32 @@ def dalle_mode(text):
 def execute_command(command):
     output = subprocess.check_output(command, shell=True, universal_newlines=True)
     return output
+
+def delete_chat(db, chat_is_loaded):
+    if chat_is_loaded[0]:
+        db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat_is_loaded[1])
+        update_chat_ids(db)
+    exit()
+    
+def update_chat_ids(db):
+    old_chat_ids = db.execute("SELECT DISTINCT chat_id FROM chat_messages;")
+    old_chat_ids_list = [id["chat_id"] for id in old_chat_ids]
+
+    if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids[0] != 1 or not is_succinct(old_chat_ids_list):
+        messages_in_new_order = []
+        for id in old_chat_ids:
+            messages_in_new_order.append(db.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id["chat_id"]))
+
+        for chat_id in range(0, len(messages_in_new_order)):
+            for message in messages_in_new_order[chat_id]:
+                db.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
+
+def is_succinct(list):
+    for i in range(1, len(list)):
+        if list[i] != list[i-1]+1:
+            return False
+        
+    return True 
 
 #def loading_bar():
 
