@@ -8,6 +8,8 @@ import requests
 import subprocess
 from sys import argv, platform
 from pathlib import Path
+from time import sleep
+from multiprocessing import Process
 
 from modes_and_models import modes, models, short_mode
 from setup_db_and_key import setup_db, setup_key
@@ -73,6 +75,8 @@ def main():
             print()
 
             if chat == "q":
+                if not db:
+                    db = setup_db(path)
                 save_chat(db, chat_is_loaded)
                 break
             elif chat == "q!":
@@ -94,7 +98,13 @@ def main():
         else:
             print()
 
+        thred = Process(target=loading_bar, args=["purple"])
+        thred.start()
+
         (stylized_answer, total_tokens) = get_and_parse_response(current_model)
+        thred.terminate()
+        return_cursor_and_overwrite_bar()
+
         print(stylized_answer, "\n")
 
         if total_tokens > 3200:
@@ -130,7 +140,15 @@ def long_input():
 def voice_input():
     print(2*"\033[1A" + "        \r", end="")
     audio_location = record()
+
+    thred = Process(target=loading_bar)
+    thred.start()
+
     transcription = whisper(audio_location)
+
+    thred.terminate()
+    return_cursor_and_overwrite_bar()
+
     print("You: " + transcription + "\n")
     return transcription
 
@@ -380,7 +398,24 @@ def is_succinct(list):
         
     return True 
 
-#def loading_bar():
+# I know this technically isn't a bar, but semantics never stopped anyone from doing anything
+def loading_bar(color = "regular"):
+    phases = ['⠟', '⠯', '⠷', '⠾', '⠽', '⠻']
+    i = 0;
+    colors = {"purple": "\033[35m", "red": "\033[31m", "regular": ""}
+
+    # makes the cursor disappear.
+    print("\033[?25l" + colors[color], end="")
+    while True:
+        print("\r" + phases[i], end="")
+        sleep(100/1000)
+        if i==5:
+            i=0 
+        else:
+            i+=1
+
+def return_cursor_and_overwrite_bar():
+    print("\033[?25h", end="\r")
 
 
 if __name__ == "__main__":
