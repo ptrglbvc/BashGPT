@@ -40,11 +40,12 @@ def record():
             while True: 
                 wf.writeframes(stream.read(chunk))
         except KeyboardInterrupt:
-            pass
-        print("\n")
+            print("\r   ")
+
 
         stream.close()
         p.terminate()
+    return audio_location
 
 def whisper(file):
     openai.api_key = open(key_location, "r").read().strip()

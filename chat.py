@@ -128,7 +128,8 @@ def long_input():
     return chat
 
 def voice_input():
-    record()
+    print(2*"\033[1A" + "        \r", end="")
+    audio_location = record()
     transcription = whisper(audio_location)
     print("You: " + transcription + "\n")
     return transcription
