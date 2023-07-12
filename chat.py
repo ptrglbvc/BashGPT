@@ -207,7 +207,7 @@ def resume_chat(db, chat_is_loaded):
 
     while 1:
         option_input = input("\nWhich chat do you want to continue? ")
-        if option_input.isnumeric() and int(option_input) in option_ids:
+        if option_input.isnumeric() and (option_input := int(option_input)) in option_ids:
             chat_id = option_input
             break
 
