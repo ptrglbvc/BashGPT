@@ -35,6 +35,7 @@ def main():
     # please ignore my stupid naming conventions
     chat_is_loaded = [False]
     global all_messages
+    db = ""
 
     if len(argv)>1:
         (current_mode, current_model) = quick_input()
@@ -82,7 +83,10 @@ def main():
             elif chat == "q!":
                 exit()
             elif chat == "rm!":
-                delete_chat(db, chat_is_loaded)
+                if chat_is_loaded[0]:
+                    delete_chat(db, chat_is_loaded)
+                else:
+                    exit()
             elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
@@ -98,7 +102,7 @@ def main():
         else:
             print()
 
-        thred = Process(target=loading_bar, args=["purple"])
+        thred = Process(target=loading_bar, args=["bold_purple"])
         thred.start()
 
         (stylized_answer, total_tokens) = get_and_parse_response(current_model)
@@ -140,7 +144,7 @@ def long_input():
 def voice_input():
     print(2*"\033[1A" + "        \r", end="")
     audio_location = record()
-
+    print("You: ", end=" ")
     thred = Process(target=loading_bar)
     thred.start()
 
@@ -149,7 +153,7 @@ def voice_input():
     thred.terminate()
     return_cursor_and_overwrite_bar()
 
-    print("You: " + transcription + "\n")
+    print(transcription + "\n")
     return transcription
 
 def save_chat(db, chat_is_loaded):
@@ -255,7 +259,7 @@ def get_and_parse_response(current_model):
             all_messages.append({"role": "assistant", "content": answer})
             return (stylized_answer, total_tokens)
         except:
-            print("Retrying request...")
+            print("\rRetrying request...")
     
     save_chat()
     exit()
@@ -398,24 +402,25 @@ def is_succinct(list):
         
     return True 
 
-# I know this technically isn't a bar, but semantics never stopped anyone from doing anything
+# I know this technically isn't a bar, but semantics never stopped anyone from doing anything really
 def loading_bar(color = "regular"):
     phases = ['⠟', '⠯', '⠷', '⠾', '⠽', '⠻']
     i = 0;
-    colors = {"purple": "\033[35m", "red": "\033[31m", "regular": ""}
+    colors = {"purple": "\033[35m", "bold_purple": "\033[35m\033[1m", "red": "\033[31m", "regular": ""}
 
     # makes the cursor disappear.
     print("\033[?25l" + colors[color], end="")
     while True:
-        print("\r" + phases[i], end="")
-        sleep(100/1000)
+        print("\b" + phases[i], end="")
+        sleep(140/1000)
         if i==5:
             i=0 
         else:
             i+=1
 
+
 def return_cursor_and_overwrite_bar():
-    print("\033[?25h", end="\r")
+    print("\033[?25h", end="\b")
 
 
 if __name__ == "__main__":
