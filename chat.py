@@ -12,7 +12,7 @@ from time import sleep
 from multiprocessing import Process
 
 from modes_and_models import modes, models, short_mode
-from setup_db_and_key import setup_db, setup_key
+from db_and_key import setup_db, setup_key
 from whisper import record, whisper
 
 
@@ -27,10 +27,10 @@ path = str(Path(__file__).parent.resolve()) + "/"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
-setup_key(path)
 
 def main():
 
+    openai.api_key = setup_key()
     # also stores the number of the loaded chat from the database in the 1st index
     # please ignore my stupid naming conventions
     chat_is_loaded = [False]
