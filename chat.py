@@ -48,12 +48,16 @@ def main():
         history_exists = db.execute(("SELECT MAX(message_id) "
                                     "AS max FROM chat_messages"))[0]["max"] is not None 
         if history_exists:
-            history_input = input(
-                ("\nWould you like to resume a previous conversation? "
-                "(y/n) ")).lower().strip()
-            if history_input == "y":
-                all_messages = resume_chat(db, chat_is_loaded)
-                current_mode = remember_mode()
+            while 1:
+                history_input = input(
+                    ("\nWould you like to resume a previous conversation? "
+                    "(y/n) ")).lower().strip()[0]
+                if history_input == "y":
+                    all_messages = resume_chat(db, chat_is_loaded)
+                    current_mode = remember_mode()
+                    break
+                if history_input == "n":
+                    break
 
             # ask user for the mode if he doesn't load history.
             else:
@@ -196,13 +200,21 @@ def resume_chat(db, chat_is_loaded):
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
     print()
+    option_ids = []
     for option in options:
+        option_ids.append(option["chat_id"])
         print(f"{option['chat_id']}: {option['description']}")
-    # todo: error handing
-    chat_id = int(input("\nWhich chat do you want to continue? "))
+
+    while 1:
+        option_input = input("\nWhich chat do you want to continue? ")
+        if option_input.isnumeric() and int(option_input) in option_ids:
+            chat_id = option_input
+            break
+
 
     chat_is_loaded.append(chat_id)
     chat_is_loaded[0] = True
+
 
     rows = db.execute("select * from chat_messages where chat_id=?", chat_id)
     global all_messages
