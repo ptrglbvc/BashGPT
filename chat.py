@@ -57,20 +57,11 @@ def main():
                     current_mode = remember_mode()
                     break
                 if history_input == "n":
+                    current_mode = choose_mode()
                     break
 
-            # ask user for the mode if he doesn't load history.
-            else:
-                mode_input = input("What mode would you like? ").lower().strip()
-                print()
-
-                mode_description = short_mode
-                for option in modes:
-                    if mode_input == option["name"] or mode_input == option["shortcut"]:
-                        mode_description = option["description"]
-                        current_mode = option["name"]
-                        break
-                all_messages.append({"role": "system", "content": mode_description})
+        else:
+            current_mode = choose_mode()
     
 
     while True:
@@ -287,8 +278,8 @@ def bash_mode(answer):
             if len(output)<1000:
                 all_messages.append({"role": "user", "content": "Shell: "+ output})
             
-    except Exception as e:
-        print(f"Exception: {e}")
+    except Exception:
+        pass
 
 
 def quick_input():
@@ -433,6 +424,20 @@ def loading_bar(color = "regular"):
 
 def return_cursor_and_overwrite_bar():
     print("\033[?25h", end="\b")
+
+def choose_mode():
+    mode_input = input("What mode would you like? ").lower().strip()
+    print()
+
+    mode_description = short_mode
+    for option in modes:
+        if mode_input == option["name"] or mode_input == option["shortcut"]:
+            mode_description = option["description"]
+            current_mode = option["name"]
+            break
+    all_messages.append({"role": "system", "content": mode_description})
+
+    return current_mode
 
 
 if __name__ == "__main__":
