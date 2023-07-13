@@ -82,6 +82,8 @@ def main():
                     delete_chat(db, chat_is_loaded)
                 else:
                     exit()
+            elif chat == "nuclear!!!":
+                nuclear(db)
             elif chat == "l": 
                 chat = long_input()
             elif chat == "v":
@@ -430,6 +432,7 @@ def choose_mode():
     print()
 
     mode_description = short_mode
+    current_mode = "short"
     for option in modes:
         if mode_input == option["name"] or mode_input == option["shortcut"]:
             mode_description = option["description"]
@@ -439,6 +442,9 @@ def choose_mode():
 
     return current_mode
 
+def nuclear(db):
+    db.execute("DELETE FROM chat_messages")
+    exit()
 
 if __name__ == "__main__":
     main()
