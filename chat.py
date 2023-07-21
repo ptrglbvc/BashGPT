@@ -74,13 +74,15 @@ def main():
                 if not db:
                     db = setup_db(path)
                 save_chat(db, chat_is_loaded)
-                break
+                exit()
             elif chat == "q!":
+                print("\033[1A", end="")
                 exit()
             elif chat == "rm!":
                 if chat_is_loaded[0]:
                     delete_chat(db, chat_is_loaded)
                 else:
+                    print("\033[1A", end="")
                     exit()
             elif chat == "nuclear!!!":
                 nuclear(db)
