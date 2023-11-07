@@ -1,12 +1,14 @@
 import pyaudio
 import wave
-import openai
+from openai import OpenAI
 
 import sys
 import os
 from pathlib import Path
 
 from db_and_key import setup_key
+
+client = OpenAI()
 
 chunk = 1024
 format = pyaudio.paInt16
@@ -50,10 +52,13 @@ def record():
     return audio_location
 
 def whisper(file):
-    openai.api_key = setup_key()
+    client.api_key = setup_key()
     with open(file, "rb") as audio_file:
         try:
-            transcript = openai.Audio.transcribe("whisper-1", audio_file).text
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=audio_file
+            ).text
         except:
             transcript = "Voice recording didn't work."
 
