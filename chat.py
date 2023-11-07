@@ -1,4 +1,3 @@
-import openai
 import simpleaudio as sa
 
 import logging
@@ -15,9 +14,13 @@ from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db, setup_key
 from whisper import record, whisper
 
+from openai import OpenAI
+client = OpenAI()
+
 
 # hides the logging that is enabled by default by the cs50 library.
-logging.disable(logging.CRITICAL)
+logging.disable(logging.DEBUG)
+logging.disable(logging.INFO)
 
 all_messages = []
 
@@ -30,7 +33,7 @@ audio_location = path + "audio.wav"
 
 def main():
 
-    openai.api_key = setup_key()
+    client.api_key = setup_key()
     # also stores the number of the loaded chat from the database in the 1st index
     # please ignore my stupid naming conventions
     chat_is_loaded = [False]
@@ -232,7 +235,7 @@ def remember_mode():
             
 
 def get_description(all_messages):
-    return openai.ChatCompletion.create(
+    return client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "describe the chat using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
@@ -252,24 +255,20 @@ def help_me():
 
 
 def get_and_parse_response(current_model):
-    for _ in range(5):
-        try:
-            response = openai.ChatCompletion.create(
-                model=current_model,
-                messages=all_messages,
-                temperature=0.8)
+    response = client.chat.completions.create(
+        model=current_model,
+        messages=all_messages,
+        temperature=0.8)
+    try:
 
-            answer = response.choices[0].message.content
-            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
-            total_tokens = response.usage.total_tokens
+        answer = response.choices[0].message.content
+        stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
+        total_tokens = response.usage.total_tokens
 
-            all_messages.append({"role": "assistant", "content": answer})
-            return (stylized_answer, total_tokens)
-        except:
-            print("\rRetrying request...")
-    
-    save_chat()
-    exit()
+        all_messages.append({"role": "assistant", "content": answer})
+        return (stylized_answer, total_tokens)
+    except:
+        return f"\rRequest failed. Response: {answer}"
 
 
 def bash_mode(answer):
@@ -352,21 +351,24 @@ def quick_input():
 def dalle_mode(text):
     try:
         prompt = text.split("```")[1].strip()
-        response = openai.Image.create(
+        response = client.images.generate(
             prompt=prompt,
+            model="dall-e-3",
             n=1,
-            size="1024x1024"
+            size="1024x1024",
         )
-        image_url = response['data'][0]['url']
+        image_url = response.data[0].url
         prompt_words = prompt.split()
         if len(prompt_words)>10:
             prompt_words = prompt_words[:10]
 
         prompt_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
 
-        image_name = "_".join(prompt_words) + ".png"
+        image_name = " ".join(prompt_words) + ".png"
+        image_path = path + image_name
+
         response = requests.get(image_url)
-        with open(image_name, "wb") as image:
+        with open(image_path, "wb") as image:
             image.write(response.content)
             
         if platform == "win32":
