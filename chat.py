@@ -1,6 +1,11 @@
+# disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
+# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor.
+import logging
+logging.disable(logging.DEBUG)
+logging.disable(logging.INFO)
+
 import simpleaudio as sa
 
-import logging
 import threading
 import os
 import requests
@@ -18,9 +23,6 @@ from openai import OpenAI
 client = OpenAI()
 
 
-# hides the logging that is enabled by default by the cs50 library.
-logging.disable(logging.DEBUG)
-logging.disable(logging.INFO)
 
 all_messages = []
 
@@ -300,8 +302,10 @@ def quick_input():
             help_me()
             exit()
         
-        elif argv[1]=="--gpt-4" or argv[1]=="-4":
-            current_model = "gpt-4"
+        elif argv[1][0]=="-":
+            for model in models:
+                if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
+                   current_model = model["name"] 
 
         else:
             prompt = argv[1]
