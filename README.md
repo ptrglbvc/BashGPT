@@ -3,7 +3,7 @@
 [!](https://user-images.githubusercontent.com/108212912/253288399-a2b2a520-84ea-458e-8d05-8c4771fd23e6.mov)
 
 ## Introduction
-**Why have all that pretty weak-ass html nonsense when you can just use God's given tool - the terminal.**
+**Why have all that pretty weak-ass html nonsense when you can just use God's given tool - the t e r m i na l.**
 
 On a serious note, I usually prefer using the terminal for most things related to programming, so why not just have a good ChatGPT experience in the terminal, with some added features, like Bash mode, Dalle mode and voice input.
 
