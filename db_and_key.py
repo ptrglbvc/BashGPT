@@ -27,9 +27,14 @@ def setup_db(path):
         db = SQL("sqlite:///" + db_location)
     return db
 
-def setup_key():
-    if key:=os.environ.get('OPENAI_API_KEY'):
-        return key
+def setup_key(provider="openai"):
+    if provider == "openai":
+        if key:=os.environ.get('OPENAI_API_KEY'):
+            return key
+    if provider == "mistral":
+        if key:=os.environ.get('MISTRAL_API_KEY'):
+            return key
+        
     else:
         print("Environment variable for key not found, please add one.")
         exit()
