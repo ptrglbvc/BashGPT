@@ -26,8 +26,10 @@ from mistralai.models.chat_completion import ChatMessage
 client = OpenAI()
 mistral_client = MistralClient()
 
+client.api_key = setup_key("openai")
+mistral_client._api_key = setup_key("mistral")
 
-chat = {"all_messages": [], "provider" : "openai"}
+chat = {"all_messages": [], "mistral_messages": [], "provider" : "openai"}
 all_messages = chat["all_messages"]
 
 
@@ -38,12 +40,9 @@ audio_location = path + "audio.wav"
 
 
 def main():
-    client.api_key = setup_key()
-    mistral_client._api_key = setup_key("mistral")
     # also stores the number of the loaded message from the database in the 1st index
     # please ignore my stupid naming conventions
     chat_is_loaded = [False]
-    global all_messages
     db = ""
 
     if len(argv)>1:
@@ -60,7 +59,7 @@ def main():
                     ("\nWould you like to resume a previous conversation? "
                     "(y/n) ")).lower().strip()[0]
                 if history_input == "y":
-                    all_messages = resume_chat(db, chat_is_loaded)
+                    resume_chat(db, chat_is_loaded)
                     current_mode = remember_mode()
                     break
                 if history_input == "n":
@@ -102,7 +101,7 @@ def main():
                     print("Recording doesn't work on you device. \nLong input mode activated.")
                     message = long_input()
 
-            all_messages.append({"role": "user", "content": message})
+            add_message_to_chat("user", message)
             
         # just making sure it look more nice when entered through quick mode.
         else:
@@ -123,12 +122,6 @@ def main():
         if current_mode == "dalle":
             threading.Thread(target=dalle_mode, args=[stylized_answer]).start()
 
-        #play the "another one" sound effect thread from time to time (in another thread). just cause.
-        if len(all_messages)%10==0:
-            threading.Thread(target=playsound, args=[another_one_location]).start()
-
-
-
 
 
 def long_input():
@@ -143,6 +136,17 @@ def long_input():
             break
         message += line + "\n"
     return message
+
+def add_message_to_chat(role, content):
+    global chat
+    chat["all_messages"].append({"role": role, "content": content})
+
+    if role != "system":
+        chat["mistral_messages"].append(ChatMessage(role=role, content=content))
+
+    #play the "another one" sound effect thread from time to time (in another thread). just cause.
+    if len(all_messages)%20==0:
+        threading.Thread(target=playsound, args=[another_one_location]).start()
 
 def voice_input():
     print(2*"\033[1A" + "        \r", end="")
@@ -216,17 +220,15 @@ def resume_chat(db, chat_is_loaded):
 
 
     rows = db.execute("select * from chat_messages where chat_id=?", chat_id)
-    global all_messages
     for row in rows:
-        all_messages.append(
-            {"role": row["user_name"], "content": row["message"]})
+        add_message_to_chat(row["user_name"], row["message"])
+
         stylized_message = "You: "+row["message"]+"\n"
         if row["user_name"] == "assistant":
             stylized_message = "\033[1m\033[35m" + row["message"] + "\033[0m\n"
         elif row["user_name"] == "system":
             stylized_message = ""
         print(stylized_message)
-    return all_messages
 
 
 def remember_mode():
@@ -267,27 +269,23 @@ def get_and_parse_response(current_model):
             answer = response.choices[0].message.content
             stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
 
-            all_messages.append({"role": "assistant", "content": answer})
+            add_message_to_chat("assistant", answer)
             return stylized_answer
         except:
             return f"\rRequest failed. Response: {response}"
 
     if chat["provider"] == "mistral":
-        mistral_messages = []
-        for message in chat["all_messages"]:
-            if message["role"] != "system":
-                mistral_messages.append(ChatMessage(role=message["role"], content=message["content"]))
-
         response = mistral_client.chat(
             model=current_model,
-            messages=mistral_messages,
+            messages=chat["mistral_messages"],
             temperature=0.8)
         try:
             answer = response.choices[0].message.content
-            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
+            add_message_to_chat("assistant", content=answer)
 
-            all_messages.append({"role": "assistant", "content": answer})
+            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
             return stylized_answer
+
         except:
             return f"\rRequest failed. Response: {response}"
 
@@ -300,7 +298,7 @@ def bash_mode(answer):
             nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
             print(nicely_formated_output)
             if len(output)<1000:
-                all_messages.append({"role": "user", "content": "Shell: "+ output})
+                add_message_to_chat("user", "Shell: " + output)
             
     except Exception:
         pass
@@ -330,8 +328,8 @@ def quick_input():
 
         else:
             prompt = argv[1]
-            all_messages.append({"role": "system", "content": short_mode})
-            all_messages.append({"role": "user", "content": prompt})
+            add_message_to_chat("system", short_mode)
+            add_message_to_chat("user", prompt)
 
     elif len(argv) == 3:
         if argv[1] == "--new-mode":
@@ -341,7 +339,7 @@ def quick_input():
             for mode in modes:
                 if ("-"+mode["shortcut"]) == argv[1]:
                     current_mode = mode["name"]
-                    all_messages.append({"role": "system", "content": mode["description"]})
+                    add_message_to_chat("system", mode["description"])
                     break
             
             if current_mode == "short":
@@ -349,10 +347,10 @@ def quick_input():
                     if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
                         current_model = model["name"]
                         chat["provider"] = model["provider"]
-                        all_messages.append({"role": "system", "content": short_mode})
+                        add_message_to_chat("system", short_mode)
                         break
 
-            all_messages.append({"role": "user", "content": argv[2]})
+            add_message_to_chat("user", argv[2])
 
 
     elif len(argv) == 4:
@@ -365,12 +363,12 @@ def quick_input():
         for mode in modes:
             if ("-" + mode["shortcut"]) == argv[2] or ("--" + mode["name"]) == argv[2]:
                 current_mode = mode["name"]
-                all_messages.append({"role": "system", "content": mode["description"]})
+                add_message_to_chat("system", mode["description"])
             
         if not all_messages:
-            all_messages.append({"role": "system", "content": short_mode})
+            add_message_to_chat("system", short_mode)
         
-        all_messages.append({"role": "user", "content": argv[3]})
+        add_message_to_chat("user", argv[3])
             
     return (current_mode, current_model) 
 
