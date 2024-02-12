@@ -38,6 +38,8 @@ path = str(Path(__file__).parent.resolve()) + "/"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
+terminal = {"purple": "\033[35m", "bold": "\033[1m", "reset": "\033[0m\033[?25h"}
+
 
 def main():
     # also stores the number of the loaded message from the database in the 1st index
@@ -107,14 +109,10 @@ def main():
         else:
             print()
 
-        thred = Process(target=loading_bar, args=["bold_purple"])
-        thred.start()
+        bar = Process(target=loading_bar, args=["bold_purple"])
+        bar.start()
 
-        stylized_answer = get_and_parse_response(current_model)
-        thred.terminate()
-        return_cursor_and_overwrite_bar()
-
-        print(stylized_answer, "\n")
+        get_and_parse_response(current_model, bar)
 
         if current_mode == "bash":
             bash_mode(stylized_answer)
@@ -257,22 +255,28 @@ def help_me():
     print(available_modes)
 
 
-def get_and_parse_response(current_model):
+def get_and_parse_response(current_model, bar):
     global chat
+    global terminal 
     if chat["provider"] == "openai":
-        response = client.chat.completions.create(
+        stream = client.chat.completions.create(
             model=current_model,
             messages=chat["all_messages"],
-            temperature=0.8)
-        try:
+            temperature=0.8,
+            stream=True)
 
-            answer = response.choices[0].message.content
-            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
+        add_message_to_chat("assistant", "")
+        bar.terminate()
 
-            add_message_to_chat("assistant", answer)
-            return stylized_answer
-        except:
-            return f"\rRequest failed. Response: {response}"
+        print("\b" + terminal["bold"] + terminal["purple"], end="")
+
+        for chunk in stream:
+            if not chunk.choices[0].delta.content:
+                continue
+            print(chunk.choices[0].delta.content, end="")
+            chat["all_messages"][-1]["content"] += (chunk.choices[0].delta.content)
+
+        print(terminal["reset"] + "\n")
 
     if chat["provider"] == "mistral":
         response = mistral_client.chat(
@@ -283,7 +287,7 @@ def get_and_parse_response(current_model):
             answer = response.choices[0].message.content
             add_message_to_chat("assistant", content=answer)
 
-            stylized_answer = "\033[1m\033[35m" + answer + "\033[0m"
+            stylized_answer = "\033[35m" + answer + "\033[0m"
             return stylized_answer
 
         except:
