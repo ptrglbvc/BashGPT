@@ -16,20 +16,19 @@ from time import sleep
 from multiprocessing import Process
 
 from modes_and_models import modes, models, short_mode
-from db_and_key import setup_db, setup_key
+from db_and_key import setup_db
 from whisper import record, whisper
-
 from openai import OpenAI
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
 
 client = OpenAI()
-mistral_client = MistralClient()
 
-client.api_key = setup_key("openai")
-mistral_client._api_key = setup_key("mistral")
-
-chat = {"all_messages": [], "mistral_messages": [], "provider" : "openai"}
+chat = {"all_messages": [],
+        "is_loaded": False,
+        "id": None,
+        "mode": "short", 
+        "model": "gpt-3.5-turbo", 
+        "provider" : "openai",
+        "color": "purple"}
 all_messages = chat["all_messages"]
 
 
@@ -38,17 +37,14 @@ path = str(Path(__file__).parent.resolve()) + "/"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
-terminal = {"purple": "\033[35m", "bold": "\033[1m", "reset": "\033[0m\033[?25h"}
+terminal = {"purple": "\033[35m", "red": "\033[31m","bold": "\033[1m", "reset": "\033[0m\033[?25h"}
 
 
 def main():
-    # also stores the number of the loaded message from the database in the 1st index
-    # please ignore my stupid naming conventions
-    chat_is_loaded = [False]
     db = ""
 
     if len(argv)>1:
-        (current_mode, current_model) = quick_input()
+        quick_input()
 
     # we don't need to load the history if we enter the app from the quick input mode. We only need to once we save
     if not all_messages:
@@ -61,15 +57,15 @@ def main():
                     ("\nWould you like to resume a previous conversation? "
                     "(y/n) ")).lower().strip()[0]
                 if history_input == "y":
-                    resume_chat(db, chat_is_loaded)
-                    current_mode = remember_mode()
+                    resume_chat(db)
+                    chat["mode"] = remember_mode()
                     break
                 if history_input == "n":
-                    current_mode = choose_mode()
+                    choose_mode()
                     break
 
         else:
-            current_mode = choose_mode()
+            choose_mode()
     
 
     while True:
@@ -81,14 +77,14 @@ def main():
             if message == "q":
                 if not db:
                     db = setup_db(path)
-                save_chat(db, chat_is_loaded)
+                save_chat(db)
                 exit()
             elif message == "q!":
                 print("\033[1A", end="")
                 exit()
             elif message == "rm!":
-                if chat_is_loaded[0]:
-                    delete_chat(db, chat_is_loaded)
+                if chat["id"]:
+                    delete_chat(db)
                 else:
                     print("\033[1A", end="")
                     exit()
@@ -112,13 +108,14 @@ def main():
         bar = Process(target=loading_bar, args=["bold_purple"])
         bar.start()
 
-        get_and_parse_response(current_model, bar)
+        get_and_parse_response(bar)
 
-        if current_mode == "bash":
-            bash_mode(stylized_answer)
+        if chat["mode"] == "bash":
+            last_message = chat["all_messages"][-1]["content"]
+            bash_mode(last_message)
 
-        if current_mode == "dalle":
-            threading.Thread(target=dalle_mode, args=[stylized_answer]).start()
+        if chat["mode"] == "dalle":
+            threading.Thread(target=dalle_mode, args=[]).start()
 
 
 
@@ -139,9 +136,6 @@ def add_message_to_chat(role, content):
     global chat
     chat["all_messages"].append({"role": role, "content": content})
 
-    if role != "system":
-        chat["mistral_messages"].append(ChatMessage(role=role, content=content))
-
     #play the "another one" sound effect thread from time to time (in another thread). just cause.
     if len(all_messages)%20==0:
         threading.Thread(target=playsound, args=[another_one_location]).start()
@@ -161,21 +155,21 @@ def voice_input():
     print(transcription + "\n")
     return transcription
 
-def save_chat(db, chat_is_loaded):
+def save_chat(db):
+    global chat
     if not db:
         db = setup_db(path)
-    # if the message is too short, that is, it's the role message and the
-    # first user message, there's no need to save it.
+    # if the message is too short, or more precisely, it's just the role message and the
+    # first user message, there was most likely some error and there's no need to save it.
     if len(all_messages) > 2:
         print("Saving chat. Hold on a minute...")
-        if chat_is_loaded[0]:
-            global chat_id
+        if chat["is_loaded"]:
             chat_description = db.execute(
-                "SELECT description FROM chat_messages WHERE chat_id = ?", chat_is_loaded[1])[0]["description"]
+                "SELECT description FROM chat_messages WHERE chat_id = ?", chat["id"])[0]["description"]
 
             # deletes the chat, but the now message is saved under a newer number.
-            db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat_is_loaded[1])
-            max_chat_id = chat_is_loaded[1]-1
+            db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
+            max_chat_id = chat["id"] - 1
 
         else:
             max_chat_id = db.execute(
@@ -197,7 +191,8 @@ def playsound(file):
     wave_object.play().wait_done()
 
 
-def resume_chat(db, chat_is_loaded):
+def resume_chat(db):
+    global chat
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
     print()
@@ -209,31 +204,39 @@ def resume_chat(db, chat_is_loaded):
     while 1:
         option_input = input("\nWhich message do you want to continue? ")
         if option_input.isnumeric() and (option_input := int(option_input)) in option_ids:
-            chat_id = option_input
+            chat["id"] = option_input 
+            chat["is_loaded"] = True
             break
 
 
-    chat_is_loaded.append(chat_id)
-    chat_is_loaded[0] = True
 
 
-    rows = db.execute("select * from chat_messages where chat_id=?", chat_id)
+    rows = db.execute("select * from chat_messages where chat_id=?", chat["id"])
     for row in rows:
         add_message_to_chat(row["user_name"], row["message"])
 
-        stylized_message = "You: "+row["message"]+"\n"
-        if row["user_name"] == "assistant":
-            stylized_message = "\033[1m\033[35m" + row["message"] + "\033[0m\n"
-        elif row["user_name"] == "system":
-            stylized_message = ""
-        print(stylized_message)
+    print_chat()
+
+
+def print_chat():
+    global chat
+    global terminal
+    for message in chat["all_messages"]:
+        if message["role"] == "user":
+            print("You: " + message["content"] + "\n")
+        if message["role"] == "assistant":
+            print(terminal["bold"] + terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n")
 
 
 def remember_mode():
-    for mod in modes:
-        if mod["description"][:15] == all_messages[0]["content"][:15]:
-            return mod["name"]
-            
+    for mode in modes:
+        if mode["description"] == all_messages[0]["content"]:
+            return mode["name"]
+    
+    if short_mode == all_messages[0]["content"]:
+        return "short"
+    
+    return "custom"
 
 def get_description(all_messages):
     return client.chat.completions.create(
@@ -255,64 +258,73 @@ def help_me():
     print(available_modes)
 
 
-def get_and_parse_response(current_model, bar):
+def get_and_parse_response(bar):
     global chat
     global terminal 
-    if chat["provider"] == "openai":
-        stream = client.chat.completions.create(
-            model=current_model,
-            messages=chat["all_messages"],
-            temperature=0.8,
-            stream=True)
-
-        add_message_to_chat("assistant", "")
-        bar.terminate()
-
-        print("\b" + terminal["bold"] + terminal["purple"], end="")
-
-        for chunk in stream:
-            if not chunk.choices[0].delta.content:
-                continue
-            print(chunk.choices[0].delta.content, end="")
-            chat["all_messages"][-1]["content"] += (chunk.choices[0].delta.content)
-
-        print(terminal["reset"] + "\n")
 
     if chat["provider"] == "mistral":
-        response = mistral_client.chat(
-            model=current_model,
-            messages=chat["mistral_messages"],
-            temperature=0.8)
-        try:
-            answer = response.choices[0].message.content
-            add_message_to_chat("assistant", content=answer)
+        client.api_key = os.getenv("MISTRAL_API_KEY")
+        if not client.api_key:
+            print(terminal["red"] + "Mistral API key not found" + terminal["reset"])
+        client.base_url = "https://api.mistral.ai/v1"
 
-            stylized_answer = "\033[35m" + answer + "\033[0m"
-            return stylized_answer
+    if chat["provider"] == "openai":
+        client.api_key = os.getenv("OPENAI_API_KEY")
+        if not client.api_key:
+            print(terminal["red"] + "OpenAI API key not found" + terminal["reset"])
+        client.base_url = "https://api.openai.com/v1"
 
-        except:
-            return f"\rRequest failed. Response: {response}"
+    if chat["provider"] == "together":
+        client.api_key = os.getenv("TOGETHER_API_KEY")
+        if not client.api_key:
+            print(terminal["red"] + "Together API key not found" + terminal["reset"])
+        client.base_url = "https://api.together.xyz"
+
+    stream = client.chat.completions.create(
+        model=chat["model"],
+        messages=chat["all_messages"],
+        temperature=0.8,
+        stream=True)
+
+    add_message_to_chat("assistant", "")
+    bar.terminate()
+
+    print("\b" + terminal["bold"] + terminal["purple"], end="")
+
+    for chunk in stream:
+        if not chunk.choices[0].delta.content:
+            continue
+        print(chunk.choices[0].delta.content, end="")
+        chat["all_messages"][-1]["content"] += (chunk.choices[0].delta.content)
+
+    print(terminal["reset"] + "\n")
 
 
-def bash_mode(answer):
-    try:
-        command = answer.split("```")[1]
-        output = execute_command(command)
-        if output.strip():
-            nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
-            print(nicely_formated_output)
-            if len(output)<1000:
-                add_message_to_chat("user", "Shell: " + output)
-            
-    except Exception:
-        pass
+def bash_mode(message):
+    all_parts = message.split("```")
+    if len(all_parts) > 1:
+        commands = all_parts[1::2]
+        for command in commands:
+
+            if command.strip().startswith("bash"):
+                command = command.strip()[4:]
+            if command.strip().startswith("zsh"):
+                command = command.strip()[3:]
+
+            try:
+                output = execute_command(command)
+                if output.strip():
+                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
+                    print(nicely_formated_output)
+                    if len(output)<1000:
+                        add_message_to_chat("user", "Shell: " + output)
+                    
+            except Exception:
+                pass
 
 
 def quick_input():
     global chat
-    global all_messages
-    current_mode = "short"
-    current_model = "gpt-3.5-turbo"
 
     # check for too many args
     if len(argv)>4:
@@ -327,7 +339,7 @@ def quick_input():
         elif argv[1][0]=="-":
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
-                   current_model = model["name"] 
+                   chat["model"] = model["name"] 
                    chat["provider"] = model["provider"]
 
         else:
@@ -337,62 +349,64 @@ def quick_input():
 
     elif len(argv) == 3:
         if argv[1] == "--new-mode":
-            current_mode = argv[2]
+            chat["mode"] = "custom"
+            add_message_to_chat("system", argv[2])
 
         else:
             for mode in modes:
-                if ("-"+mode["shortcut"]) == argv[1]:
-                    current_mode = mode["name"]
+                if ("-" + mode["shortcut"] == argv[1]) or ("--" + mode["name"] == argv[1]):
+                    chat["mode"] = mode["name"]
                     add_message_to_chat("system", mode["description"])
                     break
             
-            if current_mode == "short":
+            if chat["mode"] == "short":
                 for model in models:
                     if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                        current_model = model["name"]
+                        chat["model"] = model["name"]
                         chat["provider"] = model["provider"]
                         add_message_to_chat("system", short_mode)
                         break
-
+            
             add_message_to_chat("user", argv[2])
 
 
     elif len(argv) == 4:
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                current_model = model["name"]
+                chat["model"] = model["name"]
                 chat["provider"] = model["provider"]
                 break
 
         for mode in modes:
             if ("-" + mode["shortcut"]) == argv[2] or ("--" + mode["name"]) == argv[2]:
-                current_mode = mode["name"]
+                chat["mode"] = mode["name"]
                 add_message_to_chat("system", mode["description"])
             
-        if not all_messages:
+        if not chat["all_messages"]:
             add_message_to_chat("system", short_mode)
         
         add_message_to_chat("user", argv[3])
             
-    return (current_mode, current_model) 
 
-
-def dalle_mode(text):
+def dalle_mode():
+    global chat
+    last_message = chat["all_messages"][-1]["content"]
     try:
-        prompt = text.split("```")[1].strip()
+        prompt = last_message.split("```")[1].strip()
         response = client.images.generate(
             prompt=prompt,
             model="dall-e-3",
             n=1,
             size="1024x1024",
         )
+
         image_url = response.data[0].url
         prompt_words = prompt.split()
+
         if len(prompt_words)>10:
-            prompt_words = prompt_words[:10]
+            name_words = prompt_words[:10]
 
-        prompt_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
-
+        name_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
         image_name = " ".join(prompt_words) + ".png"
         image_path = path + image_name
 
@@ -414,9 +428,10 @@ def execute_command(command):
     output = subprocess.check_output(command, shell=True, universal_newlines=True)
     return output
 
-def delete_chat(db, chat_is_loaded):
-    if chat_is_loaded[0]:
-        db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat_is_loaded[1])
+def delete_chat(db):
+    global chat
+    if chat["is_loaded"]:
+        db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
         update_chat_ids(db)
     exit()
     
@@ -461,19 +476,18 @@ def return_cursor_and_overwrite_bar():
     print("\033[?25h", end="\b")
 
 def choose_mode():
+    global chat
     mode_input = input("What mode would you like? ").lower().strip()
     print()
 
     mode_description = short_mode
-    current_mode = "short"
     for option in modes:
         if mode_input == option["name"] or mode_input == option["shortcut"]:
             mode_description = option["description"]
-            current_mode = option["name"]
+            chat["mode"] = option["name"]
             break
-    all_messages.append({"role": "system", "content": mode_description})
+    add_message_to_chat("role", mode_description)
 
-    return current_mode
 
 def nuclear(db):
     db.execute("DELETE FROM chat_messages")
