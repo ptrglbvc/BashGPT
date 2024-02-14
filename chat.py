@@ -10,6 +10,7 @@ import threading
 import os
 import requests
 import subprocess
+import tempfile
 from sys import argv, platform
 from pathlib import Path
 from time import sleep
@@ -20,24 +21,34 @@ from db_and_key import setup_db
 from whisper import record, whisper
 from openai import OpenAI
 
-client = OpenAI()
-
-chat = {"all_messages": [],
+chat = {
+        "all_messages": [],
         "is_loaded": False,
         "id": None,
         "mode": "short", 
         "model": "gpt-3.5-turbo", 
+        "api_key_name": "OPENAI_API_KEY",
+        "base_url": "https://api.openai.com/v1",
         "provider" : "openai",
         "color": "purple"}
 all_messages = chat["all_messages"]
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+terminal = {"purple": "\033[35m", 
+            "red": "\033[31m",
+            "blue": "\033[34m",
+            "yellow": "\033[33m",
+            "orange": "\033[38;5;214m",
+            "bold": "\033[1m", 
+            "reset": "\033[0m\033[?25h"
+            }
 
 #this has honestly been the hardest part of this project. Without the library, I had to resort to really big workarounds
 path = str(Path(__file__).parent.resolve()) + "/"
 another_one_location = path + "another_one.wav"
 audio_location = path + "audio.wav"
 
-terminal = {"purple": "\033[35m", "red": "\033[31m","bold": "\033[1m", "reset": "\033[0m\033[?25h"}
 
 
 def main():
@@ -69,43 +80,116 @@ def main():
     
 
     while True:
-        # If there is only 2 messages, then we know that it is a user sending a message via command line argiments.
+        message = ""
+
         if not len(all_messages) == 2:
             message = input("You: ").strip()
-            print()
+        
 
-            if message == "q":
-                if not db:
-                    db = setup_db(path)
-                save_chat(db)
-                exit()
-            elif message == "q!":
-                print("\033[1A", end="")
-                exit()
-            elif message == "rm!":
-                if chat["id"]:
-                    delete_chat(db)
-                else:
+        print()
+
+        if message and message[0] == "/":
+            command = message[1:].split()
+
+            match command[0]:
+                case "q":
+                    if not db:
+                        db = setup_db(path)
+                    save_chat(db)
+                    exit()
+
+                case "q!":
                     print("\033[1A", end="")
                     exit()
-            elif message == "nuclear!!!":
-                nuclear(db)
-            elif message == "l": 
-                message = long_input()
-            elif message == "v":
-                try:
-                    message = voice_input()
-                except:
-                    print("Recording doesn't work on you device. \nLong input mode activated.")
+
+                case "rm!":
+                    if chat["id"]:
+                        delete_chat(db)
+                    else:
+                        print("\033[1A", end="")
+                        exit()
+
+                case "nuclear!!!":
+                    nuclear(db)
+
+                case "l": 
                     message = long_input()
 
+                case "v":
+                    try:
+                        message = voice_input()
+                    except:
+                        print("Recording doesn't work on you device. \nLong input mode activated.")
+                        message = long_input()
+
+                case "dl":
+                    if len(command) == 1:
+                        delete_messages()
+
+                    elif (command[1] and command[1].isnumeric()):
+                        no_of_messages = int(command[1])
+                        delete_messages(no_of_messages)
+                    
+                    else:
+                        alert("Invalid argument for message deletion")
+                    continue
+
+                case "model":
+                    if (len(command) == 2):
+                        is_a_model = False
+                        for model in models:
+                            if model["name"] == command[1] or model["shortcut"] == command[1]:
+                                change_model(model)
+                                is_a_model = True
+                                alert(f"Changed model to: {model['name']}")
+                                break
+                        
+                        if not is_a_model:
+                            alert("Model not found")
+
+                    else:
+                        alert("Invalid arguments for changing the model")
+                    continue
+
+                case "color":
+                    if len(command) == 2 and command[1] in terminal:
+                        chat["color"] = command[1]
+                        print_chat()
+                        alert(f"Changed color to {command[1]}")
+                    else:
+                        alert("Invalid color")
+                    continue
+
+                case "edit":
+                    if len(command) == 1:
+                        edit_message(1)
+                        print_chat()
+                    elif len(command) == 2 and command[1].isnumeric():
+                        if int(command[1]) > len(chat["all_messages"]):
+                            alert(f"Index too large. Max index is: {len(chat['all_messages'])}")
+                        else:
+                            edit_message(int(command[1]))
+                            print_chat()
+                    
+                    elif len(command) > 3:
+                        alert("Too many arguments")
+                    
+                    continue
+                        
+
+
+
+                case _:
+                    alert("Invalid command")
+                    continue
+            
+
+
+        if (message):
             add_message_to_chat("user", message)
             
-        # just making sure it look more nice when entered through quick mode.
-        else:
-            print()
 
-        bar = Process(target=loading_bar, args=["bold_purple"])
+        bar = Process(target=loading_bar, args=[chat])
         bar.start()
 
         get_and_parse_response(bar)
@@ -144,7 +228,7 @@ def voice_input():
     print(2*"\033[1A" + "        \r", end="")
     audio_location = record()
     print("You: ", end=" ")
-    thred = Process(target=loading_bar)
+    thred = Process(target=loading_bar, args=[chat])
     thred.start()
 
     transcription = whisper(audio_location)
@@ -209,8 +293,6 @@ def resume_chat(db):
             break
 
 
-
-
     rows = db.execute("select * from chat_messages where chat_id=?", chat["id"])
     for row in rows:
         add_message_to_chat(row["user_name"], row["message"])
@@ -221,11 +303,18 @@ def resume_chat(db):
 def print_chat():
     global chat
     global terminal
+
+    print("\x1b\x5b\x48\x1b\x5b\x32\x4a")
+
     for message in chat["all_messages"]:
         if message["role"] == "user":
             print("You: " + message["content"] + "\n")
         if message["role"] == "assistant":
-            print(terminal["bold"] + terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n")
+            print(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n")
+
+
+def alert(text):
+    print(terminal["red"] + terminal["bold"] + text + terminal["reset"] + "\n")
 
 
 def remember_mode():
@@ -237,6 +326,7 @@ def remember_mode():
         return "short"
     
     return "custom"
+
 
 def get_description(all_messages):
     return client.chat.completions.create(
@@ -262,25 +352,7 @@ def get_and_parse_response(bar):
     global chat
     global terminal 
 
-    if chat["provider"] == "mistral":
-        client.api_key = os.getenv("MISTRAL_API_KEY")
-        if not client.api_key:
-            print(terminal["red"] + "Mistral API key not found" + terminal["reset"])
-        client.base_url = "https://api.mistral.ai/v1"
-
-    if chat["provider"] == "openai":
-        client.api_key = os.getenv("OPENAI_API_KEY")
-        if not client.api_key:
-            print(terminal["red"] + "OpenAI API key not found" + terminal["reset"])
-        client.base_url = "https://api.openai.com/v1"
-
-    if chat["provider"] == "together":
-        client.api_key = os.getenv("TOGETHER_API_KEY")
-        if not client.api_key:
-            print(terminal["red"] + "Together API key not found" + terminal["reset"])
-        client.base_url = "https://api.together.xyz"
-
-    stream = client.chat.completions.create(
+    stream = client.with_options(base_url=chat["base_url"], api_key=os.getenv(chat["api_key_name"])).chat.completions.create(
         model=chat["model"],
         messages=chat["all_messages"],
         temperature=0.8,
@@ -289,7 +361,7 @@ def get_and_parse_response(bar):
     add_message_to_chat("assistant", "")
     bar.terminate()
 
-    print("\b" + terminal["bold"] + terminal["purple"], end="")
+    print("\b" + terminal[chat["color"]], end="")
 
     for chunk in stream:
         if not chunk.choices[0].delta.content:
@@ -339,8 +411,7 @@ def quick_input():
         elif argv[1][0]=="-":
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
-                   chat["model"] = model["name"] 
-                   chat["provider"] = model["provider"]
+                    change_model(model)
 
         else:
             prompt = argv[1]
@@ -362,8 +433,7 @@ def quick_input():
             if chat["mode"] == "short":
                 for model in models:
                     if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                        chat["model"] = model["name"]
-                        chat["provider"] = model["provider"]
+                        change_model(model)
                         add_message_to_chat("system", short_mode)
                         break
             
@@ -373,8 +443,7 @@ def quick_input():
     elif len(argv) == 4:
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                chat["model"] = model["name"]
-                chat["provider"] = model["provider"]
+                change_model(model)
                 break
 
         for mode in modes:
@@ -428,6 +497,7 @@ def execute_command(command):
     output = subprocess.check_output(command, shell=True, universal_newlines=True)
     return output
 
+
 def delete_chat(db):
     global chat
     if chat["is_loaded"]:
@@ -435,6 +505,7 @@ def delete_chat(db):
         update_chat_ids(db)
     exit()
     
+
 def update_chat_ids(db):
     old_chat_ids = db.execute("SELECT DISTINCT chat_id FROM chat_messages;")
     old_chat_ids_list = [id["chat_id"] for id in old_chat_ids]
@@ -448,6 +519,7 @@ def update_chat_ids(db):
             for message in messages_in_new_order[chat_id]:
                 db.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
 
+
 def is_succinct(list):
     for i in range(1, len(list)):
         if list[i] != list[i-1]+1:
@@ -455,14 +527,15 @@ def is_succinct(list):
         
     return True 
 
+
 # I know this technically isn't a bar, but semantics never stopped anyone from doing anything really
-def loading_bar(color = "regular"):
+def loading_bar(chat):
+    global terminal
     phases = ['⠟', '⠯', '⠷', '⠾', '⠽', '⠻']
     i = 0;
-    colors = {"purple": "\033[35m", "bold_purple": "\033[35m\033[1m", "red": "\033[31m", "regular": ""}
 
     # makes the cursor disappear.
-    print("\033[?25l" + colors[color], end="")
+    print("\033[?25l" + terminal[chat["color"]], end="")
     while True:
         print("\b" + phases[i], end="")
         sleep(140/1000)
@@ -475,6 +548,23 @@ def loading_bar(color = "regular"):
 def return_cursor_and_overwrite_bar():
     print("\033[?25h", end="\b")
 
+
+def change_model(new_model):
+    global chat
+    chat["provider"] = new_model["provider"]
+    chat["model"] = new_model["name"]
+    match new_model["provider"]:
+        case "openai":
+            chat["api_key_name"] = "OPENAI_API_KEY"
+            chat["base_url"] = "https://api.openai.com/v1"
+        case "mistral":
+            chat["api_key_name"] = "MISTRAL_API_KEY"
+            chat["base_url"] = "https://api.mistral.ai/v1"
+        case "together":
+            chat["api_key_name"] = "TOGETHER_API_KEY"
+            chat["base_url"] = "https://api.together.xyz"
+        
+
 def choose_mode():
     global chat
     mode_input = input("What mode would you like? ").lower().strip()
@@ -486,7 +576,31 @@ def choose_mode():
             mode_description = option["description"]
             chat["mode"] = option["name"]
             break
-    add_message_to_chat("role", mode_description)
+    add_message_to_chat("system", mode_description)
+
+
+def delete_messages(number = 2):
+    for _ in range(number):
+        chat["all_messages"].pop(-1)
+    print(chat["all_messages"])
+    alert(f"Deleted {number} messages")
+    print_chat()
+
+def edit_message(id):
+    global chat
+    editor = os.environ.get('EDITOR', 'nvim')
+
+    with tempfile.NamedTemporaryFile(suffix=".tmp", mode='w+', delete=False) as tmpfile:
+        tmpfile_path = tmpfile.name
+        tmpfile.write(chat["all_messages"][-id]["content"])
+        tmpfile.flush()
+
+    try:
+        subprocess.run([editor, tmpfile_path], check=True)
+        with open(tmpfile_path, 'r') as tmpfile:
+            chat["all_messages"][-id]["content"] = tmpfile.read().strip()
+    finally:
+        os.remove(tmpfile_path)
 
 
 def nuclear(db):

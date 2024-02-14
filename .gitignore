@@ -6,3 +6,4 @@ __pycache__/
 file_locations.py
 bashgpt.egg-info/
 build
+test.py
