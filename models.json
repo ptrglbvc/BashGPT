@@ -1,6 +1,6 @@
 [
     { "name": "gpt-4-turbo-preview", "shortcut": "4", "provider": "openai" },
-    { "name": "gpt-4-1106-preview", "shortcut": "4", "provider": "openai" },
+    { "name": "gpt-4-1106-preview", "shortcut": "1106", "provider": "openai" },
     { "name": "gpt-3.5-turbo", "shortcut": "3.5", "provider": "openai" },
     { "name": "gpt-3.5-turbo-16k", "shortcut": "16k", "provider": "openai" },
     { "name": "gpt-4", "shortcut": "old4", "provider": "openai" },
