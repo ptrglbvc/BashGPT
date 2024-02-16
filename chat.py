@@ -70,7 +70,7 @@ def main():
                     ("\nWould you like to resume a previous conversation? "
                     "(y/n) ")).lower().strip()[0]
                 if history_input == "y":
-                    load_chat(db)
+                    choose_chat(db)
                     chat["mode"] = remember_mode()
                     break
                 if history_input == "n":
@@ -288,7 +288,7 @@ def playsound(file):
     wave_object.play().wait_done()
 
 
-def load_chat(db):
+def choose_chat(db):
     global chat
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
@@ -300,13 +300,17 @@ def load_chat(db):
 
     while 1:
         option_input = input("\nWhich message do you want to continue? ")
-        if option_input.isnumeric() and (option_input := int(option_input)) in option_ids:
-            chat["id"] = option_input 
-            chat["is_loaded"] = True
+        if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
+            load_chat(db, choice)
             break
+    
 
+def load_chat(db, choice):
+    global chat
+    data = db.execute("SELECT * FROM chat_messages WHERE chat_id=?", choice)
 
-    data = db.execute("select * from chat_messages where chat_id=?", chat["id"])
+    chat["id"] = choice 
+    chat["is_loaded"] = True
     chat["description"] = data[0]["description"]
     for row in data:
         add_message_to_chat(row["user_name"], row["message"])
@@ -424,9 +428,16 @@ def quick_input():
         return 0
 
     elif len(argv)==2:
-        if argv[1]=="help":
+        if argv[1] == "--help" or argv[1] == "-h":
             help_me()
             exit()
+        
+        if argv[1] == "--load-last" or argv[1] == "-ll":
+            db = setup_db(path)
+            last_id = db.execute("SELECT MAX(chat_id) FROM chat_messages")[0]["MAX(chat_id)"]
+            load_chat(db, last_id)
+            
+            
         
         elif argv[1][0]=="-":
             for model in models:
