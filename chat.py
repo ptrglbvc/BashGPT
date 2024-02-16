@@ -11,6 +11,7 @@ import os
 import requests
 import subprocess
 import tempfile
+from re import findall
 from sys import argv, platform
 from pathlib import Path
 from time import sleep
@@ -30,7 +31,8 @@ chat = {
         "api_key_name": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "provider" : "openai",
-        "color": "purple"}
+        "color": "purple",
+        "description": ""}
 all_messages = chat["all_messages"]
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -68,7 +70,7 @@ def main():
                     ("\nWould you like to resume a previous conversation? "
                     "(y/n) ")).lower().strip()[0]
                 if history_input == "y":
-                    resume_chat(db)
+                    load_chat(db)
                     chat["mode"] = remember_mode()
                     break
                 if history_input == "n":
@@ -89,14 +91,22 @@ def main():
         print()
 
         if message and message[0] == "/":
-            command = message[1:].split()
+            command = parse_command(message[1:])
 
             match command[0]:
                 case "q":
-                    if not db:
-                        db = setup_db(path)
-                    save_chat(db)
-                    exit()
+                    if len(command) == 1:
+                        if not chat["is_loaded"]:
+                            db = setup_db(path)
+                        save_chat(db)
+                        exit()
+                    elif len(command) == 2:
+                        chat["description"] = command[1]
+                        save_chat(db)
+                        exit()
+                    else:
+                        alert("Too many arguments")
+                        continue
 
                 case "q!":
                     print("\033[1A", end="")
@@ -164,6 +174,10 @@ def main():
                     if len(command) == 1:
                         edit_message(1)
                         print_chat()
+                    elif command[1] == "-1" or command[1] == "sys":
+                        edit_message(0)
+                        print_chat()
+
                     elif len(command) == 2 and command[1].isnumeric():
                         if int(command[1]) > len(chat["all_messages"]):
                             alert(f"Index too large. Max index is: {len(chat['all_messages'])}")
@@ -248,8 +262,6 @@ def save_chat(db):
     if len(all_messages) > 2:
         print("Saving chat. Hold on a minute...")
         if chat["is_loaded"]:
-            chat_description = db.execute(
-                "SELECT description FROM chat_messages WHERE chat_id = ?", chat["id"])[0]["description"]
 
             # deletes the chat, but the now message is saved under a newer number.
             db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
@@ -261,11 +273,12 @@ def save_chat(db):
             if not max_chat_id:
                 max_chat_id = 0
 
-            chat_description = get_description(all_messages)
+        if not chat["description"]:
+            chat["description"] = generate_description(all_messages)
 
         for message in all_messages:
             db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
-                       max_chat_id+1, message["role"], message["content"], chat_description)
+                       max_chat_id+1, message["role"], message["content"], chat["description"])
         
         update_chat_ids(db)
 
@@ -275,7 +288,7 @@ def playsound(file):
     wave_object.play().wait_done()
 
 
-def resume_chat(db):
+def load_chat(db):
     global chat
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
@@ -293,8 +306,9 @@ def resume_chat(db):
             break
 
 
-    rows = db.execute("select * from chat_messages where chat_id=?", chat["id"])
-    for row in rows:
+    data = db.execute("select * from chat_messages where chat_id=?", chat["id"])
+    chat["description"] = data[0]["description"]
+    for row in data:
         add_message_to_chat(row["user_name"], row["message"])
 
     print_chat()
@@ -312,6 +326,12 @@ def print_chat():
         if message["role"] == "assistant":
             print(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n")
 
+def parse_command(command):
+    pattern = r'".+?"|\S+'
+    matches = findall(pattern, command)
+
+    processed_matches = [match.strip('"') for match in matches]
+    return processed_matches
 
 def alert(text):
     print(terminal["red"] + terminal["bold"] + text + terminal["reset"] + "\n")
@@ -328,7 +348,7 @@ def remember_mode():
     return "custom"
 
 
-def get_description(all_messages):
+def generate_description(all_messages):
     return client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "describe the message using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
