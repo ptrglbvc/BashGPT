@@ -194,7 +194,7 @@ def main():
                     delete_messages(1)
                     print_chat()
                     alert("Regenerating message")
-                    get_and_parse_response()
+                    get_and_print_response()
                     continue
 
                 case _:
@@ -207,7 +207,7 @@ def main():
             
 
 
-        get_and_parse_response()
+        get_and_print_response()
 
         if chat["mode"] == "bash":
             last_message = chat["all_messages"][-1]["content"]
@@ -373,7 +373,7 @@ def help_me():
     print(available_modes)
 
 
-def get_and_parse_response():
+def get_and_print_response():
     global chat
     global terminal 
 
