@@ -11,7 +11,7 @@ import os
 import requests
 import subprocess
 import tempfile
-from re import findall
+from re import findall, sub
 from sys import argv, platform
 from pathlib import Path
 from time import sleep
@@ -244,7 +244,7 @@ def add_message_to_chat(role, content):
     chat["all_messages"].append({"role": role, "content": content})
 
 def voice_input():
-    print(2*"\033[1A" + "        \r", end="")
+    print("\033[2A" + "        \r", end="")
     audio_location = record()
     print("You: ", end=" ")
     thred = Process(target=loading_bar, args=[chat])
@@ -340,7 +340,14 @@ def print_chat():
         if message["role"] == "user":
             print("You: " + message["content"] + "\n")
         if message["role"] == "assistant":
-            print(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n")
+            print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
+
+def parse_md(text):
+    bold_text = sub(r'\*\*(.*?)\*\*|__(.*?)__', r'\033[1m\1\2\033[22m', text)
+    italic_text = sub(r'\*(.*?)\*|_(.*?)_', r'\033[3m\1\2\033[23m', bold_text)
+
+    return italic_text
+        
 
 def parse_command(command):
     pattern = r'".+?"|\S+'
@@ -402,11 +409,30 @@ def get_and_print_response():
 
     print("\b" + terminal[chat["color"]], end="")
 
-    for chunk in stream:
-        if not chunk.choices[0].delta.content:
-            continue
-        print(chunk.choices[0].delta.content, end="")
-        chat["all_messages"][-1]["content"] += (chunk.choices[0].delta.content)
+    try:
+        is_bold = False
+        is_itallic = False
+        for chunk in stream:
+            text = chunk.choices[0].delta.content
+            if not text:
+                continue
+
+            formatted_text = text
+            if "**" in text:
+                formatted_text = text.replace("**", "\033[22m") if is_bold else text.replace("**", "\033[1m")
+                is_bold = not is_bold
+            elif "_" in text:
+                formatted_text = text.replace("_", "\033[23m") if is_itallic else text.replace("_", "\033[3m")
+                is_itallic = not is_itallic
+            elif "*" in text:
+                formatted_text = text.replace("*", "\033[23m") if is_itallic else text.replace("*", "\033[3m")
+
+            print(formatted_text, end="")
+            chat["all_messages"][-1]["content"] += text
+
+    except KeyboardInterrupt:
+        print("\033[2D  ", end="")
+        
 
     print(terminal["reset"] + "\n")
 
