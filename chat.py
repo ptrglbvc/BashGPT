@@ -189,24 +189,25 @@ def main():
                         alert("Too many arguments")
                     
                     continue
-                        
 
-
+                case "rg":
+                    delete_messages(1)
+                    print_chat()
+                    alert("Regenerating message")
+                    get_and_parse_response()
+                    continue
 
                 case _:
                     alert("Invalid command")
                     continue
-            
 
 
         if (message):
             add_message_to_chat("user", message)
             
 
-        bar = Process(target=loading_bar, args=[chat])
-        bar.start()
 
-        get_and_parse_response(bar)
+        get_and_parse_response()
 
         if chat["mode"] == "bash":
             last_message = chat["all_messages"][-1]["content"]
@@ -372,9 +373,12 @@ def help_me():
     print(available_modes)
 
 
-def get_and_parse_response(bar):
+def get_and_parse_response():
     global chat
     global terminal 
+
+    bar = Process(target=loading_bar, args=[chat])
+    bar.start()
 
     stream = client.with_options(base_url=chat["base_url"], api_key=os.getenv(chat["api_key_name"])).chat.completions.create(
         model=chat["model"],
