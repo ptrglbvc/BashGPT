@@ -4,7 +4,7 @@ import logging
 logging.disable(logging.DEBUG)
 logging.disable(logging.INFO)
 
-import simpleaudio as sa
+import vlc
 
 import threading
 import os
@@ -192,10 +192,20 @@ def main():
 
                 case "rg":
                     delete_messages(1)
-                    print_chat()
+                    message = ""
                     alert("Regenerating message")
-                    get_and_print_response()
-                    continue
+                    print_chat()
+                
+                case "speak":
+                    if len(command) == 2 and (command[1] == "shimmer" or command[1] == 2):
+                        alert("Speech with begin shortly")
+                        threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
+                        continue 
+                    elif len(command) == 1:
+                        alert("Speech with begin shortly")
+                        threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
+                        continue
+                    alert("Invalid voice")
 
                 case _:
                     alert("Invalid command")
@@ -205,8 +215,6 @@ def main():
         if (message):
             add_message_to_chat("user", message)
             
-
-
         get_and_print_response()
 
         if chat["mode"] == "bash":
@@ -234,10 +242,6 @@ def long_input():
 def add_message_to_chat(role, content):
     global chat
     chat["all_messages"].append({"role": role, "content": content})
-
-    #play the "another one" sound effect thread from time to time (in another thread). just cause.
-    if len(all_messages)%20==0:
-        threading.Thread(target=playsound, args=[another_one_location]).start()
 
 def voice_input():
     print(2*"\033[1A" + "        \r", end="")
@@ -283,12 +287,6 @@ def save_chat(db):
         
         update_chat_ids(db)
 
-
-def playsound(file):
-    wave_object = sa.WaveObject.from_wave_file(file)
-    wave_object.play().wait_done()
-
-
 def choose_chat(db):
     global chat
     options = db.execute(
@@ -305,6 +303,19 @@ def choose_chat(db):
             load_chat(db, choice)
             break
     
+
+def speak(message, voice="nova"):
+    speech_file_path = Path(__file__).parent / "speech.mp3"
+    response = client.audio.speech.create(
+        model="tts-1-hd",
+        voice=voice,
+        input=message
+    )
+
+    response.stream_to_file(speech_file_path)
+    player = vlc.MediaPlayer(speech_file_path)
+    player.play()
+
 
 def load_chat(db, choice):
     global chat
