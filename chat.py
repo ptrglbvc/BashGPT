@@ -623,8 +623,10 @@ def return_cursor_and_overwrite_bar():
 
 def change_model(new_model):
     global chat
+
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
+
     match new_model["provider"]:
         case "openai":
             chat["api_key_name"] = "OPENAI_API_KEY"
@@ -635,6 +637,9 @@ def change_model(new_model):
         case "together":
             chat["api_key_name"] = "TOGETHER_API_KEY"
             chat["base_url"] = "https://api.together.xyz"
+        case "groq":
+            chat["api_key_name"] = "GROQ_API_KEY"
+            chat["base_url"] = "https://api.groq.com/openai/v1"
         
 
 def choose_mode():

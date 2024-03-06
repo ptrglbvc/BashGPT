@@ -18,5 +18,15 @@
         "name": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
         "shortcut": "nh2",
         "provider": "together"
+    },
+    {
+        "name": "mixtral-8x7b-32768",
+        "shortcut": "groq",
+        "provider": "groq"
+    },
+    {
+        "name": "llama2-70b-4096",
+        "shortcut": "llama",
+        "provider": "groq"
     }
 ]
