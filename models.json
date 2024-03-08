@@ -28,5 +28,15 @@
         "name": "llama2-70b-4096",
         "shortcut": "llama",
         "provider": "groq"
+    },
+    {
+        "name": "claude-3-opus-20240229",
+        "shortcut": "opus",
+        "provider": "anthropic"
+    },
+    {
+        "name": "claude-3-sonnet-20240229",
+        "shortcut": "sonnet",
+        "provider": "anthropic"
     }
 ]

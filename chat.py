@@ -1,6 +1,7 @@
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
 # It turns out we have to do it at the very start, at least before we call the OpenAI() constructor.
 import logging
+import anthropic
 logging.disable(logging.DEBUG)
 logging.disable(logging.INFO)
 
@@ -21,6 +22,7 @@ from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
 from whisper import record, whisper
 from openai import OpenAI
+from anthropic import Anthropic
 
 chat = {
         "all_messages": [],
@@ -33,9 +35,11 @@ chat = {
         "provider" : "openai",
         "color": "purple",
         "description": ""}
+
 all_messages = chat["all_messages"]
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 terminal = {"purple": "\033[35m", 
             "red": "\033[31m",
@@ -372,10 +376,13 @@ def remember_mode():
 
 
 def generate_description(all_messages):
-    return client.chat.completions.create(
+    try:
+        return client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "describe the message using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
+    except:
+        return "No description"
         
 
 def help_me():
@@ -398,11 +405,18 @@ def get_and_print_response():
     bar = Process(target=loading_bar, args=[chat])
     bar.start()
 
-    stream = client.with_options(base_url=chat["base_url"], api_key=os.getenv(chat["api_key_name"])).chat.completions.create(
-        model=chat["model"],
-        messages=chat["all_messages"],
-        temperature=0.8,
-        stream=True)
+    stream = client.with_options(
+        base_url=chat["base_url"], 
+        api_key=os.getenv(chat["api_key_name"])).chat.completions.create(
+            max_tokens=2024, 
+            model=chat["model"], 
+            messages=chat["all_messages"], 
+            stream=True) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
+                system=chat["all_messages"][0]["content"],
+                max_tokens=2024, 
+                model=chat["model"], 
+                messages=chat["all_messages"][1:], 
+                stream=True)
 
     add_message_to_chat("assistant", "")
     bar.terminate()
@@ -410,22 +424,20 @@ def get_and_print_response():
     print("\b" + terminal[chat["color"]], end="")
 
     try:
-        is_bold = False
-        is_itallic = False
+        formatting = {"is_bold": False, "is_itallic": False}
         for chunk in stream:
-            text = chunk.choices[0].delta.content
-            if not text:
-                continue
+            text = ""
+            if chat["provider"] == "anthropic":
+                if chunk.type == "content_block_delta":
+                    text = chunk.delta.text
+                else: 
+                    continue
+            else:
+                text = chunk.choices[0].delta.content
+                if not text:
+                    continue
 
-            formatted_text = text
-            if "**" in text:
-                formatted_text = text.replace("**", "\033[22m") if is_bold else text.replace("**", "\033[1m")
-                is_bold = not is_bold
-            elif "_" in text:
-                formatted_text = text.replace("_", "\033[23m") if is_itallic else text.replace("_", "\033[3m")
-                is_itallic = not is_itallic
-            elif "*" in text:
-                formatted_text = text.replace("*", "\033[23m") if is_itallic else text.replace("*", "\033[3m")
+            formatted_text = format_md(text, formatting)
 
             print(formatted_text, end="")
             chat["all_messages"][-1]["content"] += text
@@ -435,6 +447,28 @@ def get_and_print_response():
         
 
     print(terminal["reset"] + "\n")
+
+def format_md(text, formatting):
+    if "***" in text:
+        formatting["is_bold"] = not formatting["is_bold"]
+        formatting["is_itallic"] = not formatting["is_itallic"]
+        return text.replace(
+            "***", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
+                ) else text.replace("***", "\033[1m\033[3")
+    elif "**" in text:
+        formatting["is_bold"] = not formatting["is_bold"]
+        return text.replace("**", "\033[22m") if formatting["is_bold"] else text.replace("**", "\033[1m")
+    elif "__" in text:
+        formatting["is_bold"] = not formatting["is_bold"]
+        return text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
+    elif "*" in text:
+        formatting["is_itallic"] = not formatting["is_itallic"]
+        return text.replace("*", "\033[23m") if formatting["is_itallic"] else text.replace("*", "\033[3m")
+    elif "_" in text:
+        formatting["is_itallic"] = not formatting["is_itallic"]
+        return text.replace("_", "\033[23m") if formatting["is_itallic"] else text.replace("_", "\033[3m")
+    else:
+        return text
 
 
 def bash_mode(message):
@@ -640,6 +674,9 @@ def change_model(new_model):
         case "groq":
             chat["api_key_name"] = "GROQ_API_KEY"
             chat["base_url"] = "https://api.groq.com/openai/v1"
+        case "anthropic":
+            chat["api_key_name"] = "ANTHROPIC_API_KEY"
+            chat["base_url"] = "https://api.anthropic.com/v1/messages"
         
 
 def choose_mode():
