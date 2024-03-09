@@ -424,7 +424,7 @@ def get_and_print_response():
     print("\b" + terminal[chat["color"]], end="")
 
     try:
-        formatting = {"is_bold": False, "is_itallic": False}
+        formatting = {"is_bold": False, "is_itallic": False, "is_code": False}
         for chunk in stream:
             text = ""
             if chat["provider"] == "anthropic":
@@ -449,26 +449,40 @@ def get_and_print_response():
     print(terminal["reset"] + "\n")
 
 def format_md(text, formatting):
-    if "***" in text:
-        formatting["is_bold"] = not formatting["is_bold"]
-        formatting["is_itallic"] = not formatting["is_itallic"]
-        return text.replace(
-            "***", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
-                ) else text.replace("***", "\033[1m\033[3")
-    elif "**" in text:
-        formatting["is_bold"] = not formatting["is_bold"]
-        return text.replace("**", "\033[22m") if formatting["is_bold"] else text.replace("**", "\033[1m")
-    elif "__" in text:
-        formatting["is_bold"] = not formatting["is_bold"]
-        return text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
-    elif "*" in text:
-        formatting["is_itallic"] = not formatting["is_itallic"]
-        return text.replace("*", "\033[23m") if formatting["is_itallic"] else text.replace("*", "\033[3m")
-    elif "_" in text:
-        formatting["is_itallic"] = not formatting["is_itallic"]
-        return text.replace("_", "\033[23m") if formatting["is_itallic"] else text.replace("_", "\033[3m")
-    else:
-        return text
+    ft = text
+    if text == '``':
+        ft = text
+    if "```" in text or "`" in text:
+        formatting["is_code"] = not formatting["is_code"]
+        ft = "\033[22m\033[23" + text
+    
+    if not formatting["is_code"]:
+        if "***" in text:
+            ft = text.replace(
+                "***", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
+                    ) else text.replace("***", "\033[1m\033[3m")
+            formatting["is_bold"] = not formatting["is_bold"]
+            formatting["is_itallic"] = not formatting["is_itallic"]
+        if "___" in text:
+            ft = text.replace(
+                "___", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
+                    ) else text.replace("___", "\033[1m\033[3m")
+            formatting["is_bold"] = not formatting["is_bold"]
+            formatting["is_itallic"] = not formatting["is_itallic"]
+        elif "**" in text:
+            ft = text.replace("**", "\033[22m") if formatting["is_bold"] else text.replace("**", "\033[1m")
+            formatting["is_bold"] = not formatting["is_bold"]
+        elif "__" in text:
+            ft = text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
+            formatting["is_bold"] = not formatting["is_bold"]
+        elif "*" in text:
+            ft = text.replace("*", "\033[23m") if formatting["is_itallic"] else text.replace("*", "\033[3m")
+            formatting["is_itallic"] = not formatting["is_itallic"]
+        elif "_" in text:
+            ft = text.replace("_", "\033[23m") if formatting["is_itallic"] else text.replace("_", "\033[3m")
+            formatting["is_itallic"] = not formatting["is_itallic"]
+
+    return ft
 
 
 def bash_mode(message):
