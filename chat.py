@@ -1,7 +1,6 @@
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
 # It turns out we have to do it at the very start, at least before we call the OpenAI() constructor.
 import logging
-import anthropic
 logging.disable(logging.DEBUG)
 logging.disable(logging.INFO)
 
@@ -21,6 +20,7 @@ from multiprocessing import Process
 from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
 from whisper import record, whisper
+
 from openai import OpenAI
 from anthropic import Anthropic
 
@@ -407,11 +407,13 @@ def get_and_print_response():
 
     stream = client.with_options(
         base_url=chat["base_url"], 
-        api_key=os.getenv(chat["api_key_name"])).chat.completions.create(
+        api_key=os.getenv(chat["api_key_name"])
+        ).chat.completions.create(
             max_tokens=2024, 
             model=chat["model"], 
             messages=chat["all_messages"], 
-            stream=True) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
+            stream=True
+            ) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
                 system=chat["all_messages"][0]["content"],
                 max_tokens=2024, 
                 model=chat["model"], 
@@ -437,7 +439,7 @@ def get_and_print_response():
                 if not text:
                     continue
 
-            formatted_text = format_md(text, formatting)
+            formatted_text = parse_md_while_streaming(text, formatting)
 
             print(formatted_text, end="")
             chat["all_messages"][-1]["content"] += text
@@ -448,7 +450,7 @@ def get_and_print_response():
 
     print(terminal["reset"] + "\n")
 
-def format_md(text, formatting):
+def parse_md_while_streaming(text, formatting):
     ft = text
     if text == '``':
         ft = text
@@ -475,9 +477,7 @@ def format_md(text, formatting):
         elif "__" in text:
             ft = text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
             formatting["is_bold"] = not formatting["is_bold"]
-        elif "*" in text:
-            ft = text.replace("*", "\033[23m") if formatting["is_itallic"] else text.replace("*", "\033[3m")
-            formatting["is_itallic"] = not formatting["is_itallic"]
+        # The * is a problem because we cannot know without the further context whether it's is for lists or italic
         elif "_" in text:
             ft = text.replace("_", "\033[23m") if formatting["is_itallic"] else text.replace("_", "\033[3m")
             formatting["is_itallic"] = not formatting["is_itallic"]

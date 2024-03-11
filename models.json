@@ -6,9 +6,21 @@
     { "name": "gpt-4", "shortcut": "old4", "provider": "openai" },
     { "name": "gpt-4-32k", "shortcut": "32k", "provider": "openai" },
     { "name": "gpt-3.5-turbo-0301", "shortcut": "0301", "provider": "openai" },
-    { "name": "mistral-tiny", "shortcut": "tiny", "provider": "mistral" },
-    { "name": "mistral-small", "shortcut": "small", "provider": "mistral" },
-    { "name": "mistral-medium", "shortcut": "medium", "provider": "mistral" },
+    {
+        "name": "mistral-small-latest",
+        "shortcut": "small",
+        "provider": "mistral"
+    },
+    {
+        "name": "mistral-medium-latest",
+        "shortcut": "medium",
+        "provider": "mistral"
+    },
+    {
+        "name": "mistral-large-latest",
+        "shortcut": "large",
+        "provider": "mistral"
+    },
     {
         "name": "Qwen/Qwen1.5-72B-Chat",
         "shortcut": "qwen",
@@ -21,12 +33,17 @@
     },
     {
         "name": "mixtral-8x7b-32768",
-        "shortcut": "groq",
+        "shortcut": "mix",
         "provider": "groq"
     },
     {
         "name": "llama2-70b-4096",
         "shortcut": "llama",
+        "provider": "groq"
+    },
+    {
+        "name": "gemma-7b-it",
+        "shortcut": "gemma",
         "provider": "groq"
     },
     {
