@@ -127,7 +127,8 @@ def main():
                     nuclear(db)
 
                 case "l": 
-                    message = long_input()
+                    message = use_editor("")
+                    print(message, end="\n\n")
 
                 case "v":
                     try:
@@ -716,19 +717,26 @@ def delete_messages(number = 2):
 
 def edit_message(id):
     global chat
+    new_message = use_editor(chat["all_messages"][-id]["content"])
+    chat["all_messages"][-id]["content"] = new_message
+
+def use_editor(initial_text):
     editor = os.environ.get('EDITOR', 'nvim')
+    tmpfile_contents = ""
 
     with tempfile.NamedTemporaryFile(suffix=".tmp", mode='w+', delete=False) as tmpfile:
         tmpfile_path = tmpfile.name
-        tmpfile.write(chat["all_messages"][-id]["content"])
+        tmpfile.write(initial_text)
         tmpfile.flush()
 
     try:
         subprocess.run([editor, tmpfile_path], check=True)
         with open(tmpfile_path, 'r') as tmpfile:
-            chat["all_messages"][-id]["content"] = tmpfile.read().strip()
+            # chat["all_messages"][-id]["content"] = tmpfile.read().strip()
+            tmpfile_contents = tmpfile.read().strip()
     finally:
         os.remove(tmpfile_path)
+        return tmpfile_contents
 
 
 def nuclear(db):
