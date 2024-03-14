@@ -134,8 +134,9 @@ def main():
                     try:
                         message = voice_input()
                     except:
-                        print("Recording doesn't work on you device. \nLong input mode activated.")
-                        message = long_input()
+                        alert("Recording doesn't work on you device.")
+                        message = use_editor()
+                        print(message, end="\n\n")
 
                 case "dl":
                     if len(command) == 1:
@@ -230,23 +231,10 @@ def main():
             threading.Thread(target=dalle_mode, args=[]).start()
 
 
-
-def long_input():
-    print(("\033[1m\033[31mInput your long text. "
-           "To end the input, type 'q' in a new line.\033[0m\n"))
-    message = ""
-    while True:
-        line = input()
-        if line.rstrip() == "q":
-            message.rstrip("\n")
-            print()
-            break
-        message += line + "\n"
-    return message
-
 def add_message_to_chat(role, content):
     global chat
     chat["all_messages"].append({"role": role, "content": content})
+
 
 def voice_input():
     print("\033[2A" + "        \r", end="")
