@@ -67,7 +67,7 @@
         "provider": "anthropic"
     },
     {
-        "name": "anthropic/claude-3-haiku",
+        "name": "anthropic/claude-3-haiku:beta",
         "shortcut": "haiku",
         "provider": "openrouter"
     }

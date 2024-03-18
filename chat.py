@@ -11,6 +11,7 @@ import os
 import requests
 import subprocess
 import tempfile
+import base64
 from re import findall, sub
 from sys import argv, platform
 from pathlib import Path
@@ -92,6 +93,7 @@ def main():
 
         if message and message[0] == "/":
             command = parse_command(message[1:])
+            print(command)
 
             match command[0]:
                 case "q":
@@ -248,6 +250,13 @@ def attach_image(image_url):
         chat["all_messages"].append({"role": "user", "content": 
                                         [{"type": "image_url", "image_url": 
                                             {"url" : image_url}}]})
+    elif os.path.isfile(image_url:=image_url.strip("'")):
+        with open(image_url, "rb") as image_file:
+            image_extension = image_url.split(".")[-1]
+            image = base64.b64encode(image_file.read()).decode('utf-8')
+            chat["all_messages"].append({"role": "user", "content": 
+                                            [{"type": "image_url", "image_url": 
+                                                {"url" : f"data:image/{image_extension};base64,{image}"}}]})
     else:
         alert("Invalid url")
 
