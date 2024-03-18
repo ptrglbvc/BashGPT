@@ -398,7 +398,7 @@ def get_and_print_response():
         base_url=chat["base_url"], 
         api_key=os.getenv(chat["api_key_name"])
         ).chat.completions.create(
-            # max_tokens=2024, 
+            max_tokens=2024, 
             model=chat["model"], 
             messages=chat["all_messages"], 
             stream=True
