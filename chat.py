@@ -398,7 +398,7 @@ def get_and_print_response():
         base_url=chat["base_url"], 
         api_key=os.getenv(chat["api_key_name"])
         ).chat.completions.create(
-            max_tokens=2024, 
+            # max_tokens=2024, 
             model=chat["model"], 
             messages=chat["all_messages"], 
             stream=True
@@ -445,7 +445,7 @@ def parse_md_while_streaming(text, formatting):
         ft = text
     if "```" in text or "`" in text:
         formatting["is_code"] = not formatting["is_code"]
-        ft = "\033[22m\033[23" + text
+        ft = text
     
     if not formatting["is_code"]:
         if "***" in text:
@@ -466,10 +466,8 @@ def parse_md_while_streaming(text, formatting):
         elif "__" in text:
             ft = text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
             formatting["is_bold"] = not formatting["is_bold"]
-        # The * is a problem because we cannot know without the further context whether it's is for lists or italic
-        elif "_" in text:
-            ft = text.replace("_", "\033[23m") if formatting["is_itallic"] else text.replace("_", "\033[3m")
-            formatting["is_itallic"] = not formatting["is_itallic"]
+        # The * and _ are a problem because we cannot know without the further context whether it's is for lists or italic
+        # So the best solution is to just leave it as is, and parse it only if the user reprints the message for one reason or another
 
     return ft
 
@@ -680,6 +678,9 @@ def change_model(new_model):
         case "anthropic":
             chat["api_key_name"] = "ANTHROPIC_API_KEY"
             chat["base_url"] = "https://api.anthropic.com/v1/messages"
+        case "openrouter":
+            chat["api_key_name"] = "OPENROUTER_API_KEY"
+            chat["base_url"] = "https://openrouter.ai/api/v1"
         
 
 def choose_mode():

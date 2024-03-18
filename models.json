@@ -1,5 +1,10 @@
 [
     { "name": "gpt-4-turbo-preview", "shortcut": "4", "provider": "openai" },
+    {
+        "name": "gpt-4-vision-preview",
+        "shortcut": "4v",
+        "provider": "openai"
+    },
     { "name": "gpt-4-1106-preview", "shortcut": "1106", "provider": "openai" },
     { "name": "gpt-3.5-turbo", "shortcut": "3.5", "provider": "openai" },
     { "name": "gpt-3.5-turbo-16k", "shortcut": "16k", "provider": "openai" },
@@ -47,6 +52,11 @@
         "provider": "groq"
     },
     {
+        "name": "google/gemini-pro",
+        "shortcut": "gemini",
+        "provider": "openrouter"
+    },
+    {
         "name": "claude-3-opus-20240229",
         "shortcut": "opus",
         "provider": "anthropic"
@@ -55,5 +65,10 @@
         "name": "claude-3-sonnet-20240229",
         "shortcut": "sonnet",
         "provider": "anthropic"
+    },
+    {
+        "name": "anthropic/claude-3-haiku",
+        "shortcut": "haiku",
+        "provider": "openrouter"
     }
 ]
