@@ -88,10 +88,9 @@ def main():
     while True:
         message = ""
 
-        if not len(all_messages) == 2:
+        if not len(all_messages) == 2 or str(type(all_messages[-1]["content"])) == "<class 'list'>":
             message = input("You: ").strip()
         
-
         print()
 
         if message and message[0] == "/":
@@ -167,6 +166,13 @@ def main():
                         alert("Invalid arguments for changing the model")
                     continue
 
+                case "image":
+                    if len(command) == 2:
+                        attach_image(command[1])
+                    else:
+                        alert("Invalid arguments")
+                    continue
+
                 case "color":
                     if len(command) == 2 and command[1] in terminal:
                         chat["color"] = command[1]
@@ -219,8 +225,11 @@ def main():
 
 
         if (message):
-            add_message_to_chat("user", message)
-            
+            if chat["all_messages"][-1]["role"] == "user" and str(type(chat["all_messages"][-1]["content"])) == "<class 'list'>":
+                chat["all_messages"][-1]["content"].append({"type": "text", "text": message})
+            else:
+                add_message_to_chat("user", message)
+
         get_and_print_response()
 
         if chat["mode"] == "bash":
@@ -234,6 +243,16 @@ def main():
 def add_message_to_chat(role, content):
     global chat
     chat["all_messages"].append({"role": role, "content": content})
+
+
+def attach_image(image_url):
+    global chat
+    if image_url[0:4] == "http":
+        chat["all_messages"].append({"role": "user", "content": 
+                                        [{"type": "image_url", "image_url": 
+                                            {"url" : image_url}}]})
+    else:
+        alert("Invalid url")
 
 
 def voice_input():
@@ -331,7 +350,16 @@ def print_chat():
 
     for message in chat["all_messages"]:
         if message["role"] == "user":
-            print("You: " + message["content"] + "\n")
+            if str(type(message["content"])) == "<class 'str'>":
+                print("You: " + message["content"] + "\n")
+            else:
+                for item in message["content"]:
+                    if item["type"] == "text":
+                        print("You: " + item["text"] + "\n")
+                for item in message["content"]:
+                    if item["type"] == "image_url":
+                        image_name = item["image_url"]["url"].split("/")[-1]
+                        alert(f"Attached image: {image_name}")
         if message["role"] == "assistant":
             print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
 
