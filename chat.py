@@ -69,17 +69,14 @@ def main():
         history_exists = db.execute(("SELECT MAX(message_id) "
                                     "AS max FROM chat_messages"))[0]["max"] is not None 
         if history_exists:
-            while 1:
-                history_input = input(
-                    ("\nWould you like to resume a previous conversation? "
-                    "(y/n) ")).lower().strip()[0]
-                if history_input == "y":
-                    choose_chat(db)
-                    chat["mode"] = remember_mode()
-                    break
-                if history_input == "n":
-                    choose_mode()
-                    break
+            history_input = input(
+                ("\nWould you like to resume a previous conversation? "
+                "(y/n) ")).lower().strip()
+            if history_input and history_input[0] == "y":
+                choose_chat(db)
+                chat["mode"] = remember_mode()
+            else:
+                choose_mode()
 
         else:
             choose_mode()
