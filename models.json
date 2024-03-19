@@ -57,6 +57,11 @@
         "provider": "openrouter"
     },
     {
+        "name": "google/gemini-pro-vision",
+        "shortcut": "geminiv",
+        "provider": "openrouter"
+    },
+    {
         "name": "claude-3-opus-20240229",
         "shortcut": "opus",
         "provider": "anthropic"
