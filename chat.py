@@ -1,10 +1,8 @@
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
-# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor.
+# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing. 
 import logging
 logging.disable(logging.DEBUG)
 logging.disable(logging.INFO)
-
-import vlc
 
 import threading
 import os
@@ -12,11 +10,13 @@ import requests
 import subprocess
 import tempfile
 import base64
+import shlex
 from re import findall, sub
 from sys import argv, platform
 from pathlib import Path
 from time import sleep
 from multiprocessing import Process
+import pprint
 
 from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
@@ -24,18 +24,23 @@ from whisper import record, whisper
 
 from openai import OpenAI
 from anthropic import Anthropic
+import vlc
+import httpx
 
 chat = {
         "all_messages": [],
+        "images": [],
         "is_loaded": False,
         "id": None,
         "mode": "short", 
         "model": "gpt-3.5-turbo", 
+        "vision_enabled": False,
         "api_key_name": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "provider" : "openai",
         "color": "purple",
         "description": ""}
+db = ""
 
 all_messages = chat["all_messages"]
 
@@ -59,7 +64,7 @@ audio_location = path + "audio.wav"
 
 
 def main():
-    db = ""
+    global db
 
     if len(argv)>1:
         quick_input()
@@ -85,15 +90,16 @@ def main():
 
     while True:
         message = ""
+        pprint.pprint(chat["all_messages"])
 
         if not len(all_messages) == 2 or str(type(all_messages[-1]["content"])) == "<class 'list'>":
             message = input("You: ").strip()
         
         print()
 
-        if message and message[0] == "/":
-            command = parse_command(message[1:])
-            print(command)
+        if message and message[0] == "/" and len(message) > 1:
+            command = shlex.split(message[1:])
+            # command = parse_command(message[1:])
 
             match command[0]:
                 case "q":
@@ -167,7 +173,7 @@ def main():
 
                 case "image":
                     if len(command) == 2:
-                        attach_image(command[1])
+                        get_image(command[1])
                     else:
                         alert("Invalid arguments")
                     continue
@@ -224,10 +230,10 @@ def main():
 
 
         if (message):
-            if chat["all_messages"][-1]["role"] == "user" and str(type(chat["all_messages"][-1]["content"])) == "<class 'list'>":
-                chat["all_messages"][-1]["content"].append({"type": "text", "text": message})
-            else:
-                add_message_to_chat("user", message)
+            # if chat["all_messages"][-1]["role"] == "user" and str(type(chat["all_messages"][-1]["content"])) == "<class 'list'>":
+            #     chat["all_messages"][-1]["content"].append({"type": "text", "text": message})
+            # else:
+            add_message_to_chat("user", message)
 
         get_and_print_response()
 
@@ -244,19 +250,43 @@ def add_message_to_chat(role, content):
     chat["all_messages"].append({"role": role, "content": content})
 
 
-def attach_image(image_url):
+def get_image(image_url):
     global chat
-    if image_url[0:4] == "http":
-        chat["all_messages"].append({"role": "user", "content": 
-                                        [{"type": "image_url", "image_url": 
-                                            {"url" : image_url}}]})
-    elif os.path.isfile(image_url:=image_url.strip("'")):
-        with open(image_url, "rb") as image_file:
-            image_extension = image_url.split(".")[-1]
+    clean_image_url = image_url.strip("'")
+    image_name = clean_image_url.split("/")[-1]
+
+    #images from links can oftentimes have those variables like ?v=somethingblabla&
+    #this will be a problem when trying to parse the image extensio
+    try:
+        question_idx = image_name.index("?")
+        dot_idx = image_name.index(".")
+        image_name = image_name[:question_idx] if dot_idx < question_idx else image_name
+    except:
+        pass
+
+    image_extension = image_name.split(".")[-1]
+    if image_extension == "jpg": image_extension = "jpeg"
+
+
+    if clean_image_url[0:4] == "http":
+        image = base64.b64encode(httpx.get(clean_image_url).content).decode("utf-8")
+        chat["images"].append({
+            "url" : image, 
+            "name": image_name, 
+            "extension": image_extension,
+            "message_idx": len(chat["all_messages"])
+            })
+
+    elif os.path.isfile(clean_image_url):
+        with open(clean_image_url, "rb") as image_file:
             image = base64.b64encode(image_file.read()).decode('utf-8')
-            chat["all_messages"].append({"role": "user", "content": 
-                                            [{"type": "image_url", "image_url": 
-                                                {"url" : f"data:image/{image_extension};base64,{image}"}}]})
+            chat["images"].append({
+                "url" : image, 
+                "name": image_name, 
+                "extension": image_extension,
+                "message_idx" : len(chat["all_messages"]),
+                })
+
     else:
         alert("Invalid url")
 
@@ -288,6 +318,7 @@ def save_chat(db):
 
             # deletes the chat, but the now message is saved under a newer number.
             db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
+            db.execute("DELETE FROM images WHERE chat_id=?", chat["id"])
             max_chat_id = chat["id"] - 1
 
         else:
@@ -301,8 +332,12 @@ def save_chat(db):
 
         for message in all_messages:
             db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
-                       max_chat_id+1, message["role"], message["content"], chat["description"])
+                max_chat_id+1, message["role"], message["content"], chat["description"])
         
+        for image in chat["images"]:
+            db.execute("INSERT INTO images (url, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                image["url"], image["name"], image["extension"], max_chat_id+1, image["message_idx"])
+
         update_chat_ids(db)
 
 def choose_chat(db):
@@ -319,20 +354,21 @@ def choose_chat(db):
         option_input = input("\nWhich message do you want to continue? ")
         if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
             load_chat(db, choice)
+            load_images(db, choice)
+            print_chat()
             break
     
 
 def speak(message, voice="nova"):
     speech_file_path = Path(__file__).parent / "speech.mp3"
-    response = client.audio.speech.create(
+    with client.audio.speech.create(
         model="tts-1-hd",
         voice=voice,
         input=message
-    )
-
-    response.stream_to_file(speech_file_path)
-    player = vlc.MediaPlayer(speech_file_path)
-    player.play()
+    ) as response:
+        response.stream_to_file(speech_file_path)
+        player = vlc.MediaPlayer(speech_file_path)
+        player.play()
 
 
 def load_chat(db, choice):
@@ -345,7 +381,16 @@ def load_chat(db, choice):
     for row in data:
         add_message_to_chat(row["user_name"], row["message"])
 
-    print_chat()
+
+def load_images(db, id):
+    data = db.execute("SELECT * FROM images WHERE chat_id=?", id)
+    for row in data:
+        chat["images"].append({
+            "url": row["url"],
+            "name": row["name"],
+            "extension": row["extension"],
+            "message_idx": row["message_idx"]
+        })
 
 
 def print_chat():
@@ -375,13 +420,6 @@ def parse_md(text):
 
     return italic_text
         
-
-def parse_command(command):
-    pattern = r'".+?"|\S+'
-    matches = findall(pattern, command)
-
-    processed_matches = [match.strip('"') for match in matches]
-    return processed_matches
 
 def alert(text):
     print(terminal["red"] + terminal["bold"] + text + terminal["reset"] + "\n")
@@ -421,9 +459,43 @@ def help_me():
     print(available_modes)
 
 
+def attach_images(all_messages):
+    global chat
+    messages_with_images = all_messages.copy()
+    for image in chat["images"]:
+        if (curr_idx:=image["message_idx"]) < len(messages_with_images):
+            image_data = {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": f'image/{image["extension"]}',
+                    "data": image["url"]
+                },
+            } if chat["provider"] == "anthropic" else {
+                "type": "image_url", "image_url": {
+                    "url": f'data:image/{image["extension"]};base64,{image["url"]}'
+                }
+            }
+
+            # this is for checking if the message already has an image attached
+            if str(type(messages_with_images[curr_idx]["content"])) == "<class 'str'>":
+                newValue = {"role": "user", "content": [
+                    {"type": "text", "text": all_messages[curr_idx]["content"]},
+                    image_data
+                ]}
+                messages_with_images[curr_idx] = newValue
+            else:
+                messages_with_images[curr_idx]["content"].append(newValue.append(newValue))
+    
+    return messages_with_images
+
+
+
 def get_and_print_response():
     global chat
     global terminal 
+    system_message = chat["all_messages"][0]["content"]
+    all_messages = chat["all_messages"] if not chat["vision_enabled"] else attach_images(chat["all_messages"])
 
     bar = Process(target=loading_bar, args=[chat])
     bar.start()
@@ -434,13 +506,13 @@ def get_and_print_response():
         ).chat.completions.create(
             max_tokens=2024, 
             model=chat["model"], 
-            messages=chat["all_messages"], 
+            messages=all_messages, 
             stream=True
             ) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
-                system=chat["all_messages"][0]["content"],
+                system=system_message,
                 max_tokens=2024, 
                 model=chat["model"], 
-                messages=chat["all_messages"][1:], 
+                messages=all_messages[1:], 
                 stream=True)
 
     add_message_to_chat("assistant", "")
@@ -543,9 +615,12 @@ def quick_input():
             exit()
         
         if argv[1] == "--load-last" or argv[1] == "-ll":
+            global db
             db = setup_db(path)
             last_id = db.execute("SELECT MAX(chat_id) FROM chat_messages")[0]["MAX(chat_id)"]
             load_chat(db, last_id)
+            load_images(db, last_id)
+            print_chat()
             
             
         
@@ -643,6 +718,7 @@ def delete_chat(db):
     global chat
     if chat["is_loaded"]:
         db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
+        db.execute("DELETE FROM images WHERE chat_id=?", chat["id"])
         update_chat_ids(db)
     exit()
     
@@ -651,14 +727,20 @@ def update_chat_ids(db):
     old_chat_ids = db.execute("SELECT DISTINCT chat_id FROM chat_messages;")
     old_chat_ids_list = [id["chat_id"] for id in old_chat_ids]
 
-    if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids[0] != 1 or not is_succinct(old_chat_ids_list):
+    if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids_list[0] != 1 or not is_succinct(old_chat_ids_list):
         messages_in_new_order = []
-        for id in old_chat_ids:
-            messages_in_new_order.append(db.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id["chat_id"]))
+        for id in old_chat_ids_list:
+            messages_in_new_order.append(
+                db.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id))
 
         for chat_id in range(0, len(messages_in_new_order)):
             for message in messages_in_new_order[chat_id]:
                 db.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
+        
+        for (idx, chat_id) in enumerate(old_chat_ids_list):
+            if idx+1 != chat_id:
+                db.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?", 
+                    idx+1, chat_id)
 
 
 def is_succinct(list):
@@ -695,6 +777,7 @@ def change_model(new_model):
 
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
+    chat["vision_enabled"] = new_model["vision_enabled"]
 
     match new_model["provider"]:
         case "openai":

@@ -1,79 +1,128 @@
 [
-    { "name": "gpt-4-turbo-preview", "shortcut": "4", "provider": "openai" },
+    {
+        "name": "gpt-4-turbo-preview",
+        "shortcut": "4",
+        "provider": "openai",
+        "vision_enabled": false
+    },
     {
         "name": "gpt-4-vision-preview",
         "shortcut": "4v",
-        "provider": "openai"
+        "provider": "openai",
+        "vision_enabled": true
     },
-    { "name": "gpt-4-1106-preview", "shortcut": "1106", "provider": "openai" },
-    { "name": "gpt-3.5-turbo", "shortcut": "3.5", "provider": "openai" },
-    { "name": "gpt-3.5-turbo-16k", "shortcut": "16k", "provider": "openai" },
-    { "name": "gpt-4", "shortcut": "old4", "provider": "openai" },
-    { "name": "gpt-4-32k", "shortcut": "32k", "provider": "openai" },
-    { "name": "gpt-3.5-turbo-0301", "shortcut": "0301", "provider": "openai" },
+    {
+        "name": "gpt-4-1106-preview",
+        "shortcut": "1106",
+        "provider": "openai",
+        "vision_enabled": false
+    },
+    {
+        "name": "gpt-3.5-turbo",
+        "shortcut": "3.5",
+        "provider": "openai",
+        "vision_enabled": false
+    },
+    {
+        "name": "gpt-3.5-turbo-16k",
+        "shortcut": "16k",
+        "provider": "openai",
+        "vision_enabled": false
+    },
+    {
+        "name": "gpt-4",
+        "shortcut": "old4",
+        "provider": "openai",
+        "vision_enabled": false
+    },
+    {
+        "name": "gpt-4-32k",
+        "shortcut": "32k",
+        "provider": "openai",
+        "vision_enabled": false
+    },
+    {
+        "name": "gpt-3.5-turbo-0301",
+        "shortcut": "0301",
+        "provider": "openai",
+        "vision_enabled": false
+    },
     {
         "name": "mistral-small-latest",
         "shortcut": "small",
-        "provider": "mistral"
+        "provider": "mistral",
+        "vision_enabled": false
     },
     {
         "name": "mistral-medium-latest",
         "shortcut": "medium",
-        "provider": "mistral"
+        "provider": "mistral",
+        "vision_enabled": false
     },
     {
         "name": "mistral-large-latest",
         "shortcut": "large",
-        "provider": "mistral"
+        "provider": "mistral",
+        "vision_enabled": false
     },
     {
         "name": "Qwen/Qwen1.5-72B-Chat",
         "shortcut": "qwen",
-        "provider": "together"
+        "provider": "together",
+        "vision_enabled": false
     },
     {
         "name": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
         "shortcut": "nh2",
-        "provider": "together"
+        "provider": "together",
+        "vision_enabled": false
     },
     {
         "name": "mixtral-8x7b-32768",
         "shortcut": "mix",
-        "provider": "groq"
+        "provider": "groq",
+        "vision_enabled": false
     },
     {
         "name": "llama2-70b-4096",
         "shortcut": "llama",
-        "provider": "groq"
+        "provider": "groq",
+        "vision_enabled": false
     },
     {
         "name": "gemma-7b-it",
         "shortcut": "gemma",
-        "provider": "groq"
+        "provider": "groq",
+        "vision_enabled": false
     },
     {
         "name": "google/gemini-pro",
         "shortcut": "gemini",
-        "provider": "openrouter"
+        "provider": "openrouter",
+        "vision_enabled": false
     },
     {
         "name": "google/gemini-pro-vision",
         "shortcut": "geminiv",
-        "provider": "openrouter"
+        "provider": "openrouter",
+        "vision_enabled": true
     },
     {
         "name": "claude-3-opus-20240229",
         "shortcut": "opus",
-        "provider": "anthropic"
+        "provider": "anthropic",
+        "vision_enabled": true
     },
     {
         "name": "claude-3-sonnet-20240229",
         "shortcut": "sonnet",
-        "provider": "anthropic"
+        "provider": "anthropic",
+        "vision_enabled": true
     },
     {
         "name": "anthropic/claude-3-haiku:beta",
         "shortcut": "haiku",
-        "provider": "openrouter"
+        "provider": "openrouter",
+        "vision_enabled": true
     }
 ]
