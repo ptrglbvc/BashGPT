@@ -90,7 +90,6 @@ def main():
 
     while True:
         message = ""
-        pprint.pprint(chat["all_messages"])
 
         if not len(all_messages) == 2 or str(type(all_messages[-1]["content"])) == "<class 'list'>":
             message = input("You: ").strip()
