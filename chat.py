@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import base64
 import shlex
+import json
 from re import findall, sub
 from sys import argv, platform
 from pathlib import Path
@@ -21,6 +22,7 @@ import pprint
 from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
 from whisper import record, whisper
+from load_defaults import load_defaults
 
 from openai import OpenAI
 from anthropic import Anthropic
@@ -41,6 +43,7 @@ chat = {
         "color": "purple",
         "description": ""}
 db = ""
+defaults = load_defaults()
 
 all_messages = chat["all_messages"]
 
@@ -65,6 +68,7 @@ audio_location = path + "audio.wav"
 
 def main():
     global db
+    apply_defaults()
 
     if len(argv)>1:
         quick_input()
@@ -213,7 +217,7 @@ def main():
                     print_chat()
                 
                 case "speak":
-                    if len(command) == 2 and (command[1] == "shimmer" or command[1] == 2):
+                    if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
                         alert("Speech with begin shortly")
                         threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
                         continue 
@@ -222,6 +226,13 @@ def main():
                         threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
                         continue
                     alert("Invalid voice")
+                
+                case "cd" | "change-default":
+                    if len(command) == 3:
+                        change_defaults(command[1], command[2])
+                    else:
+                        alert("Invalid number of args")
+                    continue
 
                 case _:
                     alert("Invalid command")
@@ -229,9 +240,6 @@ def main():
 
 
         if (message):
-            # if chat["all_messages"][-1]["role"] == "user" and str(type(chat["all_messages"][-1]["content"])) == "<class 'list'>":
-            #     chat["all_messages"][-1]["content"].append({"type": "text", "text": message})
-            # else:
             add_message_to_chat("user", message)
 
         get_and_print_response()
@@ -288,6 +296,41 @@ def get_image(image_url):
 
     else:
         alert("Invalid url")
+
+
+def apply_defaults():
+    global chat
+    if defaults["color"]:
+        chat["color"] = defaults["color"]
+    if defaults["model"]:
+        change_model(defaults["model"])
+
+
+
+def change_defaults(target, newValue):
+    match target:
+        case "color":
+            try:
+                defaults["color"] = newValue
+                alert(f"Changed default color to {newValue}")
+            except:
+                alert("Color is not valid")
+        case "model":
+            valid_model = False
+            for model in models:
+                if model["shortcut"] == newValue or model["name"] == newValue:
+                    defaults["model"] = model
+                    valid_model = True
+                    break
+            if not valid_model:
+                alert("Invalid model")
+        case _:
+            alert("Invalid default property")
+    
+    with open(path + "defaults.json", "w") as def_file:
+        def_file.write(json.dumps(defaults, indent=4))
+
+                
 
 
 def voice_input():

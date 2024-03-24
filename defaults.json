@@ -1,0 +1,9 @@
+{
+    "color": "blue",
+    "model": {
+        "name": "anthropic/claude-3-haiku:beta",
+        "shortcut": "haiku",
+        "provider": "openrouter",
+        "vision_enabled": true
+    }
+}
