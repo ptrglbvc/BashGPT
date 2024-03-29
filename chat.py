@@ -259,7 +259,7 @@ def add_message_to_chat(role, content):
 
 def get_image(image_url):
     global chat
-    clean_image_url = image_url.strip("'")
+    clean_image_url = image_url.replace("\ ", " ")
     image_name = clean_image_url.split("/")[-1]
 
     #images from links can oftentimes have those variables like ?v=somethingblabla&
