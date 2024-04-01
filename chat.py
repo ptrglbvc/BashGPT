@@ -32,6 +32,7 @@ import httpx
 chat = {
         "all_messages": [],
         "images": [],
+        "files": [],
         "is_loaded": False,
         "id": None,
         "mode": "short", 
@@ -174,10 +175,17 @@ def main():
                         alert("Invalid arguments for changing the model")
                     continue
 
-                case "image":
+                case "image" | "i":
                     if len(command) == 2:
                         get_image(command[1])
                     else:
+                        alert("Invalid arguments")
+                    continue
+
+                case "file" | "f":
+                    if len(command) == 2:
+                        get_file(command[1])
+                    else: 
                         alert("Invalid arguments")
                     continue
 
@@ -273,6 +281,9 @@ def get_image(image_url):
 
     image_extension = image_name.split(".")[-1]
     if image_extension == "jpg": image_extension = "jpeg"
+    if image_extension not in ["jpeg", "png", "webp"]:
+        alert("Invalid image format")
+        return
 
 
     if clean_image_url[0:4] == "http":
@@ -297,6 +308,51 @@ def get_image(image_url):
     else:
         alert("Invalid url")
 
+def get_file(file_url):
+    global chat
+    clean_file_url = file_url.replace("\ ", " ")
+    file_name = clean_file_url.split("/")[-1]
+
+    try:
+        question_idx = file_name.index("?")
+        dot_idx = file_name.index(".")
+        file_name = file_name[:question_idx] if dot_idx < question_idx else file_name
+    except:
+        pass
+
+    if clean_file_url[0:4] == "http":
+        response = httpx.get(clean_file_url)
+        if response.encoding == "utf-8":
+            chat["files"].append({
+                "content" : response.text, 
+                "name": file_name, 
+                "message_idx": len(chat["all_messages"])
+                })
+        else:
+            alert("File is not utf-8 encoded")
+
+    elif os.path.isfile(clean_file_url):
+        with open(clean_file_url, "r") as file:
+            file_contents = file.read()
+            if try_utf8(file_contents):
+                chat["files"].append({
+                    "content" : file_contents, 
+                    "name": file_name, 
+                    "message_idx" : len(chat["all_messages"]),
+                    })
+            else: 
+                alert("File is not utf-8 encoded")
+    else:
+        alert("Invalid url")
+
+
+def try_utf8(data):
+    "Returns a Unicode object on success, or None on failure"
+    try:
+       return data.decode('utf-8')
+    except UnicodeDecodeError:
+       return None
+
 
 def apply_defaults():
     global chat
@@ -304,7 +360,6 @@ def apply_defaults():
         chat["color"] = defaults["color"]
     if defaults["model"]:
         change_model(defaults["model"])
-
 
 
 def change_defaults(target, newValue):
@@ -329,8 +384,6 @@ def change_defaults(target, newValue):
     
     with open(path + "defaults.json", "w") as def_file:
         def_file.write(json.dumps(defaults, indent=4))
-
-                
 
 
 def voice_input():
@@ -380,7 +433,12 @@ def save_chat(db):
             db.execute("INSERT INTO images (url, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
                 image["url"], image["name"], image["extension"], max_chat_id+1, image["message_idx"])
 
+        # for file in chat["files"]:
+        #     db.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+        #         file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"])
+
         update_chat_ids(db)
+
 
 def choose_chat(db):
     global chat
