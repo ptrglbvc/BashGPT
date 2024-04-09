@@ -1,15 +1,9 @@
 [
     {
-        "name": "gpt-4-turbo-preview",
+        "name": "gpt-4-turbo",
         "shortcut": "4",
         "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-4-vision-preview",
-        "shortcut": "4v",
-        "provider": "openai",
-        "vision_enabled": true
+        "vision_enabled": true 
     },
     {
         "name": "gpt-4-1106-preview",
@@ -96,14 +90,8 @@
         "vision_enabled": false
     },
     {
-        "name": "google/gemini-pro",
+        "name": "google/gemini-pro-1.5",
         "shortcut": "gemini",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "google/gemini-pro-vision",
-        "shortcut": "geminiv",
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -124,5 +112,11 @@
         "shortcut": "haiku",
         "provider": "openrouter",
         "vision_enabled": true
+    },
+    {
+        "name": "cohere/command-r-plus",
+        "shortcut": "cohere",
+        "provider": "openrouter",
+        "vision_enabled": false
     }
 ]
