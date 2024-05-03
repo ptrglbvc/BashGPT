@@ -66,6 +66,12 @@
         "vision_enabled": false
     },
     {
+        "name": "microsoft/WizardLM-2-8x22B",
+        "shortcut": "wiz",
+        "provider": "together",
+        "vision_enabled": false
+    },
+    {
         "name": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
         "shortcut": "nh2",
         "provider": "together",
@@ -78,8 +84,14 @@
         "vision_enabled": false
     },
     {
-        "name": "llama2-70b-4096",
+        "name": "llama3-70b-8192",
         "shortcut": "llama",
+        "provider": "groq",
+        "vision_enabled": false
+    },
+    {
+        "name": "llama3-8b-8192",
+        "shortcut": "llama8",
         "provider": "groq",
         "vision_enabled": false
     },

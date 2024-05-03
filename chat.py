@@ -12,7 +12,8 @@ import tempfile
 import base64
 import shlex
 import json
-from re import findall, sub
+import copy
+from re import sub
 from sys import argv, platform
 from pathlib import Path
 from time import sleep
@@ -23,6 +24,7 @@ from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
 from whisper import record, whisper
 from load_defaults import load_defaults
+from extract_text import extract_text_from_html
 
 from openai import OpenAI
 from anthropic import Anthropic
@@ -313,35 +315,39 @@ def get_file(file_url):
     clean_file_url = file_url.replace("\ ", " ")
     file_name = clean_file_url.split("/")[-1]
 
-    try:
-        question_idx = file_name.index("?")
-        dot_idx = file_name.index(".")
-        file_name = file_name[:question_idx] if dot_idx < question_idx else file_name
-    except:
-        pass
-
     if clean_file_url[0:4] == "http":
+        # this is to check if the web address contains those ?search=boobs things in the search bar. we want to ignore those
+        try:
+            question_idx = file_name.index("?")
+            dot_idx = file_name.index(".")
+            file_name = file_name[:question_idx] if dot_idx < question_idx else file_name
+        except:
+            pass
         response = httpx.get(clean_file_url)
         if response.encoding == "utf-8":
+            # this will most likely not detect home pages... but oh well who tf wants to put a homepage in a chat
+            isHTML = True if (len(file_name.split(".")) == 1 or file_name.split(".")[-1] == "html") else False
             chat["files"].append({
-                "content" : response.text, 
+                "content" : extract_text_from_html(response.text) if isHTML else response.text, 
                 "name": file_name, 
-                "message_idx": len(chat["all_messages"])
+                "message_idx": len(chat["all_messages"]),
+                "extension": "html" if isHTML else file_name.split(".")[-1]
                 })
         else:
             alert("File is not utf-8 encoded")
 
     elif os.path.isfile(clean_file_url):
-        with open(clean_file_url, "r") as file:
-            file_contents = file.read()
-            if try_utf8(file_contents):
+        try:
+            with open(clean_file_url, "r", encoding="utf-8") as file:
+                file_contents = file.read()
                 chat["files"].append({
                     "content" : file_contents, 
                     "name": file_name, 
                     "message_idx" : len(chat["all_messages"]),
+                    "extension": file_name.split(".")[-1]
                     })
-            else: 
-                alert("File is not utf-8 encoded")
+        except: 
+            alert("File is not utf-8 encoded")
     else:
         alert("Invalid url")
 
@@ -433,9 +439,9 @@ def save_chat(db):
             db.execute("INSERT INTO images (url, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
                 image["url"], image["name"], image["extension"], max_chat_id+1, image["message_idx"])
 
-        # for file in chat["files"]:
-        #     db.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-        #         file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"])
+        for file in chat["files"]:
+            db.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"])
 
         update_chat_ids(db)
 
@@ -455,6 +461,7 @@ def choose_chat(db):
         if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
             load_chat(db, choice)
             load_images(db, choice)
+            load_files(db, choice)
             print_chat()
             break
     
@@ -487,6 +494,16 @@ def load_images(db, id):
     for row in data:
         chat["images"].append({
             "url": row["url"],
+            "name": row["name"],
+            "extension": row["extension"],
+            "message_idx": row["message_idx"]
+        })
+
+def load_files(db, id):
+    data = db.execute("SELECT * FROM files WHERE chat_id=?", id)
+    for row in data:
+        chat["files"].append({
+            "content": row["content"],
             "name": row["name"],
             "extension": row["extension"],
             "message_idx": row["message_idx"]
@@ -540,7 +557,7 @@ def generate_description(all_messages):
     try:
         return client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "describe the message using 12 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
+        messages=[{"role": "system", "content": "describe the chat using 10 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
     except:
         return "No description"
@@ -561,7 +578,8 @@ def help_me():
 
 def attach_images(all_messages):
     global chat
-    messages_with_images = all_messages.copy()
+    memo = {}
+    messages_with_images = copy.deepcopy(all_messages, memo)
     for image in chat["images"]:
         if (curr_idx:=image["message_idx"]) < len(messages_with_images):
             image_data = {
@@ -590,12 +608,23 @@ def attach_images(all_messages):
     return messages_with_images
 
 
+def attach_files(all_messages):
+    global chat
+    memo = {}
+    all_messages_with_files = copy.deepcopy(all_messages, memo)
+    for file in chat["files"]:
+        added_text = f"user attached {'webpage' if 'extension' == 'html' else 'file'}'" + file["name"] + "':\n" + file["content"] + "\n\n"
+        all_messages_with_files[file["message_idx"]]["content"] += added_text
+    return all_messages_with_files
+
 
 def get_and_print_response():
     global chat
     global terminal 
     system_message = chat["all_messages"][0]["content"]
     all_messages = chat["all_messages"] if not chat["vision_enabled"] else attach_images(chat["all_messages"])
+    # I reversed this just to confuse you, dear reader (including myself, yes)
+    all_messages = attach_files(all_messages) if chat["files"] else all_messages
 
     bar = Process(target=loading_bar, args=[chat])
     bar.start()
@@ -621,7 +650,6 @@ def get_and_print_response():
     print("\b" + terminal[chat["color"]], end="")
 
     try:
-        formatting = {"is_bold": False, "is_itallic": False, "is_code": False}
         for chunk in stream:
             text = ""
             if chat["provider"] == "anthropic":
@@ -634,9 +662,7 @@ def get_and_print_response():
                 if not text:
                     continue
 
-            formatted_text = parse_md_while_streaming(text, formatting)
-
-            print(formatted_text, end="")
+            print(text, end="")
             chat["all_messages"][-1]["content"] += text
 
     except KeyboardInterrupt:
@@ -644,39 +670,6 @@ def get_and_print_response():
         
 
     print(terminal["reset"] + "\n")
-
-def parse_md_while_streaming(text, formatting):
-    ft = text
-    if text == '``':
-        ft = text
-    if "```" in text or "`" in text:
-        formatting["is_code"] = not formatting["is_code"]
-        ft = text
-    
-    if not formatting["is_code"]:
-        if "***" in text:
-            ft = text.replace(
-                "***", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
-                    ) else text.replace("***", "\033[1m\033[3m")
-            formatting["is_bold"] = not formatting["is_bold"]
-            formatting["is_itallic"] = not formatting["is_itallic"]
-        if "___" in text:
-            ft = text.replace(
-                "___", "\033[22m\033[23m") if (formatting["is_bold"] and formatting["is_itallic"]
-                    ) else text.replace("___", "\033[1m\033[3m")
-            formatting["is_bold"] = not formatting["is_bold"]
-            formatting["is_itallic"] = not formatting["is_itallic"]
-        elif "**" in text:
-            ft = text.replace("**", "\033[22m") if formatting["is_bold"] else text.replace("**", "\033[1m")
-            formatting["is_bold"] = not formatting["is_bold"]
-        elif "__" in text:
-            ft = text.replace("__", "\033[22m") if formatting["is_bold"] else text.replace("__", "\033[1m")
-            formatting["is_bold"] = not formatting["is_bold"]
-        # The * and _ are a problem because we cannot know without the further context whether it's is for lists or italic
-        # So the best solution is to just leave it as is, and parse it only if the user reprints the message for one reason or another
-
-    return ft
-
 
 def bash_mode(message):
     all_parts = message.split("```")
@@ -720,6 +713,7 @@ def quick_input():
             last_id = db.execute("SELECT MAX(chat_id) FROM chat_messages")[0]["MAX(chat_id)"]
             load_chat(db, last_id)
             load_images(db, last_id)
+            load_files(db, last_id)
             print_chat()
             
             
@@ -792,7 +786,7 @@ def dalle_mode():
             name_words = prompt_words[:10]
 
         name_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
-        image_name = " ".join(prompt_words) + ".png"
+        image_name = " ".join(name_words) + ".png"
         image_path = path + image_name
 
         response = requests.get(image_url)
@@ -819,6 +813,7 @@ def delete_chat(db):
     if chat["is_loaded"]:
         db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
         db.execute("DELETE FROM images WHERE chat_id=?", chat["id"])
+        db.execute("DELETE FROM files WHERE chat_id=?", chat["id"])
         update_chat_ids(db)
     exit()
     
@@ -840,6 +835,8 @@ def update_chat_ids(db):
         for (idx, chat_id) in enumerate(old_chat_ids_list):
             if idx+1 != chat_id:
                 db.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?", 
+                    idx+1, chat_id)
+                db.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
                     idx+1, chat_id)
 
 
