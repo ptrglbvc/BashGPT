@@ -20,7 +20,7 @@ from time import sleep
 from multiprocessing import Process
 # import pprint
 
-from modes_and_models import modes, models, short_mode
+from modes_and_models import modes, models
 from db_and_key import setup_db
 from whisper import record, whisper
 from load_defaults import load_defaults
@@ -385,6 +385,15 @@ def change_defaults(target, newValue):
                     break
             if not valid_model:
                 alert("Invalid model")
+        case "mode":
+            valid_mode = False
+            for mode in modes:
+                if mode["shortcut"] == newValue or mode["name"] == newValue:
+                    defaults["mode"] = mode
+                    valid_mode = True
+                    break
+            if not valid_mode:
+                alert("Invalid model")
         case _:
             alert("Invalid default property")
     
@@ -546,9 +555,6 @@ def remember_mode():
     for mode in modes:
         if mode["description"] == all_messages[0]["content"]:
             return mode["name"]
-    
-    if short_mode == all_messages[0]["content"]:
-        return "short"
     
     return "custom"
 
@@ -725,7 +731,7 @@ def quick_input():
 
         else:
             prompt = argv[1]
-            add_message_to_chat("system", short_mode)
+            add_message_to_chat("system", defaults["mode"]["description"])
             add_message_to_chat("user", prompt)
 
     elif len(argv) == 3:
@@ -744,7 +750,7 @@ def quick_input():
                 for model in models:
                     if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
                         change_model(model)
-                        add_message_to_chat("system", short_mode)
+                        add_message_to_chat("system", defaults["mode"]["description"])
                         break
             
             add_message_to_chat("user", argv[2])
@@ -762,7 +768,7 @@ def quick_input():
                 add_message_to_chat("system", mode["description"])
             
         if not chat["all_messages"]:
-            add_message_to_chat("system", short_mode)
+            add_message_to_chat("system", defaults["mode"]["description"])
         
         add_message_to_chat("user", argv[3])
             
@@ -902,13 +908,10 @@ def choose_mode():
     mode_input = input("What mode would you like? ").lower().strip()
     print()
 
-    mode_description = short_mode
     for option in modes:
         if mode_input == option["name"] or mode_input == option["shortcut"]:
-            mode_description = option["description"]
-            chat["mode"] = option["name"]
+            chat["mode"] = option
             break
-    add_message_to_chat("system", mode_description)
 
 
 def delete_messages(number = 2):

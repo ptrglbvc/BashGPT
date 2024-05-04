@@ -3,7 +3,7 @@
         "name": "gpt-4-turbo",
         "shortcut": "4",
         "provider": "openai",
-        "vision_enabled": true 
+        "vision_enabled": true
     },
     {
         "name": "gpt-4-1106-preview",
