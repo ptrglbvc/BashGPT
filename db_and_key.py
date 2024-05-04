@@ -19,13 +19,31 @@ def setup_db(path):
         db = SQL("sqlite:///" + db_location)
         db.execute(
             ("CREATE TABLE chat_messages "
-            "(chat_id INTEGER,"
-            "message_id INTEGER PRIMARY KEY,"
-            "user_name TEXT,"
-            "message TEXT,"
-            "has_images INTEGER"
-            "description TEXT);")
+                "(chat_id INTEGER,"
+                "message_id INTEGER PRIMARY KEY,"
+                "user_name TEXT,"
+                "message TEXT,"
+                "has_images INTEGER"
+                "description TEXT);")
             )
+        db.execute(
+            ("CREATE TABLE images ("
+                "id INTEGER PRIMARY KEY,"
+                "url TEXT,"
+                "name TEXT,"
+                "extension TEXT,"
+                "chat_id INTEGER,"
+                "message_idx INTEGER")
+        );
+        db.execute(
+            ("CREATE TABLE files ("
+                "id INTEGER PRIMARY KEY,"
+                "content TEXT,"
+                "name TEXT,"
+                "extension TEXT,"
+                "chat_id INTEGER,"
+                "message_idx INTEGER")
+        );
     else:
         db = SQL("sqlite:///" + db_location)
     return db
