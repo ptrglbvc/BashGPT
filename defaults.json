@@ -1,9 +1,9 @@
 {
     "color": "blue",
-    "model": {
-        "name": "anthropic/claude-3-haiku:beta",
-        "shortcut": "haiku",
-        "provider": "openrouter",
-        "vision_enabled": true
+    "model":     {
+        "name": "llama3-70b-8192",
+        "shortcut": "llama",
+        "provider": "groq",
+        "vision_enabled": false
     }
 }

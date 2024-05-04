@@ -18,7 +18,7 @@ from sys import argv, platform
 from pathlib import Path
 from time import sleep
 from multiprocessing import Process
-import pprint
+# import pprint
 
 from modes_and_models import modes, models, short_mode
 from db_and_key import setup_db
@@ -468,14 +468,14 @@ def choose_chat(db):
 
 def speak(message, voice="nova"):
     speech_file_path = Path(__file__).parent / "speech.mp3"
-    with client.audio.speech.create(
-        model="tts-1-hd",
+    response = client.audio.speech.create(
+        model="tts-1",
         voice=voice,
         input=message
-    ) as response:
-        response.stream_to_file(speech_file_path)
-        player = vlc.MediaPlayer(speech_file_path)
-        player.play()
+        )
+    response.stream_to_file(speech_file_path)
+    player = vlc.MediaPlayer(speech_file_path)
+    player.play()
 
 
 def load_chat(db, choice):
