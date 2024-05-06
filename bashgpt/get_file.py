@@ -1,6 +1,6 @@
-from extract_text import extract_text_from_html, extract_text_from_pdf
-from util_functions import alert
-from chat import chat
+from bashgpt.extract_text import extract_text_from_html, extract_text_from_pdf
+from bashgpt.util_functions import alert
+from bashgpt.chat import chat
 
 import httpx
 import os

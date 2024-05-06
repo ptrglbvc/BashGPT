@@ -18,14 +18,14 @@ from pathlib import Path
 from multiprocessing import Process
 # import pprint
 
-from modes_and_models import modes, models
-from db_and_key import setup_db
-from whisper import record, whisper
-from load_defaults import load_defaults
-from util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
-from get_file import get_file
-from terminal_codes import terminal
-from chat import chat
+from bashgpt.modes_and_models import modes, models
+from bashgpt.db_and_key import setup_db
+from bashgpt.whisper import record, whisper
+from bashgpt.load_defaults import load_defaults
+from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
+from bashgpt.get_file import get_file
+from bashgpt.terminal_codes import terminal
+from bashgpt.chat import chat
 
 from openai import OpenAI
 from anthropic import Anthropic
@@ -504,7 +504,6 @@ def help_me():
 
 
 def attach_images(all_messages):
-    global chat
     memo = {}
     messages_with_images = copy.deepcopy(all_messages, memo)
     for image in chat["images"]:
@@ -546,8 +545,6 @@ def attach_files(all_messages):
 
 
 def get_and_print_response():
-    global chat
-    global terminal 
     system_message = chat["all_messages"][0]["content"]
     all_messages = chat["all_messages"] if not chat["vision_enabled"] else attach_images(chat["all_messages"])
     # I reversed this just to confuse you, dear reader (including myself, yes)
