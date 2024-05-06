@@ -350,7 +350,6 @@ def voice_input():
 
 
 def save_chat(db):
-    global chat
     if not db:
         db = setup_db(path)
     # if the message is too short, or more precisely, it's just the role message and the
@@ -374,11 +373,11 @@ def save_chat(db):
             chat["description"] = generate_description(all_messages)
 
         for message in all_messages:
-            db.execute("INSERT INTO chat_messages (chat_id, user_name, message, description) VALUES (?, ?, ?, ?)",
+            db.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
                 max_chat_id+1, message["role"], message["content"], chat["description"])
         
         for image in chat["images"]:
-            db.execute("INSERT INTO images (url, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+            db.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
                 image["url"], image["name"], image["extension"], max_chat_id+1, image["message_idx"])
 
         for file in chat["files"]:
@@ -389,7 +388,6 @@ def save_chat(db):
 
 
 def choose_chat(db):
-    global chat
     options = db.execute(
         "SELECT DISTINCT chat_id, description FROM chat_messages")
     print()
@@ -421,14 +419,13 @@ def speak(message, voice="nova"):
 
 
 def load_chat(db, choice):
-    global chat
     data = db.execute("SELECT * FROM chat_messages WHERE chat_id=?", choice)
 
     chat["id"] = choice 
     chat["is_loaded"] = True
     chat["description"] = data[0]["description"]
     for row in data:
-        add_message_to_chat(row["user_name"], row["message"])
+        add_message_to_chat(row["role"], row["message"])
 
 
 def load_images(db, id):

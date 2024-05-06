@@ -15,15 +15,14 @@ def setup_db(path):
         finally:
             if conn:
                 conn.close()
-        #replace the file path with your file path here
+
         db = SQL("sqlite:///" + db_location)
         db.execute(
             ("CREATE TABLE chat_messages "
                 "(chat_id INTEGER,"
                 "message_id INTEGER PRIMARY KEY,"
-                "user_name TEXT,"
+                "role TEXT,"
                 "message TEXT,"
-                "has_images INTEGER"
                 "description TEXT);")
             )
         db.execute(
@@ -33,7 +32,7 @@ def setup_db(path):
                 "name TEXT,"
                 "extension TEXT,"
                 "chat_id INTEGER,"
-                "message_idx INTEGER")
+                "message_idx INTEGER);")
         );
         db.execute(
             ("CREATE TABLE files ("
@@ -42,7 +41,7 @@ def setup_db(path):
                 "name TEXT,"
                 "extension TEXT,"
                 "chat_id INTEGER,"
-                "message_idx INTEGER")
+                "message_idx INTEGER);")
         );
     else:
         db = SQL("sqlite:///" + db_location)
