@@ -22,7 +22,7 @@ from modes_and_models import modes, models
 from db_and_key import setup_db
 from whisper import record, whisper
 from load_defaults import load_defaults
-from util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md
+from util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
 from get_file import get_file
 from terminal_codes import terminal
 from chat import chat
@@ -598,28 +598,6 @@ def get_and_print_response():
 
     print(terminal["reset"] + "\n")
 
-def bash_mode(message):
-    all_parts = message.split("```")
-    if len(all_parts) > 1:
-        commands = all_parts[1::2]
-        for command in commands:
-
-            if command.strip().startswith("bash"):
-                command = command.strip()[4:]
-            if command.strip().startswith("zsh"):
-                command = command.strip()[3:]
-
-            try:
-                output = execute_command(command)
-                if output.strip():
-                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
-                    print(nicely_formated_output)
-                    if len(output)<1000:
-                        add_message_to_chat("user", "Shell: " + output)
-                    
-            except Exception:
-                pass
-
 
 def quick_input():
     global chat
@@ -691,10 +669,6 @@ def quick_input():
             if (not model_selected) or (not mode_selected):
                 add_message_to_chat("user", argv[2])
             
-            
-            
-
-
     elif len(argv) == 4:
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
@@ -712,8 +686,30 @@ def quick_input():
         add_message_to_chat("user", argv[3])
             
 
+def bash_mode(message):
+    all_parts = message.split("```")
+    if len(all_parts) > 1:
+        commands = all_parts[1::2]
+        for command in commands:
+
+            if command.strip().startswith("bash"):
+                command = command.strip()[4:]
+            if command.strip().startswith("zsh"):
+                command = command.strip()[3:]
+
+            try:
+                output = execute_command(command)
+                if output.strip():
+                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
+                    print(nicely_formated_output)
+                    if len(output)<1000:
+                        add_message_to_chat("user", "Shell: " + output)
+                    
+            except Exception:
+                pass
+
+
 def dalle_mode():
-    global chat
     last_message = chat["all_messages"][-1]["content"]
     try:
         prompt = last_message.split("```")[1].strip()
@@ -783,14 +779,6 @@ def update_chat_ids(db):
                     idx+1, chat_id)
                 db.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
                     idx+1, chat_id)
-
-
-def is_succinct(list):
-    for i in range(1, len(list)):
-        if list[i] != list[i-1]+1:
-            return False
-        
-    return True 
 
 
 def change_model(new_model):

@@ -28,3 +28,10 @@ def parse_md(text):
     italic_text = sub(r'\*(.*?)\*|_(.*?)_', r'\033[3m\1\2\033[23m', bold_text)
 
     return italic_text
+
+def is_succinct(list):
+    for i in range(1, len(list)):
+        if list[i] != list[i-1]+1:
+            return False
+        
+    return True 
