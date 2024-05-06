@@ -366,6 +366,9 @@ def apply_defaults():
         chat["color"] = defaults["color"]
     if defaults["model"]:
         change_model(defaults["model"])
+    if defaults["mode"]:
+        chat["mode"] = defaults["mode"]["name"]
+
 
 
 def change_defaults(target, newValue):
@@ -740,20 +743,38 @@ def quick_input():
             add_message_to_chat("system", argv[2])
 
         else:
-            for mode in modes:
-                if ("-" + mode["shortcut"] == argv[1]) or ("--" + mode["name"] == argv[1]):
-                    chat["mode"] = mode["name"]
-                    add_message_to_chat("system", mode["description"])
+            model_selected = False
+            mode_selected = False
+            for model in models:
+                if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
+                    model_selected = True
+                    change_model(model)
                     break
-            
-            if chat["mode"] == "short":
-                for model in models:
-                    if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                        change_model(model)
-                        add_message_to_chat("system", defaults["mode"]["description"])
+
+            if not model_selected:
+                for mode in modes:
+                    if ("-" + mode["shortcut"] == argv[1]) or ("--" + mode["name"] == argv[1]):
+                        mode_selected = True
+                        chat["mode"] = mode["name"]
+                        add_message_to_chat("system", mode["description"])
+                        break
+
+            if not mode_selected and model_selected:
+                for mode in modes:
+                    if ("-" + mode["shortcut"] == argv[2]) or ("--" + mode["name"] == argv[2]):
+                        mode_selected = True
+                        chat["mode"] = mode["name"]
+                        add_message_to_chat("system", mode["description"])
                         break
             
-            add_message_to_chat("user", argv[2])
+            if not mode_selected:
+                add_message_to_chat("system", defaults["mode"]["description"])
+
+            if (not model_selected) or (not mode_selected):
+                add_message_to_chat("user", argv[2])
+            
+            
+            
 
 
     elif len(argv) == 4:
@@ -872,7 +893,7 @@ def loading_bar(chat):
 
 
 def return_cursor_and_overwrite_bar():
-    print("\033[?25h", end="\b")
+    print("\033[?25h\033[0m", end="\b")
 
 
 def change_model(new_model):
@@ -908,10 +929,14 @@ def choose_mode():
     mode_input = input("What mode would you like? ").lower().strip()
     print()
 
+    current_mode = defaults["mode"]
     for option in modes:
         if mode_input == option["name"] or mode_input == option["shortcut"]:
-            chat["mode"] = option
+            current_mode = option
             break
+    
+    add_message_to_chat("system", current_mode["description"])
+    chat["mode"] = current_mode["name"]
 
 
 def delete_messages(number = 2):

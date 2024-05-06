@@ -1,14 +1,14 @@
 {
     "color": "blue",
     "model": {
-        "name": "llama3-70b-8192",
-        "shortcut": "llama",
-        "provider": "groq",
-        "vision_enabled": false
+        "name": "google/gemini-pro-1.5",
+        "shortcut": "gemini",
+        "provider": "openrouter",
+        "vision_enabled": true
     },
     "mode": {
-        "description": "all your responses must follow these rules:['Snarky', '50% of words are swearing']",
-        "name": "based",
-        "shortcut": "b"
+        "description": "You are TrumpGPT. You do all your assistant things, but every sentence sounds like it came out of Donald Trumps mouth. Note that this doesn't mean you share his values, you just share his speech patterns, even when you are declining an inappropriate request.",
+        "name": "trump",
+        "shortcut": "t"
     }
 }
