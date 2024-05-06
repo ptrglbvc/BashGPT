@@ -521,7 +521,8 @@ def load_files(db, id):
             "message_idx": row["message_idx"]
         })
 
-
+# TODO: #13 modify this function so it works with the new system, where we put the image
+# into the chat before we send it to the server.
 def print_chat():
     global chat
     global terminal
@@ -543,6 +544,7 @@ def print_chat():
         if message["role"] == "assistant":
             print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
 
+
 def parse_md(text):
     bold_text = sub(r'\*\*(.*?)\*\*|__(.*?)__', r'\033[1m\1\2\033[22m', text)
     italic_text = sub(r'\*(.*?)\*|_(.*?)_', r'\033[3m\1\2\033[23m', bold_text)
@@ -551,7 +553,7 @@ def parse_md(text):
         
 
 def alert(text):
-    print(terminal["red"] + terminal["bold"] + text + terminal["reset"] + "\n")
+    print(terminal["red"] + text + terminal["reset"] + "\n")
 
 
 def remember_mode():
