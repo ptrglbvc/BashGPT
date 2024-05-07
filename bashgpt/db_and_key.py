@@ -1,7 +1,5 @@
 import os
 import sqlite3
-from cs50 import SQL
-
 
 def setup_db(path):
     db_location = path + "history.db"
@@ -9,43 +7,43 @@ def setup_db(path):
     #replace the file path with yours here
     if not os.path.isfile(db_location):
         try:
-            conn = sqlite3.connect(db_location)
+            con = sqlite3.connect(db_location)
+            cur = con.cursor()
+            cur.execute(
+                ("CREATE TABLE chat_messages "
+                    "(chat_id INTEGER,"
+                    "message_id INTEGER PRIMARY KEY,"
+                    "role TEXT,"
+                    "message TEXT,"
+                    "description TEXT);")
+                )
+            cur.execute(
+                ("CREATE TABLE images ("
+                    "id INTEGER PRIMARY KEY,"
+                    "content TEXT,"
+                    "name TEXT,"
+                    "extension TEXT,"
+                    "chat_id INTEGER,"
+                    "message_idx INTEGER);")
+            );
+            cur.execute(
+                ("CREATE TABLE files ("
+                    "id INTEGER PRIMARY KEY,"
+                    "content TEXT,"
+                    "name TEXT,"
+                    "extension TEXT,"
+                    "chat_id INTEGER,"
+                    "message_idx INTEGER);")
+            );
+            return (con, cur)
+
         except sqlite3.Error as e:
             print(e)
-        finally:
-            if conn:
-                conn.close()
-
-        db = SQL("sqlite:///" + db_location)
-        db.execute(
-            ("CREATE TABLE chat_messages "
-                "(chat_id INTEGER,"
-                "message_id INTEGER PRIMARY KEY,"
-                "role TEXT,"
-                "message TEXT,"
-                "description TEXT);")
-            )
-        db.execute(
-            ("CREATE TABLE images ("
-                "id INTEGER PRIMARY KEY,"
-                "url TEXT,"
-                "name TEXT,"
-                "extension TEXT,"
-                "chat_id INTEGER,"
-                "message_idx INTEGER);")
-        );
-        db.execute(
-            ("CREATE TABLE files ("
-                "id INTEGER PRIMARY KEY,"
-                "content TEXT,"
-                "name TEXT,"
-                "extension TEXT,"
-                "chat_id INTEGER,"
-                "message_idx INTEGER);")
-        );
+            exit()
     else:
-        db = SQL("sqlite:///" + db_location)
-    return db
+        con = sqlite3.connect(db_location)
+        cur = con.cursor()
+        return (con, cur)
 
 def setup_key():
     if key:=os.environ.get('OPENAI_API_KEY'):

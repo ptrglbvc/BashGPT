@@ -28,6 +28,7 @@ def main():
     else:
         record()
         print(whisper(audio_location))
+        os.remove(audio_location)
         
 
 def record():
@@ -62,7 +63,6 @@ def whisper(file):
         except:
             transcript = "Voice recording didn't work."
 
-    os.remove(file)
     return transcript
 
 if (__name__)=="__main__":

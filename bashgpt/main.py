@@ -32,7 +32,6 @@ from anthropic import Anthropic
 import vlc
 import httpx
 
-db = ""
 defaults = load_defaults()
 
 all_messages = chat["all_messages"]
@@ -49,35 +48,37 @@ audio_location = path + "audio.wav"
 
 
 def main():
-    global db
     apply_defaults()
 
     if len(argv)>1:
-        quick_input()
+        potential_db = quick_input()
+        if not potential_db:
+            (con, cur) = (None, None)
+        else: (con, cur) = potential_db
 
     # we don't need to load the history if we enter the app from the quick input mode. We only need to once we save
     if not all_messages:
-        db = setup_db(path)
-        history_exists = db.execute(("SELECT MAX(message_id) "
-                                    "AS max FROM chat_messages"))[0]["max"] is not None 
+        (con, cur) = setup_db(path)
+        history_exists = cur.execute(("SELECT MAX(message_id) "
+                                    "AS max FROM chat_messages")).fetchone()[0]
+
         if history_exists:
             history_input = input(
                 ("\nWould you like to resume a previous conversation? "
                 "(y/n) ")).lower().strip()
             if history_input and history_input[0] == "y":
-                choose_chat(db)
+                choose_chat(cur)
                 chat["mode"] = remember_mode()
-            else:
-                choose_mode()
 
-        else:
+        if not chat["all_messages"]:
             choose_mode()
+
     
 
     while True:
         message = ""
 
-        if not len(all_messages) == 2 or str(type(all_messages[-1]["content"])) == "<class 'list'>":
+        if not len(all_messages) == 2:
             message = input("You: ").strip()
         
         print()
@@ -90,12 +91,12 @@ def main():
                 case "q":
                     if len(command) == 1:
                         if not chat["is_loaded"]:
-                            db = setup_db(path)
-                        save_chat(db)
+                            (con, cur) = setup_db(path)
+                        save_chat(con, cur)
                         exit()
                     elif len(command) == 2:
                         chat["description"] = command[1]
-                        save_chat(db)
+                        save_chat(con, cur)
                         exit()
                     else:
                         alert("Too many arguments")
@@ -107,13 +108,13 @@ def main():
 
                 case "rm!":
                     if chat["id"]:
-                        delete_chat(db)
+                        delete_chat(con, cur)
                     else:
                         print("\033[1A", end="")
                         exit()
 
                 case "nuclear!!!":
-                    nuclear(db)
+                    nuclear(con, cur)
 
                 case "l": 
                     message = use_editor("")
@@ -270,7 +271,7 @@ def get_image(image_url):
     if clean_image_url[0:4] == "http":
         image = base64.b64encode(httpx.get(clean_image_url).content).decode("utf-8")
         chat["images"].append({
-            "url" : image, 
+            "content" : image, 
             "name": image_name, 
             "extension": image_extension,
             "message_idx": len(chat["all_messages"])
@@ -280,7 +281,7 @@ def get_image(image_url):
         with open(clean_image_url, "rb") as image_file:
             image = base64.b64encode(image_file.read()).decode('utf-8')
             chat["images"].append({
-                "url" : image, 
+                "content" : image, 
                 "name": image_name, 
                 "extension": image_extension,
                 "message_idx" : len(chat["all_messages"]),
@@ -341,6 +342,7 @@ def voice_input():
     thred.start()
 
     transcription = whisper(audio_location)
+    os.remove(audio_location)
 
     thred.terminate()
     return_cursor_and_overwrite_bar()
@@ -349,9 +351,7 @@ def voice_input():
     return transcription
 
 
-def save_chat(db):
-    if not db:
-        db = setup_db(path)
+def save_chat(con, cur):
     # if the message is too short, or more precisely, it's just the role message and the
     # first user message, there was most likely some error and there's no need to save it.
     if len(all_messages) > 2:
@@ -359,49 +359,53 @@ def save_chat(db):
         if chat["is_loaded"]:
 
             # deletes the chat, but the now message is saved under a newer number.
-            db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
-            db.execute("DELETE FROM images WHERE chat_id=?", chat["id"])
+            cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
+            cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
+            con.commit()
             max_chat_id = chat["id"] - 1
 
         else:
-            max_chat_id = db.execute(
-                "SELECT MAX(chat_id) AS max FROM chat_messages")[0]["max"]
+            max_chat_id = cur.execute(
+                "SELECT MAX(chat_id) AS max FROM chat_messages").fetchone()[0]
             if not max_chat_id:
                 max_chat_id = 0
 
         if not chat["description"]:
-            chat["description"] = generate_description(all_messages)
+            chat["description"] = generate_description(chat["all_messages"])
 
         for message in all_messages:
-            db.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
-                max_chat_id+1, message["role"], message["content"], chat["description"])
+            cur.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
+                (max_chat_id+1, message["role"], message["content"], chat["description"], ))
+            con.commit()
         
         for image in chat["images"]:
-            db.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                image["url"], image["name"], image["extension"], max_chat_id+1, image["message_idx"])
+            cur.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (image["content"], image["name"], image["extension"], max_chat_id+1, image["message_idx"], ))
+            con.commit()
 
         for file in chat["files"]:
-            db.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"])
+            cur.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"], ))
+            con.commit()
 
-        update_chat_ids(db)
+        update_chat_ids(con, cur)
 
 
-def choose_chat(db):
-    options = db.execute(
-        "SELECT DISTINCT chat_id, description FROM chat_messages")
+def choose_chat(cur):
+    options = cur.execute(
+        "SELECT DISTINCT chat_id, description FROM chat_messages").fetchall()
     print()
     option_ids = []
     for option in options:
-        option_ids.append(option["chat_id"])
-        print(f"{option['chat_id']}: {option['description']}")
+        option_ids.append(option[0])
+        print(f"{option[0]}: {option[1]}")
 
     while 1:
         option_input = input("\nWhich message do you want to continue? ")
         if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
-            load_chat(db, choice)
-            load_images(db, choice)
-            load_files(db, choice)
+            load_chat(cur, choice)
+            load_images(cur, choice)
+            load_files(cur, choice)
             print_chat()
             break
  
@@ -418,34 +422,34 @@ def speak(message, voice="nova"):
     player.play()
 
 
-def load_chat(db, choice):
-    data = db.execute("SELECT * FROM chat_messages WHERE chat_id=?", choice)
+def load_chat(cur, choice):
+    data = cur.execute("SELECT role, message, description FROM chat_messages WHERE chat_id=?", (choice, )).fetchall()
 
-    chat["id"] = choice 
+    chat["id"] = choice
     chat["is_loaded"] = True
-    chat["description"] = data[0]["description"]
+    chat["description"] = data[0][2]
     for row in data:
-        add_message_to_chat(row["role"], row["message"])
+        add_message_to_chat(row[0], row[1])
 
 
-def load_images(db, id):
-    data = db.execute("SELECT * FROM images WHERE chat_id=?", id)
+def load_images(cur, id):
+    data = cur.execute("SELECT content, name, extension, message_idx FROM images WHERE chat_id=?", (id, )).fetchall()
     for row in data:
         chat["images"].append({
-            "url": row["url"],
-            "name": row["name"],
-            "extension": row["extension"],
-            "message_idx": row["message_idx"]
+            "content": row[0],
+            "name": row[1],
+            "extension": row[2],
+            "message_idx": row[3]
         })
 
-def load_files(db, id):
-    data = db.execute("SELECT * FROM files WHERE chat_id=?", id)
+def load_files(cur, id):
+    data = cur.execute("SELECT content, name, extension, message_idx FROM files WHERE chat_id=?", (id, )).fetchall()
     for row in data:
         chat["files"].append({
-            "content": row["content"],
-            "name": row["name"],
-            "extension": row["extension"],
-            "message_idx": row["message_idx"]
+            "content": row[0],
+            "name": row[1],
+            "extension": row[2],
+            "message_idx": row[3]
         })
 
 # TODO: #13 modify this function so it works with the new system, where we put the image
@@ -513,11 +517,11 @@ def attach_images(all_messages):
                 "source": {
                     "type": "base64",
                     "media_type": f'image/{image["extension"]}',
-                    "data": image["url"]
+                    "data": image["content"]
                 },
             } if chat["provider"] == "anthropic" else {
                 "type": "image_url", "image_url": {
-                    "url": f'data:image/{image["extension"]};base64,{image["url"]}'
+                    "url": f'data:image/{image["extension"]};base64,{image["content"]}'
                 }
             }
 
@@ -569,8 +573,8 @@ def get_and_print_response():
                 stream=True)
 
     add_message_to_chat("assistant", "")
-    bar.terminate()
 
+    bar.terminate()
     print("\b" + terminal[chat["color"]], end="")
 
     try:
@@ -610,13 +614,13 @@ def quick_input():
             exit()
         
         if argv[1] == "--load-last" or argv[1] == "-ll":
-            global db
-            db = setup_db(path)
-            last_id = db.execute("SELECT MAX(chat_id) FROM chat_messages")[0]["MAX(chat_id)"]
-            load_chat(db, last_id)
-            load_images(db, last_id)
-            load_files(db, last_id)
+            (con, cur) = setup_db(path)
+            last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
+            load_chat(cur, last_id)
+            load_images(cur, last_id)
+            load_files(cur, last_id)
             print_chat()
+            return(con, cur)
             
             
         
@@ -746,36 +750,44 @@ def execute_command(command):
     return output
 
 
-def delete_chat(db):
+def delete_chat(con, cur):
     global chat
     if chat["is_loaded"]:
-        db.execute("DELETE FROM chat_messages WHERE chat_id=?", chat["id"])
-        db.execute("DELETE FROM images WHERE chat_id=?", chat["id"])
-        db.execute("DELETE FROM files WHERE chat_id=?", chat["id"])
-        update_chat_ids(db)
+        cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
+        cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
+        cur.execute("DELETE FROM files WHERE chat_id=?", (chat["id"], ))
+        con.commit()
+        update_chat_ids(con, cur)
     exit()
     
 
-def update_chat_ids(db):
-    old_chat_ids = db.execute("SELECT DISTINCT chat_id FROM chat_messages;")
-    old_chat_ids_list = [id["chat_id"] for id in old_chat_ids]
+def update_chat_ids(con, cur):
+    old_chat_ids = cur.execute("SELECT DISTINCT chat_id FROM chat_messages;").fetchall()
+    # this check is in case there are no chats left in the db
+    if not old_chat_ids or not old_chat_ids[0]: return
+
+    old_chat_ids_list = [id[0] for id in old_chat_ids]
 
     if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids_list[0] != 1 or not is_succinct(old_chat_ids_list):
-        messages_in_new_order = []
-        for id in old_chat_ids_list:
-            messages_in_new_order.append(
-                db.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id))
+    #     messages_in_new_order = []
+    #     for id in old_chat_ids_list:
+    #         messages_in_new_order.append(
+    #             cur.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id).fetchone())
+    #         con.commit()
 
-        for chat_id in range(0, len(messages_in_new_order)):
-            for message in messages_in_new_order[chat_id]:
-                db.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
+    #     for chat_id in range(0, len(messages_in_new_order)):
+    #         for message in messages_in_new_order[chat_id]:
+    #             cur.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
         
         for (idx, chat_id) in enumerate(old_chat_ids_list):
             if idx+1 != chat_id:
-                db.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?", 
-                    idx+1, chat_id)
-                db.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
-                    idx+1, chat_id)
+                cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?", 
+                    (idx+1, chat_id, ))
+                cur.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
+                    (idx+1, chat_id, ))
+                cur.execute("UPDATE chat_messages SET chat_id = ? WHERE chat_id = ?",
+                    (idx+1, chat_id, ))
+                con.commit()
 
 
 def change_model(new_model):
@@ -817,6 +829,7 @@ def choose_mode():
             current_mode = option
             break
     
+    print(current_mode)
     add_message_to_chat("system", current_mode["description"])
     chat["mode"] = current_mode["name"]
 
@@ -852,8 +865,9 @@ def use_editor(initial_text):
         return tmpfile_contents
 
 
-def nuclear(db):
-    db.execute("DELETE FROM chat_messages")
+def nuclear(con, cur):
+    cur.execute("DELETE FROM chat_messages")
+    con.commit()
     exit()
 
 if __name__ == "__main__":
