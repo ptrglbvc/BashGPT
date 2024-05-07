@@ -84,149 +84,9 @@ def main():
         print()
 
         if message and message[0] == "/" and len(message) > 1:
-            command = shlex.split(message[1:])
-            # command = parse_command(message[1:])
-
-            match command[0]:
-                case "q":
-                    if len(command) == 1:
-                        if not chat["is_loaded"]:
-                            (con, cur) = setup_db(path)
-                        save_chat(con, cur)
-                        exit()
-                    elif len(command) == 2:
-                        chat["description"] = command[1]
-                        save_chat(con, cur)
-                        exit()
-                    else:
-                        alert("Too many arguments")
-                        continue
-
-                case "q!":
-                    print("\033[1A", end="")
-                    exit()
-
-                case "rm!":
-                    if chat["id"]:
-                        delete_chat(con, cur)
-                    else:
-                        print("\033[1A", end="")
-                        exit()
-
-                case "nuclear!!!":
-                    nuclear(con, cur)
-
-                case "l": 
-                    message = use_editor("")
-                    print(message, end="\n\n")
-
-                case "v":
-                    try:
-                        message = voice_input()
-                    except:
-                        alert("Recording doesn't work on you device.")
-                        message = use_editor()
-                        print(message, end="\n\n")
-
-                case "dl":
-                    if len(command) == 1:
-                        delete_messages()
-
-                    elif (command[1] and command[1].isnumeric()):
-                        no_of_messages = int(command[1])
-                        delete_messages(no_of_messages)
-                    
-                    else:
-                        alert("Invalid argument for message deletion")
-                    continue
-
-                case "model":
-                    if (len(command) == 2):
-                        is_a_model = False
-                        for model in models:
-                            if model["name"] == command[1] or model["shortcut"] == command[1]:
-                                change_model(model)
-                                is_a_model = True
-                                alert(f"Changed model to: {model['name']}")
-                                break
-                        
-                        if not is_a_model:
-                            alert("Model not found")
-
-                    else:
-                        alert("Invalid arguments for changing the model")
-                    continue
-
-                case "image" | "i":
-                    if len(command) == 2:
-                        get_image(command[1])
-                    else:
-                        alert("Invalid arguments")
-                    continue
-
-                case "file" | "f":
-                    if len(command) == 2:
-                        get_file(command[1])
-                    else: 
-                        alert("Invalid arguments")
-                    continue
-
-                case "color":
-                    if len(command) == 2 and command[1] in terminal:
-                        chat["color"] = command[1]
-                        print_chat()
-                        alert(f"Changed color to {command[1]}")
-                    else:
-                        alert("Invalid color")
-                    continue
-
-                case "edit":
-                    if len(command) == 1:
-                        edit_message(1)
-                        print_chat()
-                    elif command[1] == "-1" or command[1] == "sys":
-                        edit_message(0)
-                        print_chat()
-
-                    elif len(command) == 2 and command[1].isnumeric():
-                        if int(command[1]) > len(chat["all_messages"]):
-                            alert(f"Index too large. Max index is: {len(chat['all_messages'])}")
-                        else:
-                            edit_message(int(command[1]))
-                            print_chat()
-                    
-                    elif len(command) > 3:
-                        alert("Too many arguments")
-                    
-                    continue
-
-                case "rg":
-                    delete_messages(1)
-                    message = ""
-                    alert("Regenerating message")
-                    print_chat()
-                
-                case "speak":
-                    if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
-                        alert("Speech with begin shortly")
-                        threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
-                        continue 
-                    elif len(command) == 1:
-                        alert("Speech with begin shortly")
-                        threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
-                        continue
-                    alert("Invalid voice")
-                
-                case "cd" | "change-default":
-                    if len(command) == 3:
-                        change_defaults(command[1], command[2])
-                    else:
-                        alert("Invalid number of args")
-                    continue
-
-                case _:
-                    alert("Invalid command")
-                    continue
+            output = command(message, con, cur)
+            if output == 1: continue
+            
 
 
         if (message):
@@ -240,6 +100,153 @@ def main():
 
         if chat["mode"] == "dalle":
             threading.Thread(target=dalle_mode, args=[]).start()
+
+def command(message, con, cur):
+    command = shlex.split(message[1:])
+
+    match command[0]:
+        case "q":
+            if len(command) == 1:
+                if not chat["is_loaded"]:
+                    (con, cur) = setup_db(path)
+                save_chat(con, cur)
+                exit()
+            elif len(command) == 2:
+                chat["description"] = command[1]
+                if not chat["is_loaded"]:
+                    (con, cur) = setup_db(path)
+                save_chat(con, cur)
+                exit()
+            else:
+                alert("Too many arguments")
+                return 1
+
+        case "q!":
+            print("\033[1A", end="")
+            exit()
+
+        case "rm!":
+            if chat["id"]:
+                delete_chat(con, cur)
+            else:
+                print("\033[1A", end="")
+                exit()
+
+        case "nuclear!!!":
+            nuclear(con, cur)
+
+        case "l": 
+            message = use_editor("")
+            print(message, end="\n\n")
+
+        case "v":
+            try:
+                message = voice_input()
+            except:
+                alert("Recording doesn't work on you device.")
+                message = use_editor()
+                print(message, end="\n\n")
+
+        case "dl":
+            if len(command) == 1:
+                delete_messages()
+
+            elif (command[1] and command[1].isnumeric()):
+                no_of_messages = int(command[1])
+                delete_messages(no_of_messages)
+            
+            else:
+                alert("Invalid argument for message deletion")
+            return 1
+
+        case "model":
+            if (len(command) == 2):
+                is_a_model = False
+                for model in models:
+                    if model["name"] == command[1] or model["shortcut"] == command[1]:
+                        change_model(model)
+                        is_a_model = True
+                        alert(f"Changed model to: {model['name']}")
+                        break
+                
+                if not is_a_model:
+                    alert("Model not found")
+
+            else:
+                alert("Invalid arguments for changing the model")
+            return 1
+
+        case "image" | "i":
+            if len(command) == 2:
+                get_image(command[1])
+            else:
+                alert("Invalid arguments")
+            return 1 
+
+        case "file" | "f":
+            if len(command) == 2:
+                get_file(command[1])
+            else: 
+                alert("Invalid arguments")
+            return 1
+
+        case "color":
+            if len(command) == 2 and command[1] in terminal:
+                chat["color"] = command[1]
+                print_chat()
+                alert(f"Changed color to {command[1]}")
+            else:
+                alert("Invalid color")
+            return 1
+
+        case "edit":
+            if len(command) == 1:
+                edit_message(1)
+                print_chat()
+            elif command[1] == "-1" or command[1] == "sys":
+                edit_message(0)
+                print_chat()
+
+            elif len(command) == 2 and command[1].isnumeric():
+                if int(command[1]) > len(chat["all_messages"]):
+                    alert(f"Index too large. Max index is: {len(chat['all_messages'])}")
+                else:
+                    edit_message(int(command[1]))
+                    print_chat()
+            
+            elif len(command) > 3:
+                alert("Too many arguments")
+            
+            return 1
+
+        case "rg":
+            delete_messages(1)
+            message = ""
+            alert("Regenerating message")
+            print_chat()
+        
+        case "speak":
+            if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
+                alert("Speech with begin shortly")
+                threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
+                return 1 
+            elif len(command) == 1:
+                alert("Speech with begin shortly")
+                threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
+                return 1 
+            alert("Invalid voice")
+        
+        case "cd" | "change-default":
+            if len(command) == 3:
+                change_defaults(command[1], command[2])
+            else:
+                alert("Invalid number of args")
+            return 1
+
+        case _:
+            alert("Invalid command")
+            return 1
+
 
 
 def add_message_to_chat(role, content):
