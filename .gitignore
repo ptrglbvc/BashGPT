@@ -3,7 +3,7 @@ audio.wav
 .DS_Store
 __pycache__/
 bashgpt.egg-info/
-bashgpt_ptrglbvc.egg-info
+bashgpt_ptrglbvc.egg-info/
 build
 test.py
 *.mp3
