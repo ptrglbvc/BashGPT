@@ -1,4 +1,4 @@
-bashgpt/history.db
+src/bashgpt/history.db
 audio.wav
 .DS_Store
 __pycache__/

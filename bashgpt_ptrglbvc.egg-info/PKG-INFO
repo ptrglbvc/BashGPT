@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: bashgpt-ptrglbvc
+Version: 0.1
+License-File: LICENSE.txt
+Requires-Dist: openai>=1.12.0
+Requires-Dist: anthropic>=0.19.1
+Requires-Dist: PyAudio>=0.2.13
