@@ -1,4 +1,4 @@
-from bashgpt_ptrglbvc.terminal_codes import terminal
+from bashgpt.terminal_codes import terminal
 from time import sleep
 from re import sub
 

@@ -18,14 +18,14 @@ from pathlib import Path
 from multiprocessing import Process
 # import pprint
 
-from bashgpt_ptrglbvc.modes_and_models import modes, models
-from bashgpt_ptrglbvc.db_and_key import setup_db
-from bashgpt_ptrglbvc.whisper import record, whisper
-from bashgpt_ptrglbvc.load_defaults import load_defaults
-from bashgpt_ptrglbvc.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
-from bashgpt_ptrglbvc.get_file import get_file
-from bashgpt_ptrglbvc.terminal_codes import terminal
-from bashgpt_ptrglbvc.chat import chat
+from bashgpt.modes_and_models import modes, models
+from bashgpt.db_and_key import setup_db
+from bashgpt.whisper import record, whisper
+from bashgpt.load_defaults import load_defaults
+from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
+from bashgpt.get_file import get_file
+from bashgpt.terminal_codes import terminal
+from bashgpt.chat import chat
 
 from openai import OpenAI
 from anthropic import Anthropic
@@ -836,7 +836,6 @@ def choose_mode():
             current_mode = option
             break
     
-    print(current_mode)
     add_message_to_chat("system", current_mode["description"])
     chat["mode"] = current_mode["name"]
 

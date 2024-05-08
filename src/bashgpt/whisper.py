@@ -6,7 +6,7 @@ import sys
 import os
 from pathlib import Path
 
-from bashgpt_ptrglbvc.db_and_key import setup_key
+from bashgpt.db_and_key import setup_key
 
 client = OpenAI()
 
