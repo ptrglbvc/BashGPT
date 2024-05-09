@@ -823,6 +823,9 @@ def change_model(new_model):
         case "openrouter":
             chat["api_key_name"] = "OPENROUTER_API_KEY"
             chat["base_url"] = "https://openrouter.ai/api/v1"
+        case "deepseek":
+            chat["api_key_name"] = "DEEPSEEK_API_KEY"
+            chat["base_url"] = "https://api.deepseek.com"
         
 
 def choose_mode():

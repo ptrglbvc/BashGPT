@@ -130,5 +130,11 @@
         "shortcut": "cohere",
         "provider": "openrouter",
         "vision_enabled": false
+    },
+    {
+        "name": "deepseek-chat",
+        "shortcut": "ds",
+        "provider": "deepseek",
+        "vision_enabled": false
     }
 ]
