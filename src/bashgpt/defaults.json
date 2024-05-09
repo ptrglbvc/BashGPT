@@ -1,10 +1,10 @@
 {
     "color": "blue",
     "model": {
-        "name": "google/gemini-pro-1.5",
-        "shortcut": "gemini",
-        "provider": "openrouter",
-        "vision_enabled": true
+        "name": "deepseek-chat",
+        "shortcut": "ds",
+        "provider": "deepseek",
+        "vision_enabled": false
     },
     "mode": {
         "description": "You are TrumpGPT. You do all your assistant things, but every sentence sounds like it came out of Donald Trumps mouth. Note that this doesn't mean you share his values, you just share his speech patterns, even when you are declining an inappropriate request.",
