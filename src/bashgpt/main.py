@@ -103,6 +103,8 @@ def main():
         if message and message[0] == "/" and len(message) > 1:
             output = command(message, con, cur)
             if output == 1: continue
+            elif output == 2: message = ""
+            elif output: message = output
             
 
 
@@ -155,6 +157,7 @@ def command(message, con, cur):
         case "l": 
             message = use_editor("")
             print(message, end="\n\n")
+            return message
 
         case "v":
             try:
@@ -163,6 +166,8 @@ def command(message, con, cur):
                 alert("Recording doesn't work on you device.")
                 message = use_editor()
                 print(message, end="\n\n")
+            finally:
+                return message
 
         case "dl":
             if len(command) == 1:
@@ -238,10 +243,11 @@ def command(message, con, cur):
 
         case "rg":
             delete_messages(1)
-            message = ""
             alert("Regenerating message")
             print_chat()
-            return 1
+
+            return 2
+            
         
         case "speak":
             if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
@@ -485,7 +491,7 @@ def print_chat():
 
     print("\x1b\x5b\x48\x1b\x5b\x32\x4a")
 
-    for message in chat["all_messages"]:
+    for idx, message in enumerate(chat["all_messages"]):
         if message["role"] == "user":
             if str(type(message["content"])) == "<class 'str'>":
                 print("You: " + message["content"] + "\n")
@@ -493,10 +499,12 @@ def print_chat():
                 for item in message["content"]:
                     if item["type"] == "text":
                         print("You: " + item["text"] + "\n")
-                for item in message["content"]:
-                    if item["type"] == "image_url":
-                        image_name = item["image_url"]["url"].split("/")[-1]
-                        alert(f"Attached image: {image_name}")
+                for image in chat["images"]:
+                    if idx == image["message_idx"]:
+                        alert(f"Attached image: {image['name']}")
+                for file in chat["files"]:
+                    if idx == file["message_idx"]:
+                        alert(f"Attached file: {file['name']}")
         if message["role"] == "assistant":
             print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
 
@@ -568,8 +576,8 @@ def attach_files(all_messages):
     memo = {}
     all_messages_with_files = copy.deepcopy(all_messages, memo)
     for file in chat["files"]:
-        added_text = f"user attached {'webpage' if 'extension' == 'html' else 'file'}'" + file["name"] + "':\n" + file["content"] + "\n\n"
-        all_messages_with_files[file["message_idx"]]["content"] += added_text
+        added_text = f"'''\nuser attached {'webpage' if 'extension' == 'html' else 'file'}'" + file["name"] + "':\n" + file["content"] + "\n\n\n'''"
+        all_messages_with_files[file["message_idx"]]["content"] = added_text + all_messages_with_files[file["message_idx"]]["content"]
     return all_messages_with_files
 
 
@@ -584,8 +592,6 @@ def get_and_print_response():
 
     errorMessage = ""
     add_message_to_chat("assistant", "")
-
-    print("\b" + terminal[chat["color"]], end="")
 
     try:
         stream = client.with_options(
@@ -604,6 +610,8 @@ def get_and_print_response():
                     stream=True)
 
         bar.terminate()
+
+        print("\b" + terminal[chat["color"]], end="")
 
         try:
             for chunk in stream:
