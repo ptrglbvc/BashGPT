@@ -120,9 +120,9 @@
         "vision_enabled": true
     },
     {
-        "name": "anthropic/claude-3-haiku:beta",
+        "name": "claude-3-haiku-20240307",
         "shortcut": "haiku",
-        "provider": "openrouter",
+        "provider": "anthropic",
         "vision_enabled": true
     },
     {
