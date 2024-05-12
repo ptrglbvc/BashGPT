@@ -28,6 +28,23 @@ from bashgpt.terminal_codes import terminal
 from bashgpt.chat import chat
 
 from openai import OpenAI
+from openai import (
+    APIError,
+    OpenAIError,
+    ConflictError,
+    NotFoundError,
+    APIStatusError,
+    RateLimitError,
+    APITimeoutError,
+    BadRequestError,
+    APIConnectionError,
+    AuthenticationError,
+    InternalServerError,
+    PermissionDeniedError,
+    UnprocessableEntityError,
+    APIResponseValidationError,
+)
+
 from anthropic import Anthropic
 import vlc
 import httpx
@@ -564,47 +581,77 @@ def get_and_print_response():
     bar = Process(target=loading_bar, args=[chat])
     bar.start()
 
-    stream = client.with_options(
-        base_url=chat["base_url"], 
-        api_key=os.getenv(chat["api_key_name"])
-        ).chat.completions.create(
-            max_tokens=2024, 
-            model=chat["model"], 
-            messages=all_messages, 
-            stream=True
-            ) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
-                system=system_message,
-                max_tokens=2024, 
-                model=chat["model"], 
-                messages=all_messages[1:], 
-                stream=True)
-
+    errorMessage = ""
     add_message_to_chat("assistant", "")
 
-    bar.terminate()
     print("\b" + terminal[chat["color"]], end="")
 
     try:
-        for chunk in stream:
-            text = ""
-            if chat["provider"] == "anthropic":
-                if chunk.type == "content_block_delta":
-                    text = chunk.delta.text
-                else: 
-                    continue
-            else:
-                text = chunk.choices[0].delta.content
-                if not text:
-                    continue
+        stream = client.with_options(
+            base_url=chat["base_url"], 
+            api_key=os.getenv(chat["api_key_name"])
+            ).chat.completions.create(
+                max_tokens=2024, 
+                model=chat["model"], 
+                messages=all_messages, 
+                stream=True
+                ) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
+                    system=system_message,
+                    max_tokens=2024, 
+                    model=chat["model"], 
+                    messages=all_messages[1:], 
+                    stream=True)
 
-            print(text, end="")
-            chat["all_messages"][-1]["content"] += text
+        bar.terminate()
 
-    except KeyboardInterrupt:
-        print("\033[2D  ", end="")
-        
+        try:
+            for chunk in stream:
+                text = ""
+                if chat["provider"] == "anthropic":
+                    if chunk.type == "content_block_delta":
+                        text = chunk.delta.text
+                    else: 
+                        continue
+                else:
+                    text = chunk.choices[0].delta.content
+                    if not text:
+                        continue
 
-    print(terminal["reset"] + "\n")
+                print(text, end="")
+                chat["all_messages"][-1]["content"] += text
+
+        except KeyboardInterrupt:
+            print("\033[2D  ", end="")
+
+    except (
+        APIError,
+        OpenAIError,
+        ConflictError,
+        NotFoundError,
+        APIStatusError,
+        RateLimitError,
+        APITimeoutError,
+        BadRequestError,
+        APIConnectionError,
+        AuthenticationError,
+        InternalServerError,
+        PermissionDeniedError,
+        UnprocessableEntityError,
+        APIResponseValidationError,
+    ) as e:
+        bar.terminate()
+        errorMessage += f"Error: {e}"
+        alert(errorMessage)
+        chat["all_messages"][-1]["content"] += errorMessage
+    except:
+        bar.terminate()
+        errorMessage += "Unknown error"
+        alert(errorMessage)
+        chat["all_messages"][-1]["content"] += errorMessage
+
+
+    finally:
+        print(terminal["reset"] + "\n")
 
 
 def quick_input():
