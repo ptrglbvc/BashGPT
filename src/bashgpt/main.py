@@ -241,6 +241,7 @@ def command(message, con, cur):
             message = ""
             alert("Regenerating message")
             print_chat()
+            return 1
         
         case "speak":
             if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
