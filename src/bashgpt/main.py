@@ -26,6 +26,7 @@ from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loadi
 from bashgpt.get_file import get_file
 from bashgpt.terminal_codes import terminal
 from bashgpt.chat import chat, add_message_to_chat
+# from bashgpt.bash import bash_mode, add_message_to_chat
 from bashgpt.bash import parse_bash_message
 from bashgpt.autonomous import parse_auto_message
 
@@ -46,8 +47,10 @@ from openai import (
     UnprocessableEntityError,
     APIResponseValidationError,
 )
-
 from anthropic import Anthropic
+import google.generativeai as googleai 
+import google.ai.generativelanguage as glm
+
 import vlc
 import httpx
 
@@ -57,6 +60,7 @@ all_messages = chat["all_messages"]
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+googleai.configure(api_key=os.getenv("GOOGLEAI_API_KEY"))
 
 
 #this has honestly been the hardest part of this project. Without the library, I had to resort to really big workarounds
@@ -282,6 +286,9 @@ def command(message, con, cur):
         case _:
             alert("Invalid command")
             return 1
+
+
+
 
 
 def get_image(image_url):
@@ -546,7 +553,7 @@ def help_me():
     print(available_modes)
 
 
-def attach_images(all_messages):
+def attach_images_anthropic_openai(all_messages):
     memo = {}
     messages_with_images = copy.deepcopy(all_messages, memo)
     for image in chat["images"]:
@@ -587,20 +594,10 @@ def attach_files(all_messages):
     return all_messages_with_files
 
 
-def get_and_print_response():
-    system_message = chat["all_messages"][0]["content"]
-    all_messages = chat["all_messages"] if not chat["vision_enabled"] else attach_images(chat["all_messages"])
-    # I reversed this just to confuse you, dear reader (including myself, yes)
-    all_messages = attach_files(all_messages) if chat["files"] else all_messages
+def get_openai_response(all_messages):
+    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
 
-    bar = Process(target=loading_bar, args=[chat])
-    bar.start()
-
-    errorMessage = ""
-    add_message_to_chat("assistant", "")
-
-    try:
-        stream = client.with_options(
+    stream = client.with_options(
             base_url=chat["base_url"], 
             api_key=os.getenv(chat["api_key_name"])
             ).chat.completions.create(
@@ -608,12 +605,80 @@ def get_and_print_response():
                 model=chat["model"], 
                 messages=all_messages, 
                 stream=True
-                ) if chat["provider"] != "anthropic" else anthropic_client.messages.create(
-                    system=system_message,
-                    max_tokens=2024, 
-                    model=chat["model"], 
-                    messages=all_messages[1:], 
-                    stream=True)
+                )
+
+    return stream
+
+def get_anthropic_response(all_messages):
+    all_messages = all if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
+
+    stream = anthropic_client.messages.create(
+        system=all_messages[0]["content"],
+        max_tokens=2024, 
+        model=chat["model"], 
+        messages=all_messages[1:], 
+        stream=True)
+    
+    return stream
+
+def get_google_response(all_messages):
+    model = googleai.GenerativeModel(
+        chat["model"], 
+        system_instruction=all_messages[0]["content"])
+    all_messages = adapt_messages_to_google(all_messages)
+    
+    response = model.generate_content(all_messages)
+    return response
+
+
+def adapt_messages_to_google(all_messages):
+    new_all_messages = []
+    for message in all_messages[1:]:
+        new_message = {}
+
+        new_message["role"] = message["role"]
+        if new_message["role"] == "assistant": new_message["role"] = "model"
+
+        new_message["parts"] = [glm.Part(text=message["content"])]
+        new_all_messages.append(new_message)
+    
+    attach_glm_images(new_all_messages) 
+
+    return new_all_messages
+
+
+def attach_glm_images(new_all_messages):
+    for image in chat["images"]:
+        # this -1 is here because we removed the system message previously
+        if (curr_idx:=(image["message_idx"] - 1)) < len(new_all_messages):
+            new_all_messages[curr_idx]["parts"].append(
+                glm.Part(
+                    inline_data=glm.Blob(
+                        mime_type=f'image/{image["extension"]}',
+                        data=base64.b64decode(image["content"])
+                    )
+                ),
+            )
+    
+
+def get_and_print_response():
+    # I reversed this just to confuse you, dear reader (including myself, yes)
+    all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
+
+    bar = Process(target=loading_bar, args=[chat])
+    bar.start()
+
+    errorMessage = ""
+
+    try:
+        if chat["provider"] == "anthropic":
+            stream = get_anthropic_response(all_messages)
+        elif chat["provider"] == "google":
+            stream = get_google_response(all_messages)
+        else:
+            stream = get_openai_response(all_messages)
+
+        add_message_to_chat("assistant", "")
 
         bar.terminate()
 
@@ -627,6 +692,8 @@ def get_and_print_response():
                         text = chunk.delta.text
                     else: 
                         continue
+                elif chat["provider"] == "google":
+                    text = chunk.text 
                 else:
                     text = chunk.choices[0].delta.content
                     if not text:
@@ -658,11 +725,11 @@ def get_and_print_response():
         errorMessage += f"Error: {e}"
         alert(errorMessage)
         chat["all_messages"][-1]["content"] += errorMessage
-    except:
-        bar.terminate()
-        errorMessage += "Unknown error"
-        alert(errorMessage)
-        chat["all_messages"][-1]["content"] += errorMessage
+    # except:
+    #     bar.terminate()
+    #     errorMessage += "Unknown error"
+    #     alert(errorMessage)
+    #     chat["all_messages"][-1]["content"] += errorMessage
 
 
     finally:
@@ -756,6 +823,7 @@ def quick_input():
         add_message_to_chat("user", argv[3])
             
 
+
 def dalle_mode():
     last_message = chat["all_messages"][-1]["content"]
     try:
@@ -789,6 +857,8 @@ def dalle_mode():
             subprocess.Popen(["xdg-open", image_name])
     except:
         pass
+
+
 
 
 def delete_chat(con, cur):
