@@ -95,7 +95,7 @@ def main():
     
 
     while True:
-        if chat["auto_turns"] < 1:
+        if chat["auto_turns"] == 0:
             message = ""
 
             if not len(all_messages) == 2:
@@ -130,6 +130,7 @@ def main():
         if chat["auto_turns"] > 0:
             chat["auto_message"] = parse_auto_message(chat["all_messages"][-1]["content"])
             chat["auto_turns"] -= 1
+
 
 def command(message, con, cur):
     command = shlex.split(message[1:])
