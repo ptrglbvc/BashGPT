@@ -12,3 +12,7 @@ chat = {
         "provider" : "openai",
         "color": "purple",
         "description": ""}
+
+def add_message_to_chat(role, content):
+    global chat
+    chat["all_messages"].append({"role": role, "content": content})

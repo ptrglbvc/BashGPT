@@ -25,7 +25,8 @@ from bashgpt.load_defaults import load_defaults
 from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
 from bashgpt.get_file import get_file
 from bashgpt.terminal_codes import terminal
-from bashgpt.chat import chat
+from bashgpt.chat import chat, add_message_to_chat
+from bashgpt.bash import parse_bash_message
 
 from openai import OpenAI
 from openai import (
@@ -115,7 +116,7 @@ def main():
 
         if chat["mode"] == "bash":
             last_message = chat["all_messages"][-1]["content"]
-            bash_mode(last_message)
+            parse_bash_message(last_message)
 
         if chat["mode"] == "dalle":
             threading.Thread(target=dalle_mode, args=[]).start()
@@ -270,12 +271,6 @@ def command(message, con, cur):
         case _:
             alert("Invalid command")
             return 1
-
-
-
-def add_message_to_chat(role, content):
-    global chat
-    chat["all_messages"].append({"role": role, "content": content})
 
 
 def get_image(image_url):
@@ -750,29 +745,6 @@ def quick_input():
         add_message_to_chat("user", argv[3])
             
 
-def bash_mode(message):
-    all_parts = message.split("```")
-    if len(all_parts) > 1:
-        commands = all_parts[1::2]
-        for command in commands:
-
-            if command.strip().startswith("bash"):
-                command = command.strip()[4:]
-            if command.strip().startswith("zsh"):
-                command = command.strip()[3:]
-
-            try:
-                output = execute_command(command)
-                if output.strip():
-                    nicely_formated_output = "\033[1m\033[31mShell: "+output+"\033[0m"
-                    print(nicely_formated_output)
-                    if len(output)<1000:
-                        add_message_to_chat("user", "Shell: " + output)
-                    
-            except Exception:
-                pass
-
-
 def dalle_mode():
     last_message = chat["all_messages"][-1]["content"]
     try:
@@ -806,11 +778,6 @@ def dalle_mode():
             subprocess.Popen(["xdg-open", image_name])
     except:
         pass
-
-
-def execute_command(command):
-    output = subprocess.check_output(command, shell=True, universal_newlines=True)
-    return output
 
 
 def delete_chat(con, cur):
