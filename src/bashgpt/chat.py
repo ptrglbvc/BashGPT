@@ -11,7 +11,9 @@ chat = {
         "base_url": "https://api.openai.com/v1",
         "provider" : "openai",
         "color": "purple",
-        "description": ""}
+        "description": "",
+        "auto_turns": 0,
+        "auto_message": ""}
 
 def add_message_to_chat(role, content):
     global chat

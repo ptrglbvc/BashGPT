@@ -27,6 +27,7 @@ from bashgpt.get_file import get_file
 from bashgpt.terminal_codes import terminal
 from bashgpt.chat import chat, add_message_to_chat
 from bashgpt.bash import parse_bash_message
+from bashgpt.autonomous import parse_auto_message
 
 from openai import OpenAI
 from openai import (
@@ -94,10 +95,15 @@ def main():
     
 
     while True:
-        message = ""
+        if chat["auto_turns"] < 1:
+            message = ""
 
-        if not len(all_messages) == 2:
-            message = input("You: ").strip()
+            if not len(all_messages) == 2:
+                message = input("You: ").strip()
+        else:
+            message = chat["auto_message"] if chat["auto_message"] else "You are in control."
+            chat["auto_message"] = ""
+            print(f"You: {message}")
         
         print()
 
@@ -120,6 +126,10 @@ def main():
 
         if chat["mode"] == "dalle":
             threading.Thread(target=dalle_mode, args=[]).start()
+
+        if chat["auto_turns"] > 0:
+            chat["auto_message"] = parse_auto_message(chat["all_messages"][-1]["content"])
+            chat["auto_turns"] -= 1
 
 def command(message, con, cur):
     command = shlex.split(message[1:])
