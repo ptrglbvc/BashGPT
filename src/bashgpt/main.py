@@ -26,9 +26,8 @@ from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loadi
 from bashgpt.get_file import get_file
 from bashgpt.terminal_codes import terminal
 from bashgpt.chat import chat, add_message_to_chat
-# from bashgpt.bash import bash_mode, add_message_to_chat
-from bashgpt.bash import parse_bash_message
-from bashgpt.autonomous import parse_auto_message
+from bashgpt.bash import bash, bash_system_message
+from bashgpt.autonomous import parse_auto_message, auto_system_message
 
 from openai import OpenAI
 from openai import (
@@ -49,6 +48,7 @@ from openai import (
 )
 from anthropic import Anthropic
 import google.generativeai as googleai 
+from google.generativeai.types import HarmCategory, HarmBlockThreshold 
 import google.ai.generativelanguage as glm
 
 import vlc
@@ -105,7 +105,7 @@ def main():
             if not len(all_messages) == 2:
                 message = input("You: ").strip()
         else:
-            message = chat["auto_message"] if chat["auto_message"] else "You are in control."
+            message = chat["auto_message"] if chat["auto_message"] else f"You have freedom for {chat['auto_turns']} more turns"
             chat["auto_message"] = ""
             print(f"You: {message}")
         
@@ -124,9 +124,9 @@ def main():
 
         get_and_print_response()
 
-        if chat["mode"] == "bash":
+        if chat["bash"]:
             last_message = chat["all_messages"][-1]["content"]
-            parse_bash_message(last_message)
+            bash(last_message)
 
         if chat["mode"] == "dalle":
             threading.Thread(target=dalle_mode, args=[]).start()
@@ -281,6 +281,29 @@ def command(message, con, cur):
                 change_defaults(command[1], command[2])
             else:
                 alert("Invalid number of args")
+            return 1
+
+        case "auto":
+            if len(command) == 2:
+                try:
+                    chat["auto_turns"] = int(command[1])
+                except:
+                    alert("Invalid number of turns")
+            elif len(command) == 3:
+                try:
+                    chat["auto_turns"] = int(command[1])
+                    return command[2]
+                except:
+                    alert("Invalid number of turns")
+
+                
+            else:
+                alert("Invalid number of turns. Proper usage: /auto 5")
+            return 1
+        
+        case "bash":
+            alert(f"Bash has been turned {'off' if chat['bash'] else 'on'}")
+            chat["bash"] = not chat["bash"]
             return 1
 
         case _:
@@ -627,7 +650,14 @@ def get_google_response(all_messages):
         system_instruction=all_messages[0]["content"])
     all_messages = adapt_messages_to_google(all_messages)
     
-    response = model.generate_content(all_messages)
+    response = model.generate_content(
+        all_messages,
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        })
     return response
 
 
@@ -660,10 +690,30 @@ def attach_glm_images(new_all_messages):
                 ),
             )
     
+def attach_system_messages(all_messages):
+    new_system_message = {
+        "role": "system",
+        "content": all_messages[0]["content"]
+    }
+
+    if chat["auto_turns"] > 0:
+        new_system_message["content"] += ("\n" + auto_system_message + "Number of turns left: " + str(chat["auto_turns"]))
+    if chat["bash"] is True:
+        new_system_message["content"] += ("\n" + bash_system_message  )
+
+    
+    if new_system_message["content"] == all_messages[0]["content"]:
+        return all_messages
+    else:
+        new_all_messages = all_messages.copy()
+        new_all_messages[0] = new_system_message
+        return new_all_messages
+         
 
 def get_and_print_response():
     # I reversed this just to confuse you, dear reader (including myself, yes)
     all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
+    all_messages = attach_system_messages(all_messages)
 
     bar = Process(target=loading_bar, args=[chat])
     bar.start()

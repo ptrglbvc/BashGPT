@@ -13,7 +13,8 @@ chat = {
         "color": "purple",
         "description": "",
         "auto_turns": 0,
-        "auto_message": ""}
+        "auto_message": "",
+        "bash": False}
 
 def add_message_to_chat(role, content):
     global chat
