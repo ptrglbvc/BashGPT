@@ -25,6 +25,11 @@ process = subprocess.Popen(
 def execute_command(command):
     output = subprocess.getoutput(command)
     return output
+
+# I really gave it my best and got this working to a solid degree (having a terminal session open in the background and piping the inputs and outputs back and forth), but
+# https://youtu.be/BLZWkjBXfN8?si=piX0MDT6rprNnvCT&t=52
+# sometimes the output would not pipe randomly and memory leaks everywhere
+
 #     global process
 #     q = Queue()
 #     # Capture both stdout and stderr

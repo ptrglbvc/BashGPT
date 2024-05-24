@@ -1033,5 +1033,6 @@ def nuclear(con, cur):
     con.commit()
     exit()
 
+
 if __name__ == "__main__":
     main()
