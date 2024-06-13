@@ -1,6 +1,6 @@
+# import threading
+# from time import sleep
 import subprocess
-import threading
-from time import sleep
 import re
 from queue import Queue, Empty
 from bashgpt.chat import add_message_to_chat

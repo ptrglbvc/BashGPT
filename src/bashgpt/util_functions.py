@@ -1,6 +1,9 @@
 from bashgpt.terminal_codes import terminal
 from time import sleep
 from re import sub
+import tempfile
+import subprocess
+import os
 
 def alert(text):
     print(terminal["red"] + text + terminal["reset"] + "\n")
@@ -35,3 +38,21 @@ def is_succinct(list):
             return False
         
     return True 
+
+def use_text_editor(initial_text):
+    editor = os.environ.get('EDITOR', 'nvim')
+    tmpfile_contents = ""
+
+    with tempfile.NamedTemporaryFile(suffix=".tmp", mode='w+', delete=False) as tmpfile:
+        tmpfile_path = tmpfile.name
+        tmpfile.write(initial_text)
+        tmpfile.flush()
+
+    try:
+        subprocess.run([editor, tmpfile_path], check=True)
+        with open(tmpfile_path, 'r') as tmpfile:
+            # chat["all_messages"][-id]["content"] = tmpfile.read().strip()
+            tmpfile_contents = tmpfile.read().strip()
+    finally:
+        os.remove(tmpfile_path)
+        return tmpfile_contents

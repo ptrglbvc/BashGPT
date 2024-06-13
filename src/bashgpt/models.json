@@ -66,9 +66,9 @@
         "vision_enabled": false
     },
     {
-        "name": "Qwen/Qwen1.5-72B-Chat",
+        "name": "qwen/qwen-2-72b-instruct",
         "shortcut": "qwen",
-        "provider": "together",
+        "provider": "openrouter",
         "vision_enabled": false
     },
     {
@@ -114,10 +114,16 @@
         "vision_enabled": true
     },
     {
-        "name": "gemini-1.5-flash-latest",
+        "name": "google/gemini-flash-1.5",
         "shortcut": "flash",
-        "provider": "google",
+        "provider": "openrouter",
         "vision_enabled": true
+    },
+    {
+        "name": "microsoft/phi-3-medium-128k-instruct:free",
+        "shortcut": "phi",
+        "provider": "openrouter",
+        "vision_enabled": false 
     },
     {
         "name": "claude-3-opus-20240229",
@@ -136,12 +142,6 @@
         "shortcut": "haiku",
         "provider": "anthropic",
         "vision_enabled": true
-    },
-    {
-        "name": "cohere/command-r-plus",
-        "shortcut": "cohere",
-        "provider": "openrouter",
-        "vision_enabled": false
     },
     {
         "name": "deepseek-chat",

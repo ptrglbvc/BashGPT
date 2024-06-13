@@ -6,8 +6,6 @@ logging.disable(logging.INFO)
 
 import threading
 import os
-import requests
-import subprocess
 import tempfile
 import base64
 import shlex
@@ -22,12 +20,13 @@ from bashgpt.modes_and_models import modes, models
 from bashgpt.db_and_key import setup_db
 from bashgpt.whisper import record, whisper
 from bashgpt.load_defaults import load_defaults
-from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct 
+from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct, use_text_editor
 from bashgpt.get_file import get_file
 from bashgpt.terminal_codes import terminal
 from bashgpt.chat import chat, add_message_to_chat
 from bashgpt.bash import bash, bash_system_message
 from bashgpt.autonomous import parse_auto_message, auto_system_message
+from bashgpt.dalle import dalle_mode, dalle_system_message
 
 from openai import OpenAI
 from openai import (
@@ -128,8 +127,8 @@ def main():
             last_message = chat["all_messages"][-1]["content"]
             bash(last_message)
 
-        if chat["mode"] == "dalle":
-            threading.Thread(target=dalle_mode, args=[]).start()
+        if chat["dalle"]:
+            threading.Thread(target=dalle_mode, args=[client]).start()
 
         if chat["auto_turns"] > 0:
             chat["auto_message"] = parse_auto_message(chat["all_messages"][-1]["content"])
@@ -171,7 +170,7 @@ def command(message, con, cur):
             nuclear(con, cur)
 
         case "l": 
-            message = use_editor("")
+            message = use_text_editor("")
             print(message, end="\n\n")
             return message
 
@@ -180,7 +179,7 @@ def command(message, con, cur):
                 message = voice_input()
             except:
                 alert("Recording doesn't work on you device.")
-                message = use_editor()
+                message = use_text_editor()
                 print(message, end="\n\n")
             finally:
                 return message
@@ -304,6 +303,11 @@ def command(message, con, cur):
         case "bash":
             alert(f"Bash has been turned {'off' if chat['bash'] else 'on'}")
             chat["bash"] = not chat["bash"]
+            return 1
+
+        case "dalle":
+            alert(f"Dalle3 has been turned {'off' if chat['bash'] else 'on'}")
+            chat["dalle"] = not chat["dalle"]
             return 1
 
         case _:
@@ -699,7 +703,9 @@ def attach_system_messages(all_messages):
     if chat["auto_turns"] > 0:
         new_system_message["content"] += ("\n" + auto_system_message + "Number of turns left: " + str(chat["auto_turns"]))
     if chat["bash"] is True:
-        new_system_message["content"] += ("\n" + bash_system_message  )
+        new_system_message["content"] += ("\n" + bash_system_message)
+    if chat["dalle"] is True:
+        new_system_message["content"] += ("\n" + dalle_system_message)
 
     
     if new_system_message["content"] == all_messages[0]["content"]:
@@ -874,41 +880,6 @@ def quick_input():
             
 
 
-def dalle_mode():
-    last_message = chat["all_messages"][-1]["content"]
-    try:
-        prompt = last_message.split("```")[1].strip()
-        response = client.images.generate(
-            prompt=prompt,
-            model="dall-e-3",
-            n=1,
-            size="1024x1024",
-        )
-
-        image_url = response.data[0].url
-        prompt_words = prompt.split()
-
-        if len(prompt_words)>10:
-            name_words = prompt_words[:10]
-
-        name_words = [word.strip(",.!/'") for word in prompt.split() if '/' not in word]
-        image_name = " ".join(name_words) + ".png"
-        image_path = path + image_name
-
-        response = requests.get(image_url)
-        with open(image_path, "wb") as image:
-            image.write(response.content)
-            
-        if platform == "win32":
-            os.startfile(image_name)
-        elif platform == "darwin":
-            subprocess.Popen(["open", image_name])
-        else:
-            subprocess.Popen(["xdg-open", image_name])
-    except:
-        pass
-
-
 
 
 def delete_chat(con, cur):
@@ -1006,27 +977,8 @@ def delete_messages(number = 2):
 
 def edit_message(id):
     global chat
-    new_message = use_editor(chat["all_messages"][-id]["content"])
+    new_message = use_text_editor(chat["all_messages"][-id]["content"])
     chat["all_messages"][-id]["content"] = new_message
-
-def use_editor(initial_text):
-    editor = os.environ.get('EDITOR', 'nvim')
-    tmpfile_contents = ""
-
-    with tempfile.NamedTemporaryFile(suffix=".tmp", mode='w+', delete=False) as tmpfile:
-        tmpfile_path = tmpfile.name
-        tmpfile.write(initial_text)
-        tmpfile.flush()
-
-    try:
-        subprocess.run([editor, tmpfile_path], check=True)
-        with open(tmpfile_path, 'r') as tmpfile:
-            # chat["all_messages"][-id]["content"] = tmpfile.read().strip()
-            tmpfile_contents = tmpfile.read().strip()
-    finally:
-        os.remove(tmpfile_path)
-        return tmpfile_contents
-
 
 def nuclear(con, cur):
     cur.execute("DELETE FROM chat_messages")
