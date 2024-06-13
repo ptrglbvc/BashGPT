@@ -1,57 +1,51 @@
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
 # It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing. 
 import logging
+
 logging.disable(logging.DEBUG)
 logging.disable(logging.INFO)
 
-import threading
-import os
-import tempfile
 import base64
-import shlex
-import json
 import copy
-from sys import argv, platform
-from pathlib import Path
+import json
+import os
+import shlex
+import tempfile
+import threading
 from multiprocessing import Process
+from pathlib import Path
+from sys import argv, version
+
+import google.ai.generativelanguage as glm
+import google.generativeai as googleai
+import httpx
+import vlc
+from anthropic import Anthropic
+from google.generativeai.types import HarmBlockThreshold, HarmCategory
+from openai import (APIConnectionError, APIError, APIResponseValidationError,
+                    APIStatusError, APITimeoutError, AuthenticationError,
+                    BadRequestError, ConflictError, InternalServerError,
+                    NotFoundError, OpenAI, OpenAIError, PermissionDeniedError,
+                    RateLimitError, UnprocessableEntityError)
+
+from bashgpt.autonomous import auto_system_message, parse_auto_message
+from bashgpt.bash import bash, bash_system_message
+from bashgpt.chat import add_message_to_chat, chat
+from bashgpt.dalle import dalle_mode, dalle_system_message
+from bashgpt.db_and_key import setup_db
+from bashgpt.get_file import get_file
+from bashgpt.load_defaults import load_defaults
+from bashgpt.modes_and_models import models, modes
+from bashgpt.terminal_codes import terminal
+from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md,
+                                    return_cursor_and_overwrite_bar,
+                                    use_text_editor)
+from bashgpt.whisper import record, whisper
+
 # import pprint
 
-from bashgpt.modes_and_models import modes, models
-from bashgpt.db_and_key import setup_db
-from bashgpt.whisper import record, whisper
-from bashgpt.load_defaults import load_defaults
-from bashgpt.util_functions import alert, return_cursor_and_overwrite_bar, loading_bar, parse_md, is_succinct, use_text_editor
-from bashgpt.get_file import get_file
-from bashgpt.terminal_codes import terminal
-from bashgpt.chat import chat, add_message_to_chat
-from bashgpt.bash import bash, bash_system_message
-from bashgpt.autonomous import parse_auto_message, auto_system_message
-from bashgpt.dalle import dalle_mode, dalle_system_message
 
-from openai import OpenAI
-from openai import (
-    APIError,
-    OpenAIError,
-    ConflictError,
-    NotFoundError,
-    APIStatusError,
-    RateLimitError,
-    APITimeoutError,
-    BadRequestError,
-    APIConnectionError,
-    AuthenticationError,
-    InternalServerError,
-    PermissionDeniedError,
-    UnprocessableEntityError,
-    APIResponseValidationError,
-)
-from anthropic import Anthropic
-import google.generativeai as googleai 
-from google.generativeai.types import HarmCategory, HarmBlockThreshold 
-import google.ai.generativelanguage as glm
 
-import vlc
-import httpx
 
 defaults = load_defaults()
 
@@ -71,6 +65,7 @@ audio_location = path + "audio.wav"
 
 def main():
     apply_defaults()
+    print(version)
 
     if len(argv)>1:
         potential_db = quick_input()
@@ -664,6 +659,19 @@ def get_google_response(all_messages):
         })
     return response
 
+def get_ollama_response(all_messages):
+    with httpx.stream(method="POST", 
+                      url="http://localhost:11434/api/chat", 
+                      json={
+                          "model": chat["model"],
+                          "messages": all_messages
+                      },
+                      timeout=None) as r:
+        for chunk in r.iter_text():
+            yield json.loads(chunk)["message"]["content"]
+
+    
+
 
 def adapt_messages_to_google(all_messages):
     new_all_messages = []
@@ -731,6 +739,8 @@ def get_and_print_response():
             stream = get_anthropic_response(all_messages)
         elif chat["provider"] == "google":
             stream = get_google_response(all_messages)
+        elif chat["provider"] == "ollama":
+            stream = get_ollama_response(all_messages)
         else:
             stream = get_openai_response(all_messages)
 
@@ -746,10 +756,15 @@ def get_and_print_response():
                 if chat["provider"] == "anthropic":
                     if chunk.type == "content_block_delta":
                         text = chunk.delta.text
+                        if not text: break
                     else: 
                         continue
                 elif chat["provider"] == "google":
                     text = chunk.text 
+                    if not text: break
+                elif chat["provider"] == "ollama":
+                    text = chunk
+                    if not text: break
                 else:
                     text = chunk.choices[0].delta.content
                     if not text:

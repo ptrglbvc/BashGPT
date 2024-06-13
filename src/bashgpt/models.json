@@ -123,7 +123,7 @@
         "name": "microsoft/phi-3-medium-128k-instruct:free",
         "shortcut": "phi",
         "provider": "openrouter",
-        "vision_enabled": false 
+        "vision_enabled": false
     },
     {
         "name": "claude-3-opus-20240229",
@@ -147,6 +147,18 @@
         "name": "deepseek-chat",
         "shortcut": "ds",
         "provider": "deepseek",
+        "vision_enabled": false
+    },
+    {
+        "name": "qwen2:1.5b-instruct",
+        "shortcut": "qwen-1.5b",
+        "provider": "ollama",
+        "vision_enabled": false
+    },
+    {
+        "name": "phi3:latest",
+        "shortcut": "phi-mini",
+        "provider": "ollama",
         "vision_enabled": false
     }
 ]
