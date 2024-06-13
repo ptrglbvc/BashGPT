@@ -301,12 +301,12 @@ def command(message, con, cur):
             return 1
         
         case "bash":
-            alert(f"Bash has been turned {'off' if chat['bash'] else 'on'}")
+            alert(f"Bash has been turned {'off' if chat['bash'] else 'on'}.")
             chat["bash"] = not chat["bash"]
             return 1
 
         case "dalle":
-            alert(f"Dalle3 has been turned {'off' if chat['bash'] else 'on'}")
+            alert(f"Dalle-3 has been turned {'off' if chat['dalle'] else 'on'}.")
             chat["dalle"] = not chat["dalle"]
             return 1
 
