@@ -14,7 +14,7 @@ import tempfile
 import threading
 from multiprocessing import Process
 from pathlib import Path
-from sys import argv, version
+from sys import argv
 
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
@@ -65,7 +65,6 @@ audio_location = path + "audio.wav"
 
 def main():
     apply_defaults()
-    print(version)
 
     if len(argv)>1:
         potential_db = quick_input()
@@ -315,11 +314,11 @@ def command(message, con, cur):
 
 def get_image(image_url):
     global chat
-    clean_image_url = image_url.replace("\ ", " ")
+    clean_image_url = image_url.replace(r"\ ", " ")
     image_name = clean_image_url.split("/")[-1]
 
     #images from links can oftentimes have those variables like ?v=somethingblabla&
-    #this will be a problem when trying to parse the image extensio
+    #this will be a problem when trying to parse the image extension
     try:
         question_idx = image_name.index("?")
         dot_idx = image_name.index(".")
@@ -381,6 +380,7 @@ def change_defaults(target, newValue):
                 if model["shortcut"] == newValue or model["name"] == newValue:
                     defaults["model"] = model
                     valid_model = True
+                    alert(f"Changed default model to {model['name']}")
                     break
             if not valid_model:
                 alert("Invalid model")
@@ -796,6 +796,8 @@ def get_and_print_response():
         errorMessage += f"Error: {e}"
         alert(errorMessage)
         chat["all_messages"][-1]["content"] += errorMessage
+        print(terminal["reset"] + "\n")
+        return
     # except:
     #     bar.terminate()
     #     errorMessage += "Unknown error"
