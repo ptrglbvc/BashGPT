@@ -1,3 +1,5 @@
+#!/Users/petar/Projects/Python/BashGPT/env/bin/python
+
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
 # It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing. 
 import logging
@@ -729,26 +731,27 @@ def get_and_print_response():
     all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
     all_messages = attach_system_messages(all_messages)
 
-    bar = Process(target=loading_bar, args=[chat])
-    bar.start()
+    # bar = Process(target=loading_bar, args=[chat])
+    # bar.start()
 
     errorMessage = ""
 
     try:
-        if chat["provider"] == "anthropic":
-            stream = get_anthropic_response(all_messages)
-        elif chat["provider"] == "google":
-            stream = get_google_response(all_messages)
-        elif chat["provider"] == "ollama":
-            stream = get_ollama_response(all_messages)
-        else:
-            stream = get_openai_response(all_messages)
+        match chat["provider"]:
+            case "anthropic":
+                stream = get_anthropic_response(all_messages)
+            case "google":
+                stream = get_google_response(all_messages)
+            case "ollama":
+                stream = get_ollama_response(all_messages)
+            case _:
+                stream = get_openai_response(all_messages)
 
         add_message_to_chat("assistant", "")
 
-        bar.terminate()
+        # bar.terminate()
 
-        print("\b" + terminal[chat["color"]], end="")
+        print(terminal[chat["color"]], end="")
 
         try:
             for chunk in stream:
@@ -792,7 +795,7 @@ def get_and_print_response():
         UnprocessableEntityError,
         APIResponseValidationError,
     ) as e:
-        bar.terminate()
+        # bar.terminate()
         errorMessage += f"Error: {e}"
         alert(errorMessage)
         chat["all_messages"][-1]["content"] += errorMessage
