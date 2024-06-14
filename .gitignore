@@ -1,4 +1,5 @@
 src/bashgpt/history.db
+src/bashgpt/defaults.json
 audio.wav
 .DS_Store
 __pycache__/
@@ -12,4 +13,3 @@ test.py
 *.png
 dp
 history.db
-src/bashgpt/defaults.json
