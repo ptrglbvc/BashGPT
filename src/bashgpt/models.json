@@ -48,24 +48,6 @@
         "vision_enabled": false
     },
     {
-        "name": "mistral-small-latest",
-        "shortcut": "small",
-        "provider": "mistral",
-        "vision_enabled": false
-    },
-    {
-        "name": "mistral-medium-latest",
-        "shortcut": "medium",
-        "provider": "mistral",
-        "vision_enabled": false
-    },
-    {
-        "name": "mistral-large-latest",
-        "shortcut": "large",
-        "provider": "mistral",
-        "vision_enabled": false
-    },
-    {
         "name": "qwen/qwen-2-72b-instruct",
         "shortcut": "qwen",
         "provider": "openrouter",
@@ -122,6 +104,12 @@
     {
         "name": "microsoft/phi-3-medium-128k-instruct:free",
         "shortcut": "phi",
+        "provider": "openrouter",
+        "vision_enabled": false
+    },
+    {
+        "name": "anthropic/claude-3.5-sonnet:beta",
+        "shortcut": "claude",
         "provider": "openrouter",
         "vision_enabled": false
     },

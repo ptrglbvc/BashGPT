@@ -1,7 +1,7 @@
 #!/Users/petar/Projects/Python/BashGPT/env/bin/python
 
 # disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
-# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing. 
+# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing.
 import logging
 
 logging.disable(logging.DEBUG)
@@ -91,7 +91,7 @@ def main():
         if not chat["all_messages"]:
             choose_mode()
 
-    
+
 
     while True:
         if chat["auto_turns"] == 0:
@@ -103,7 +103,7 @@ def main():
             message = chat["auto_message"] if chat["auto_message"] else f"You have freedom for {chat['auto_turns']} more turns"
             chat["auto_message"] = ""
             print(f"You: {message}")
-        
+
         print()
 
         if message and message[0] == "/" and len(message) > 1:
@@ -111,7 +111,7 @@ def main():
             if output == 1: continue
             elif output == 2: message = ""
             elif output: message = output
-            
+
 
 
         if (message):
@@ -165,7 +165,7 @@ def command(message, con, cur):
         case "nuclear!!!":
             nuclear(con, cur)
 
-        case "l": 
+        case "l":
             message = use_text_editor("")
             print(message, end="\n\n")
             return message
@@ -187,7 +187,7 @@ def command(message, con, cur):
             elif (command[1] and command[1].isnumeric()):
                 no_of_messages = int(command[1])
                 delete_messages(no_of_messages)
-            
+
             else:
                 alert("Invalid argument for message deletion")
             return 1
@@ -201,7 +201,7 @@ def command(message, con, cur):
                         is_a_model = True
                         alert(f"Changed model to: {model['name']}")
                         break
-                
+
                 if not is_a_model:
                     alert("Model not found")
 
@@ -214,12 +214,12 @@ def command(message, con, cur):
                 get_image(command[1])
             else:
                 alert("Invalid arguments")
-            return 1 
+            return 1
 
         case "file" | "f":
             if len(command) == 2:
                 get_file(command[1])
-            else: 
+            else:
                 alert("Invalid arguments")
             return 1
 
@@ -246,10 +246,10 @@ def command(message, con, cur):
                 else:
                     edit_message(int(command[1]))
                     print_chat()
-            
+
             elif len(command) > 3:
                 alert("Too many arguments")
-            
+
             return 1
 
         case "rg":
@@ -258,19 +258,19 @@ def command(message, con, cur):
             print_chat()
 
             return 2
-            
-        
+
+
         case "speak":
             if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
                 alert("Speech with begin shortly")
                 threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
-                return 1 
+                return 1
             elif len(command) == 1:
                 alert("Speech with begin shortly")
                 threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
-                return 1 
+                return 1
             alert("Invalid voice")
-        
+
         case "cd" | "change-default":
             if len(command) == 3:
                 change_defaults(command[1], command[2])
@@ -291,11 +291,11 @@ def command(message, con, cur):
                 except:
                     alert("Invalid number of turns")
 
-                
+
             else:
                 alert("Invalid number of turns. Proper usage: /auto 5")
             return 1
-        
+
         case "bash":
             alert(f"Bash has been turned {'off' if chat['bash'] else 'on'}.")
             chat["bash"] = not chat["bash"]
@@ -338,8 +338,8 @@ def get_image(image_url):
     if clean_image_url[0:4] == "http":
         image = base64.b64encode(httpx.get(clean_image_url).content).decode("utf-8")
         chat["images"].append({
-            "content" : image, 
-            "name": image_name, 
+            "content" : image,
+            "name": image_name,
             "extension": image_extension,
             "message_idx": len(chat["all_messages"])
             })
@@ -348,8 +348,8 @@ def get_image(image_url):
         with open(clean_image_url, "rb") as image_file:
             image = base64.b64encode(image_file.read()).decode('utf-8')
             chat["images"].append({
-                "content" : image, 
-                "name": image_name, 
+                "content" : image,
+                "name": image_name,
                 "extension": image_extension,
                 "message_idx" : len(chat["all_messages"]),
                 })
@@ -397,7 +397,7 @@ def change_defaults(target, newValue):
                 alert("Invalid model")
         case _:
             alert("Invalid default property")
-    
+
     with open(path + "defaults.json", "w") as def_file:
         def_file.write(json.dumps(defaults, indent=4))
 
@@ -445,7 +445,7 @@ def save_chat(con, cur):
             cur.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
                 (max_chat_id+1, message["role"], message["content"], chat["description"], ))
             con.commit()
-        
+
         for image in chat["images"]:
             cur.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
                 (image["content"], image["name"], image["extension"], max_chat_id+1, image["message_idx"], ))
@@ -476,7 +476,7 @@ def choose_chat(cur):
             load_files(cur, choice)
             print_chat()
             break
- 
+
 
 def speak(message, voice="nova"):
     speech_file_path = Path(__file__).parent / "speech.mp3"
@@ -550,7 +550,7 @@ def remember_mode():
     for mode in modes:
         if mode["description"] == all_messages[0]["content"]:
             return mode["name"]
-    
+
     return "custom"
 
 
@@ -562,7 +562,7 @@ def generate_description(all_messages):
                   {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
     except:
         return "No description"
-        
+
 
 def help_me():
     print("Valid usage:\n dp -bs 'delete every file from my downloads folder' (it will work, do not try it).\n")
@@ -572,7 +572,7 @@ def help_me():
     available_modes = "Available modes: "
     for mode in modes:
         available_modes += f'{mode["shortcut"]} ({mode["name"]} mode), '
-    
+
     available_modes = available_modes.strip(" ,") + "."
     print(available_modes)
 
@@ -604,7 +604,7 @@ def attach_images_anthropic_openai(all_messages):
                 messages_with_images[curr_idx] = newValue
             else:
                 messages_with_images[curr_idx]["content"].append(newValue.append(newValue))
-    
+
     return messages_with_images
 
 
@@ -622,12 +622,12 @@ def get_openai_response(all_messages):
     all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
 
     stream = client.with_options(
-            base_url=chat["base_url"], 
+            base_url=chat["base_url"],
             api_key=os.getenv(chat["api_key_name"])
             ).chat.completions.create(
-                max_tokens=2024, 
-                model=chat["model"], 
-                messages=all_messages, 
+                max_tokens=2024,
+                model=chat["model"],
+                messages=all_messages,
                 stream=True
                 )
 
@@ -638,19 +638,19 @@ def get_anthropic_response(all_messages):
 
     stream = anthropic_client.messages.create(
         system=all_messages[0]["content"],
-        max_tokens=2024, 
-        model=chat["model"], 
-        messages=all_messages[1:], 
+        max_tokens=2024,
+        model=chat["model"],
+        messages=all_messages[1:],
         stream=True)
-    
+
     return stream
 
 def get_google_response(all_messages):
     model = googleai.GenerativeModel(
-        chat["model"], 
+        chat["model"],
         system_instruction=all_messages[0]["content"])
     all_messages = adapt_messages_to_google(all_messages)
-    
+
     response = model.generate_content(
         all_messages,
         safety_settings={
@@ -662,8 +662,8 @@ def get_google_response(all_messages):
     return response
 
 def get_ollama_response(all_messages):
-    with httpx.stream(method="POST", 
-                      url="http://localhost:11434/api/chat", 
+    with httpx.stream(method="POST",
+                      url="http://localhost:11434/api/chat",
                       json={
                           "model": chat["model"],
                           "messages": all_messages
@@ -672,7 +672,7 @@ def get_ollama_response(all_messages):
         for chunk in r.iter_text():
             yield json.loads(chunk)["message"]["content"]
 
-    
+
 
 
 def adapt_messages_to_google(all_messages):
@@ -685,8 +685,8 @@ def adapt_messages_to_google(all_messages):
 
         new_message["parts"] = [glm.Part(text=message["content"])]
         new_all_messages.append(new_message)
-    
-    attach_glm_images(new_all_messages) 
+
+    attach_glm_images(new_all_messages)
 
     return new_all_messages
 
@@ -703,7 +703,7 @@ def attach_glm_images(new_all_messages):
                     )
                 ),
             )
-    
+
 def attach_system_messages(all_messages):
     new_system_message = {
         "role": "system",
@@ -717,14 +717,14 @@ def attach_system_messages(all_messages):
     if chat["dalle"] is True:
         new_system_message["content"] += ("\n" + dalle_system_message)
 
-    
+
     if new_system_message["content"] == all_messages[0]["content"]:
         return all_messages
     else:
         new_all_messages = all_messages.copy()
         new_all_messages[0] = new_system_message
         return new_all_messages
-         
+
 
 def get_and_print_response():
     # I reversed this just to confuse you, dear reader (including myself, yes)
@@ -760,10 +760,10 @@ def get_and_print_response():
                     if chunk.type == "content_block_delta":
                         text = chunk.delta.text
                         if not text: break
-                    else: 
+                    else:
                         continue
                 elif chat["provider"] == "google":
-                    text = chunk.text 
+                    text = chunk.text
                     if not text: break
                 elif chat["provider"] == "ollama":
                     text = chunk
@@ -824,7 +824,7 @@ def quick_input():
         if argv[1] == "--help" or argv[1] == "-h":
             help_me()
             exit()
-        
+
         if argv[1] == "--load-last" or argv[1] == "-ll":
             (con, cur) = setup_db(path)
             last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
@@ -833,9 +833,9 @@ def quick_input():
             load_files(cur, last_id)
             print_chat()
             return(con, cur)
-            
-            
-        
+
+
+
         elif argv[1][0]=="-":
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
@@ -875,13 +875,13 @@ def quick_input():
                         chat["mode"] = mode["name"]
                         add_message_to_chat("system", mode["description"])
                         break
-            
+
             if not mode_selected:
                 add_message_to_chat("system", defaults["mode"]["description"])
 
             if (not model_selected) or (not mode_selected):
                 add_message_to_chat("user", argv[2])
-            
+
     elif len(argv) == 4:
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
@@ -892,13 +892,11 @@ def quick_input():
             if ("-" + mode["shortcut"]) == argv[2] or ("--" + mode["name"]) == argv[2]:
                 chat["mode"] = mode["name"]
                 add_message_to_chat("system", mode["description"])
-            
+
         if not chat["all_messages"]:
             add_message_to_chat("system", defaults["mode"]["description"])
-        
-        add_message_to_chat("user", argv[3])
-            
 
+        add_message_to_chat("user", argv[3])
 
 
 
@@ -911,7 +909,7 @@ def delete_chat(con, cur):
         con.commit()
         update_chat_ids(con, cur)
     exit()
-    
+
 
 def update_chat_ids(con, cur):
     old_chat_ids = cur.execute("SELECT DISTINCT chat_id FROM chat_messages;").fetchall()
@@ -930,10 +928,10 @@ def update_chat_ids(con, cur):
     #     for chat_id in range(0, len(messages_in_new_order)):
     #         for message in messages_in_new_order[chat_id]:
     #             cur.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
-        
+
         for (idx, chat_id) in enumerate(old_chat_ids_list):
             if idx+1 != chat_id:
-                cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?", 
+                cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?",
                     (idx+1, chat_id, ))
                 cur.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
                     (idx+1, chat_id, ))
@@ -971,7 +969,7 @@ def change_model(new_model):
         case "deepseek":
             chat["api_key_name"] = "DEEPSEEK_API_KEY"
             chat["base_url"] = "https://api.deepseek.com"
-        
+
 
 def choose_mode():
     global chat
@@ -983,7 +981,7 @@ def choose_mode():
         if mode_input == option["name"] or mode_input == option["shortcut"]:
             current_mode = option
             break
-    
+
     add_message_to_chat("system", current_mode["description"])
     chat["mode"] = current_mode["name"]
 
