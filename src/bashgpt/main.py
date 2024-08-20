@@ -59,10 +59,8 @@ googleai.configure(api_key=os.getenv("GOOGLEAI_API_KEY"))
 
 
 #this has honestly been the hardest part of this project. Without the library, I had to resort to really big workarounds
-path = str(Path(__file__).parent.resolve()) + "/"
-another_one_location = path + "another_one.wav"
+path = str(Path(os.path.realpath(__file__)).parent) + "/"
 audio_location = path + "audio.wav"
-
 
 
 def main():
@@ -392,9 +390,10 @@ def change_defaults(target, newValue):
                 if mode["shortcut"] == newValue or mode["name"] == newValue:
                     defaults["mode"] = mode
                     valid_mode = True
+                    alert(f"Changed default mode to {mode['name']}")
                     break
             if not valid_mode:
-                alert("Invalid model")
+                alert("Invalid mode")
         case _:
             alert("Invalid default property")
 

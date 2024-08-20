@@ -1,152 +1,98 @@
 [
-    {
-        "name": "gpt-4-turbo",
-        "shortcut": "4",
-        "provider": "openai",
-        "vision_enabled": true
-    },
-    {
-        "name": "gpt-4o",
-        "shortcut": "o",
-        "provider": "openai",
-        "vision_enabled": true
-    },
-    {
-        "name": "gpt-4-1106-preview",
-        "shortcut": "1106",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-3.5-turbo",
-        "shortcut": "3.5",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-3.5-turbo-16k",
-        "shortcut": "16k",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-4",
-        "shortcut": "old4",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-4-32k",
-        "shortcut": "32k",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "gpt-3.5-turbo-0301",
-        "shortcut": "0301",
-        "provider": "openai",
-        "vision_enabled": false
-    },
-    {
-        "name": "qwen/qwen-2-72b-instruct",
-        "shortcut": "qwen",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "microsoft/WizardLM-2-8x22B",
-        "shortcut": "wiz",
-        "provider": "together",
-        "vision_enabled": false
-    },
-    {
-        "name": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-        "shortcut": "nh2",
-        "provider": "together",
-        "vision_enabled": false
-    },
-    {
-        "name": "mixtral-8x7b-32768",
-        "shortcut": "mix",
-        "provider": "groq",
-        "vision_enabled": false
-    },
-    {
-        "name": "llama3-70b-8192",
-        "shortcut": "llama",
-        "provider": "groq",
-        "vision_enabled": false
-    },
-    {
-        "name": "llama3-8b-8192",
-        "shortcut": "llama8",
-        "provider": "groq",
-        "vision_enabled": false
-    },
-    {
-        "name": "gemma-7b-it",
-        "shortcut": "gemma",
-        "provider": "groq",
-        "vision_enabled": false
-    },
-    {
-        "name": "gemini-1.5-pro-latest",
-        "shortcut": "pro",
-        "provider": "google",
-        "vision_enabled": true
-    },
-    {
-        "name": "google/gemini-flash-1.5",
-        "shortcut": "flash",
-        "provider": "openrouter",
-        "vision_enabled": true
-    },
-    {
-        "name": "microsoft/phi-3-medium-128k-instruct:free",
-        "shortcut": "phi",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "anthropic/claude-3.5-sonnet:beta",
-        "shortcut": "claude",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "claude-3-opus-20240229",
-        "shortcut": "opus",
-        "provider": "anthropic",
-        "vision_enabled": true
-    },
-    {
-        "name": "claude-3-sonnet-20240229",
-        "shortcut": "sonnet",
-        "provider": "anthropic",
-        "vision_enabled": true
-    },
-    {
-        "name": "claude-3-haiku-20240307",
-        "shortcut": "haiku",
-        "provider": "anthropic",
-        "vision_enabled": true
-    },
-    {
-        "name": "deepseek-chat",
-        "shortcut": "ds",
-        "provider": "deepseek",
-        "vision_enabled": false
-    },
-    {
-        "name": "qwen2:1.5b-instruct",
-        "shortcut": "qwen-1.5b",
-        "provider": "ollama",
-        "vision_enabled": false
-    },
-    {
-        "name": "phi3:latest",
-        "shortcut": "phi-mini",
-        "provider": "ollama",
-        "vision_enabled": false
-    }
+  {
+    "name": "openai/gpt-4-turbo",
+    "shortcut": "4",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
+    "name": "openai/gpt-4o",
+    "shortcut": "o",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
+    "name": "openai/gpt-4o-mini",
+    "shortcut": "mini",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
+    "name": "qwen/qwen-2-72b-instruct",
+    "shortcut": "qwen",
+    "provider": "openrouter",
+    "vision_enabled": false
+  },
+  {
+    "name": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+    "shortcut": "405b",
+    "provider": "together",
+    "vision_enabled": false
+  },
+  {
+    "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "shortcut": "70b",
+    "provider": "together",
+    "vision_enabled": false
+  },
+  {
+    "name": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    "shortcut": "8b",
+    "provider": "together",
+    "vision_enabled": false
+  },
+  {
+    "name": "gemini-1.5-pro-exp-0801",
+    "shortcut": "pro",
+    "provider": "google",
+    "vision_enabled": true
+  },
+  {
+    "name": "gemini-1.5-flash-latest",
+    "shortcut": "flash",
+    "provider": "google",
+    "vision_enabled": true
+  },
+  {
+    "name": "microsoft/phi-3-medium-128k-instruct:free",
+    "shortcut": "phi",
+    "provider": "openrouter",
+    "vision_enabled": false
+  },
+  {
+    "name": "anthropic/claude-3.5-sonnet:beta",
+    "shortcut": "sonnet",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
+    "name": "claude-3-opus-20240229",
+    "shortcut": "opus",
+    "provider": "anthropic",
+    "vision_enabled": true
+  },
+  {
+    "name": "claude-3-haiku-20240307",
+    "shortcut": "haiku",
+    "provider": "anthropic",
+    "vision_enabled": true
+  },
+  {
+    "name": "deepseek-chat",
+    "shortcut": "ds",
+    "provider": "deepseek",
+    "vision_enabled": false
+  },
+  {
+    "name": "qwen2:1.5b-instruct",
+    "shortcut": "qwen-1.5b",
+    "provider": "ollama",
+    "vision_enabled": false
+  },
+  {
+    "name": "phi3:latest",
+    "shortcut": "phi-mini",
+    "provider": "ollama",
+    "vision_enabled": false
+  }
 ]
