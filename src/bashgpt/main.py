@@ -17,6 +17,7 @@ import threading
 from multiprocessing import Process
 from pathlib import Path
 from sys import argv
+from typing import cast, Literal
 
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
@@ -44,12 +45,6 @@ from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md,
                                     use_text_editor)
 from bashgpt.whisper import record, whisper
 
-# import pprint
-
-
-
-
-defaults = load_defaults()
 
 all_messages = chat["all_messages"]
 
@@ -58,10 +53,11 @@ anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 googleai.configure(api_key=os.getenv("GOOGLEAI_API_KEY"))
 
 
-#this has honestly been the hardest part of this project. Without the library, I had to resort to really big workarounds
+#this has honestly been one of the hardest part of this project. Without the library, I had to resort to really big workarounds
 path = str(Path(os.path.realpath(__file__)).parent) + "/"
 audio_location = path + "audio.wav"
 
+defaults = load_defaults(path)
 
 def main():
     apply_defaults()
@@ -173,7 +169,7 @@ def command(message, con, cur):
                 message = voice_input()
             except:
                 alert("Recording doesn't work on you device.")
-                message = use_text_editor()
+                message = use_text_editor("")
                 print(message, end="\n\n")
             finally:
                 return message
@@ -259,12 +255,15 @@ def command(message, con, cur):
 
 
         case "speak":
-            if len(command) == 2 and (command[1] == "shimmer" or command[1] == "2"):
-                alert("Speech with begin shortly")
-                threading.Thread(target=speak, args=[all_messages[-1]["content"], "shimmer"]).start()
+            if len(command) == 2:
+                voice = command[1]
+                validated_voice = cast(VoicesLiteral, voice)
+                alert("Speech will begin shortly")
+                threading.Thread(target=speak, args=[all_messages[-1]["content"], validated_voice]).start()
+                alert("Invalid voice")
                 return 1
             elif len(command) == 1:
-                alert("Speech with begin shortly")
+                alert("Speech will begin shortly")
                 threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
                 return 1
             alert("Invalid voice")
@@ -361,6 +360,7 @@ def apply_defaults():
     if defaults["color"]:
         chat["color"] = defaults["color"]
     if defaults["model"]:
+        print(defaults)
         change_model(defaults["model"])
     if defaults["mode"]:
         chat["mode"] = defaults["mode"]["name"]
@@ -476,17 +476,27 @@ def choose_chat(cur):
             print_chat()
             break
 
+VoicesLiteral = Literal['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+
+def is_valid_voice(value: str) -> bool:
+    allowed_values = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+    return value in allowed_values
 
 def speak(message, voice="nova"):
-    speech_file_path = Path(__file__).parent / "speech.mp3"
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice=voice,
-        input=message
-        )
-    response.stream_to_file(speech_file_path)
-    player = vlc.MediaPlayer(speech_file_path)
-    player.play()
+    try:
+        speech_file_path = Path(__file__).parent / "speech.mp3"
+        if not is_valid_voice(voice):
+            voice="nova"
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice=cast(VoicesLiteral, voice),
+            input=message
+            )
+        response.stream_to_file(speech_file_path)
+        player = vlc.MediaPlayer(speech_file_path)
+        player.play()
+    except Exception as e:
+        alert(f"Error: {e}")
 
 
 def load_chat(cur, choice):
@@ -730,8 +740,8 @@ def get_and_print_response():
     all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
     all_messages = attach_system_messages(all_messages)
 
-    # bar = Process(target=loading_bar, args=[chat])
-    # bar.start()
+    bar = Process(target=loading_bar, args=[chat])
+    bar.start()
 
     errorMessage = ""
 
@@ -748,7 +758,7 @@ def get_and_print_response():
 
         add_message_to_chat("assistant", "")
 
-        # bar.terminate()
+        bar.terminate()
 
         print(terminal[chat["color"]], end="")
 
@@ -772,7 +782,7 @@ def get_and_print_response():
                     if not text:
                         continue
 
-                print(text, end="")
+                print(text, end="", flush=True)
                 chat["all_messages"][-1]["content"] += text
 
         except KeyboardInterrupt:
