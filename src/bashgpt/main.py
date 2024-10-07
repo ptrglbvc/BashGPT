@@ -17,7 +17,11 @@ import threading
 from multiprocessing import Process
 from pathlib import Path
 from sys import argv
+<<<<<<< Updated upstream
 from typing import cast, Literal
+=======
+from subprocess import run
+>>>>>>> Stashed changes
 
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
@@ -38,7 +42,7 @@ from bashgpt.dalle import dalle_mode, dalle_system_message
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
 from bashgpt.load_defaults import load_defaults
-from bashgpt.modes_and_models import models, modes
+from bashgpt.modes_and_models import models, modes, models_path, modes_path
 from bashgpt.terminal_codes import terminal
 from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md,
                                     return_cursor_and_overwrite_bar,
@@ -834,6 +838,25 @@ def quick_input():
             help_me()
             exit()
 
+        if argv[1] == "--models":
+            editor = os.environ.get('EDITOR', 'nvim')
+            try:
+                run([editor, models_path], check=True)
+            except:
+                print("Could not open models file. Try setting the EDITOR environment variable")
+            finally:
+                exit()
+
+        if argv[1] == "--modes":
+            editor = os.environ.get('EDITOR', 'nvim')
+            try:
+                run([editor, modes_path], check=True)
+            except:
+                print("Could not open modes file. Try setting the EDITOR environment variable")
+            finally:
+                exit()
+
+
         if argv[1] == "--load-last" or argv[1] == "-ll":
             (con, cur) = setup_db(path)
             last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
@@ -975,6 +998,9 @@ def change_model(new_model):
         case "openrouter":
             chat["api_key_name"] = "OPENROUTER_API_KEY"
             chat["base_url"] = "https://openrouter.ai/api/v1"
+        case "hyperbolic":
+            chat["api_key_name"] = "HYPERBOLIC_API_KEY"
+            chat["base_url"] = "https://api.hyperbolic.xyz/v1/"
         case "deepseek":
             chat["api_key_name"] = "DEEPSEEK_API_KEY"
             chat["base_url"] = "https://api.deepseek.com"

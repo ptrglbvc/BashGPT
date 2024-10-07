@@ -18,10 +18,16 @@
     "vision_enabled": true
   },
   {
-    "name": "qwen/qwen-2-72b-instruct",
+    "name": "qwen/qwen-2.5-72b-instruct",
     "shortcut": "qwen",
     "provider": "openrouter",
     "vision_enabled": false
+  },
+  {
+    "name": "Qwen/Qwen2-VL-7B-Instruct",
+    "shortcut": "qwen7b",
+    "provider": "hyperbolic",
+    "vision_enabled": true 
   },
   {
     "name": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
@@ -42,13 +48,13 @@
     "vision_enabled": false
   },
   {
-    "name": "gemini-1.5-pro-exp-0801",
+    "name": "gemini-1.5-pro-exp-0827",
     "shortcut": "pro",
     "provider": "google",
     "vision_enabled": true
   },
   {
-    "name": "gemini-1.5-flash-latest",
+    "name": "gemini-1.5-flash-exp-0827",
     "shortcut": "flash",
     "provider": "google",
     "vision_enabled": true
@@ -66,15 +72,15 @@
     "vision_enabled": true
   },
   {
-    "name": "claude-3-opus-20240229",
+    "name": "anthropic/claude-3-opus:beta",
     "shortcut": "opus",
-    "provider": "anthropic",
+    "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "claude-3-haiku-20240307",
+    "name": "anthropic/claude-3-haiku:beta",
     "shortcut": "haiku",
-    "provider": "anthropic",
+    "provider": "openrouter",
     "vision_enabled": true
   },
   {
@@ -84,14 +90,8 @@
     "vision_enabled": false
   },
   {
-    "name": "qwen2:1.5b-instruct",
-    "shortcut": "qwen-1.5b",
-    "provider": "ollama",
-    "vision_enabled": false
-  },
-  {
-    "name": "phi3:latest",
-    "shortcut": "phi-mini",
+    "name": "gemma2:2b-instruct-q6_K",
+    "shortcut": "gemma",
     "provider": "ollama",
     "vision_enabled": false
   }
