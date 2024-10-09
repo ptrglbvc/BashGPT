@@ -1,12 +1,5 @@
 #!/Users/petar/Projects/Python/BashGPT/env/bin/python
 
-# disables the debug and info logging that is enabled by default by the cs50 and openai libraries.
-# It turns out we have to do it at the very start, at least before we call the OpenAI() constructor and it starts doing it's logging thing.
-import logging
-
-logging.disable(logging.DEBUG)
-logging.disable(logging.INFO)
-
 import base64
 import copy
 import json

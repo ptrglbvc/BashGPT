@@ -1,4 +1,4 @@
-from bashgpt.extract_text import extract_text_from_html, extract_text_from_pdf
+from bashgpt.extract_text import extract_text_from_html, extract_text_from_pdf, extract_text_from_docx
 from bashgpt.util_functions import alert
 from bashgpt.chat import chat
 
@@ -59,7 +59,16 @@ def get_file(file_url):
                     "message_idx": len(chat["all_messages"]),
                     "extension": "pdf"
                 })
-                alert(f"PDF file attached: \033[3m{file_name}\033[0m")
+                alert(f"Pdf file attached: \033[3m{file_name}\033[0m")
+            elif file_name.split(".")[-1] == "docx":
+                chat["files"].append({
+                    "content": extract_text_from_docx(clean_file_url),
+                    "name": file_name,
+                    "message_idx": len(chat["all_messages"]),
+                    "extension": "docx"
+                })
+                alert(f"Docx file attached: \033[3m{file_name}\033[0m")
+
             else:
                 alert("File not supported")
 

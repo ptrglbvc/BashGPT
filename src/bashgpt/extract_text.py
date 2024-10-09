@@ -1,5 +1,7 @@
 import html2text
 import fitz
+from docx import Document
+from markdownify import markdownify as md
 
 def extract_text_from_html(html):
     converter = html2text.HTML2Text()
@@ -8,8 +10,8 @@ def extract_text_from_html(html):
     text = converter.handle(html)
     return text
 
-def extract_text_from_pdf(pdf, is_stream=False):
-    doc = fitz.open(stream=pdf, filetype="pdf") if is_stream else fitz.open(pdf, filetype="pdf")
+def extract_text_from_pdf(pdf_path, is_stream=False):
+    doc = fitz.open(stream=pdf_path, filetype="pdf") if is_stream else fitz.open(pdf_path, filetype="pdf")
     text_content = ""
     text_content += "<file-start>"
     for idx, page in enumerate(doc.pages()):
@@ -20,5 +22,10 @@ def extract_text_from_pdf(pdf, is_stream=False):
     text_content += "<file-end>"
     return text_content
 
-def extract_text_from_docx():
-    return "Dev is too lazy to implement the docx reading function rn"
+def extract_text_from_docx(docx_path):
+    doc = Document(docx_path)
+    content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+    markdown_content = "<file-start>\n" + md(content) + "\n<file-end>\n"
+
+    if markdown_content: return markdown_content
+    else: return "Error reading file"
