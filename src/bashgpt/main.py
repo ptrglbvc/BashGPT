@@ -934,22 +934,14 @@ def delete_chat(con, cur):
 
 def update_chat_ids(con, cur):
     old_chat_ids = cur.execute("SELECT DISTINCT chat_id FROM chat_messages;").fetchall()
-    # this check is in case there are no chats left in the db
+    # this check if there are no chats left in the db
     if not old_chat_ids or not old_chat_ids[0]: return
 
     old_chat_ids_list = [id[0] for id in old_chat_ids]
 
+    # ok so the basic idea here is that we just check if the chat_ids are in order, which should match perfectly with
+    # idx + 1, given that the old_versions of the chat is deleted and the new one is inserted at the very end of the table. And this also words for keeping them succint!
     if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids_list[0] != 1 or not is_succinct(old_chat_ids_list):
-    #     messages_in_new_order = []
-    #     for id in old_chat_ids_list:
-    #         messages_in_new_order.append(
-    #             cur.execute("SELECT message_id FROM chat_messages WHERE chat_id = ?", id).fetchone())
-    #         con.commit()
-
-    #     for chat_id in range(0, len(messages_in_new_order)):
-    #         for message in messages_in_new_order[chat_id]:
-    #             cur.execute("UPDATE chat_messages SET chat_id = ? WHERE message_id = ?", chat_id+1, message["message_id"])
-
         for (idx, chat_id) in enumerate(old_chat_ids_list):
             if idx+1 != chat_id:
                 cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?",
@@ -1033,7 +1025,6 @@ def nuclear(con, cur):
     cur.execute("DELETE FROM chat_messages")
     con.commit()
     exit()
-
 
 if __name__ == "__main__":
     main()

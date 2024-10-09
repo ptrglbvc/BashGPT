@@ -8,6 +8,8 @@ bashgptZ.egg-info/
 bashgpt_ptrglbvc.egg-info/
 build/
 dist/
+env/
+.vscode/
 test.py
 *.mp3
 *.png
