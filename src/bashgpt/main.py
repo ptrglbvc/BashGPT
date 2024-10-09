@@ -17,11 +17,8 @@ import threading
 from multiprocessing import Process
 from pathlib import Path
 from sys import argv
-<<<<<<< Updated upstream
 from typing import cast, Literal
-=======
 from subprocess import run
->>>>>>> Stashed changes
 
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
@@ -44,9 +41,7 @@ from bashgpt.get_file import get_file
 from bashgpt.load_defaults import load_defaults
 from bashgpt.modes_and_models import models, modes, models_path, modes_path
 from bashgpt.terminal_codes import terminal
-from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md,
-                                    return_cursor_and_overwrite_bar,
-                                    use_text_editor)
+from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_text_editor)
 from bashgpt.whisper import record, whisper
 
 
@@ -66,29 +61,36 @@ defaults = load_defaults(path)
 def main():
     apply_defaults()
 
-    if len(argv)>1:
-        potential_db = quick_input()
-        if not potential_db:
-            (con, cur) = (None, None)
-        else: (con, cur) = potential_db
+    con = cur = None
 
-    # we don't need to load the history if we enter the app from the quick input mode. We only need to once we save
-    if not all_messages:
+    if len(argv) > 1:
+        status = quick_input()
+        if status != 0:
+            exit()  # Exit if there was an error
+
+    if chat.get('load_last'):
         (con, cur) = setup_db(path)
-        history_exists = cur.execute(("SELECT MAX(message_id) "
-                                    "AS max FROM chat_messages")).fetchone()[0]
+        last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
+        if last_id:
+            load_chat(cur, last_id)
+            load_images(cur, last_id)
+            load_files(cur, last_id)
+            print_chat()
+        else:
+            alert("No previous chats found.")
+    else:
+        if not all_messages:
+            (con, cur) = setup_db(path)
+            history_exists = cur.execute("SELECT MAX(message_id) AS max FROM chat_messages").fetchone()[0]
 
-        if history_exists:
-            history_input = input(
-                ("\nWould you like to resume a previous conversation? "
-                "(y/n) ")).lower().strip()
-            if history_input and history_input[0] == "y":
-                choose_chat(cur)
-                chat["mode"] = remember_mode()
+            if history_exists:
+                history_input = input("\nWould you like to resume a previous conversation? (y/n) ").lower().strip()
+                if history_input and history_input[0] == "y":
+                    choose_chat(cur)
+                    chat["mode"] = remember_mode()
 
-        if not chat["all_messages"]:
-            choose_mode()
-
+            if not chat["all_messages"]:
+                choose_mode()
 
 
     while True:
@@ -303,7 +305,7 @@ def command(message, con, cur):
             return 1
 
         case "dalle":
-            alert(f"Dalle-3 has been turned {'off' if chat['dalle'] else 'on'}.")
+            alert(f"Image generation has been turned {'off' if chat['dalle'] else 'on'}.")
             chat["dalle"] = not chat["dalle"]
             return 1
 
@@ -312,16 +314,13 @@ def command(message, con, cur):
             return 1
 
 
-
-
-
 def get_image(image_url):
     global chat
     clean_image_url = image_url.replace(r"\ ", " ")
     image_name = clean_image_url.split("/")[-1]
 
     #images from links can oftentimes have those variables like ?v=somethingblabla&
-    #this will be a problem when trying to parse the image extension
+    #this will be a problem when trying to parse the image extension, well need to handle that
     try:
         question_idx = image_name.index("?")
         dot_idx = image_name.index(".")
@@ -344,6 +343,7 @@ def get_image(image_url):
             "extension": image_extension,
             "message_idx": len(chat["all_messages"])
             })
+        alert(f"Image attached: \033[3m{image_name}\033[0m")
 
     elif os.path.isfile(clean_image_url):
         with open(clean_image_url, "rb") as image_file:
@@ -354,6 +354,7 @@ def get_image(image_url):
                 "extension": image_extension,
                 "message_idx" : len(chat["all_messages"]),
                 })
+            alert(f"Image attached: \033[3m{image_name}\033[0m")
 
     else:
         alert("Invalid url")
@@ -364,7 +365,6 @@ def apply_defaults():
     if defaults["color"]:
         chat["color"] = defaults["color"]
     if defaults["model"]:
-        print(defaults)
         change_model(defaults["model"])
     if defaults["mode"]:
         chat["mode"] = defaults["mode"]["name"]
@@ -409,14 +409,15 @@ def voice_input():
     print("\033[2A" + "        \r", end="")
     audio_location = record()
     print("You: ", end=" ")
-    thred = Process(target=loading_bar, args=[chat])
-    thred.start()
+    stop = threading.Event()
+    bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
 
     transcription = whisper(audio_location)
     os.remove(audio_location)
 
-    thred.terminate()
-    return_cursor_and_overwrite_bar()
+    if stop.is_set() == False:
+        stop.set()
+        bar_thread.join()
 
     print(transcription + "\n")
     return transcription
@@ -433,7 +434,10 @@ def save_chat(con, cur):
             cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
             cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
             con.commit()
-            max_chat_id = chat["id"] - 1
+            # this is totally unecessary since chat["id"] is always true in this scenario because it's loaded but pyright is annoying
+            max_chat_id = 0
+            if chat["id"]: max_chat_id = chat["id"] - 1
+
 
         else:
             max_chat_id = cur.execute(
@@ -442,7 +446,9 @@ def save_chat(con, cur):
                 max_chat_id = 0
 
         if not chat["description"]:
-            chat["description"] = generate_description(chat["all_messages"])
+            if discription:=generate_description(chat["all_messages"]):
+                chat["description"] = discription
+
 
         for message in all_messages:
             cur.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
@@ -498,7 +504,7 @@ def speak(message, voice="nova"):
             )
         response.stream_to_file(speech_file_path)
         player = vlc.MediaPlayer(speech_file_path)
-        player.play()
+        player.play() # type: ignore
     except Exception as e:
         alert(f"Error: {e}")
 
@@ -543,18 +549,13 @@ def print_chat():
 
     for idx, message in enumerate(chat["all_messages"]):
         if message["role"] == "user":
-            if str(type(message["content"])) == "<class 'str'>":
-                print("You: " + message["content"] + "\n")
-            else:
-                for item in message["content"]:
-                    if item["type"] == "text":
-                        print("You: " + item["text"] + "\n")
-                for image in chat["images"]:
-                    if idx == image["message_idx"]:
-                        alert(f"Attached image: {image['name']}")
-                for file in chat["files"]:
-                    if idx == file["message_idx"]:
-                        alert(f"Attached file: {file['name']}")
+            print("You: " + message["content"] + "\n")
+            for image in chat["images"]:
+                if idx == image["message_idx"]:
+                    alert(f"Attached image: \033[3m{image['name']}\033[0m")
+            for file in chat["files"]:
+                if idx == file["message_idx"]:
+                    alert(f"Attached file: \033[3m{file['name']}\033[0m")
         if message["role"] == "assistant":
             print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
 
@@ -616,7 +617,7 @@ def attach_images_anthropic_openai(all_messages):
                 ]}
                 messages_with_images[curr_idx] = newValue
             else:
-                messages_with_images[curr_idx]["content"].append(newValue.append(newValue))
+                messages_with_images[curr_idx]["content"].append(newValue.append(newValue)) # type: ignore
 
     return messages_with_images
 
@@ -650,10 +651,10 @@ def get_anthropic_response(all_messages):
     all_messages = all if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
 
     stream = anthropic_client.messages.create(
-        system=all_messages[0]["content"],
+        system=all_messages[0]["content"], # type: ignore
         max_tokens=2024,
         model=chat["model"],
-        messages=all_messages[1:],
+        messages=all_messages[1:], # type: ignore
         stream=True)
 
     return stream
@@ -744,8 +745,9 @@ def get_and_print_response():
     all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
     all_messages = attach_system_messages(all_messages)
 
-    bar = Process(target=loading_bar, args=[chat])
-    bar.start()
+    stop = threading.Event()
+    bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
+    bar_thread.start()
 
     errorMessage = ""
 
@@ -762,32 +764,33 @@ def get_and_print_response():
 
         add_message_to_chat("assistant", "")
 
-        bar.terminate()
-
         print(terminal[chat["color"]], end="")
 
         try:
             for chunk in stream:
+                if stop.is_set() == False:
+                    stop.set()
+                    bar_thread.join()
                 text = ""
                 if chat["provider"] == "anthropic":
-                    if chunk.type == "content_block_delta":
-                        text = chunk.delta.text
+                    if chunk.type == "content_block_delta": # type: ignore
+                        text = chunk.delta.text # type: ignore
                         if not text: break
                     else:
                         continue
                 elif chat["provider"] == "google":
-                    text = chunk.text
+                    text = chunk.text # type: ignore
                     if not text: break
                 elif chat["provider"] == "ollama":
                     text = chunk
                     if not text: break
                 else:
-                    text = chunk.choices[0].delta.content
+                    text = chunk.choices[0].delta.content # type: ignore
                     if not text:
                         continue
 
                 print(text, end="", flush=True)
-                chat["all_messages"][-1]["content"] += text
+                chat["all_messages"][-1]["content"] += text # type: ignore
 
         except KeyboardInterrupt:
             print("\033[2D  ", end="")
@@ -828,61 +831,55 @@ def get_and_print_response():
 def quick_input():
     global chat
 
-    # check for too many args
-    if len(argv)>4:
+    if len(argv) > 4:
         print("Too many arguments. For help with usage type 'dp help'.")
-        return 0
+        return 1
 
-    elif len(argv)==2:
+    elif len(argv) == 2:
         if argv[1] == "--help" or argv[1] == "-h":
             help_me()
             exit()
 
+        if argv[1] == "--load-last" or argv[1] == "-ll":
+            chat['load_last'] = True
+            return 0
+
         if argv[1] == "--models":
             editor = os.environ.get('EDITOR', 'nvim')
             try:
-                run([editor, models_path], check=True)
+                run([editor, path + "/models.json"], check=True)
             except:
-                print("Could not open models file. Try setting the EDITOR environment variable")
+                alert("Unable to open editor. Check your EDITOR environment variable.")
             finally:
-                exit()
-
+                return 1
         if argv[1] == "--modes":
             editor = os.environ.get('EDITOR', 'nvim')
             try:
-                run([editor, modes_path], check=True)
+                run([editor, path + "/modes.json"], check=True)
             except:
-                print("Could not open modes file. Try setting the EDITOR environment variable")
+                alert("Unable to open editor. Check your EDITOR environment variable.")
             finally:
-                exit()
-
-
-        if argv[1] == "--load-last" or argv[1] == "-ll":
-            (con, cur) = setup_db(path)
-            last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
-            load_chat(cur, last_id)
-            load_images(cur, last_id)
-            load_files(cur, last_id)
-            print_chat()
-            return(con, cur)
+                return 1
 
 
 
-        elif argv[1][0]=="-":
+        elif argv[1][0] == "-":
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
                     change_model(model)
+                    break
 
         else:
             prompt = argv[1]
             add_message_to_chat("system", defaults["mode"]["description"])
             add_message_to_chat("user", prompt)
+            return 0
 
     elif len(argv) == 3:
         if argv[1] == "--new-mode":
             chat["mode"] = "custom"
             add_message_to_chat("system", argv[2])
-
+            return 0
         else:
             model_selected = False
             mode_selected = False
@@ -900,35 +897,34 @@ def quick_input():
                         add_message_to_chat("system", mode["description"])
                         break
 
-            if not mode_selected and model_selected:
-                for mode in modes:
-                    if ("-" + mode["shortcut"] == argv[2]) or ("--" + mode["name"] == argv[2]):
-                        mode_selected = True
-                        chat["mode"] = mode["name"]
-                        add_message_to_chat("system", mode["description"])
-                        break
-
             if not mode_selected:
                 add_message_to_chat("system", defaults["mode"]["description"])
 
-            if (not model_selected) or (not mode_selected):
-                add_message_to_chat("user", argv[2])
+            add_message_to_chat("user", argv[2])
+            return 0  # Success code
 
     elif len(argv) == 4:
+        model_selected = False
+        mode_selected = False
+
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
                 change_model(model)
+                model_selected = True
                 break
 
         for mode in modes:
-            if ("-" + mode["shortcut"]) == argv[2] or ("--" + mode["name"]) == argv[2]:
+            if ("-" + mode["shortcut"] == argv[2]) or ("--" + mode["name"] == argv[2]):
                 chat["mode"] = mode["name"]
                 add_message_to_chat("system", mode["description"])
+                mode_selected = True
+                break
 
-        if not chat["all_messages"]:
+        if not mode_selected:
             add_message_to_chat("system", defaults["mode"]["description"])
 
         add_message_to_chat("user", argv[3])
+        return 0  # Success code
 
 
 
@@ -1023,8 +1019,15 @@ def choose_mode():
 
 def delete_messages(number = 2):
     for _ in range(number):
-        chat["all_messages"].pop(-1)
-    print(chat["all_messages"])
+        chat["all_messages"].pop()
+        for idx, image in enumerate(chat["images"]):
+            if image["message_idx"] == len(chat["all_messages"]):
+                chat["images"].pop(idx)
+
+        for idx, file in enumerate(chat["files"]):
+            if file["message_idx"] == len(chat["all_messages"]):
+                chat["files"].pop(idx)
+
     alert(f"Deleted {number} messages")
     print_chat()
 

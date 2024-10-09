@@ -6,7 +6,7 @@ import httpx
 import os
 
 def get_file(file_url):
-    clean_file_url = file_url.replace("\ ", " ")
+    clean_file_url = file_url.replace("\\ ", " ")
     file_name = clean_file_url.split("/")[-1]
 
     if clean_file_url[0:4] == "http":
@@ -19,24 +19,24 @@ def get_file(file_url):
             pass
         response = httpx.get(clean_file_url)
         content_type = response.headers.get("Content-Type")
-        print(response.encoding)
         if content_type.startswith("text/html") or content_type == "application/xhtml+xml":
             chat["files"].append({
                 "content" : extract_text_from_html(response.text),
-                "name": file_name, 
+                "name": file_name,
                 "message_idx": len(chat["all_messages"]),
                 "extension": "html"
                 })
+            alert(f"File attached: \033[3m{file_name}\033[0m")
 
-        # prob don't need the first check 
+        # prob don't need the first check
         elif file_name.split(".")[-1] == "pdf" or content_type == "application/pdf":
-            alert("pdf attached")
             chat["files"].append({
                 "content": extract_text_from_pdf(response.content, is_stream=True),
                 "name": file_name,
                 "message_idx": len(chat["all_messages"]),
-                "extension": "pdf" 
+                "extension": "pdf"
             })
+            alert(f"File attached: \033[3m{file_name}\033[0m")
         else:
             alert("File is not utf-8 encoded")
 
@@ -45,21 +45,23 @@ def get_file(file_url):
             with open(clean_file_url, "r", encoding="utf-8") as file:
                 file_contents = file.read()
                 chat["files"].append({
-                    "content" : file_contents, 
-                    "name": file_name, 
+                    "content" : file_contents,
+                    "name": file_name,
                     "message_idx" : len(chat["all_messages"]),
                     "extension": file_name.split(".")[-1]
                     })
-        except: 
+                alert(f"File attached: \033[3m{file_name}\033[0m")
+        except:
             if file_name.split(".")[-1] == "pdf":
                 chat["files"].append({
                     "content": extract_text_from_pdf(clean_file_url),
                     "name": file_name,
                     "message_idx": len(chat["all_messages"]),
-                    "extension": "pdf" 
+                    "extension": "pdf"
                 })
-            else: 
+                alert(f"PDF file attached: \033[3m{file_name}\033[0m")
+            else:
                 alert("File not supported")
-                
+
     else:
         alert("Invalid file path")

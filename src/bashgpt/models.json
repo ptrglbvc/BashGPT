@@ -27,7 +27,7 @@
     "name": "Qwen/Qwen2-VL-7B-Instruct",
     "shortcut": "qwen7b",
     "provider": "hyperbolic",
-    "vision_enabled": true 
+    "vision_enabled": true
   },
   {
     "name": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
@@ -90,8 +90,8 @@
     "vision_enabled": false
   },
   {
-    "name": "gemma2:2b-instruct-q6_K",
-    "shortcut": "gemma",
+    "name": "qwen2.5-coder:1.5b-instruct-q8_0",
+    "shortcut": "ollama",
     "provider": "ollama",
     "vision_enabled": false
   }
