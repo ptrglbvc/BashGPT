@@ -34,13 +34,14 @@ from bashgpt.dalle import dalle_mode, dalle_system_message
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
 from bashgpt.load_defaults import load_defaults
-from bashgpt.modes_and_models import models, modes, models_path, modes_path
+from bashgpt.data_loader import data_loader
 from bashgpt.terminal_codes import terminal
 from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_text_editor)
 from bashgpt.whisper import record, whisper
 
 
 all_messages = chat["all_messages"]
+(modes, models, providers) = data_loader()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -646,7 +647,10 @@ def get_openai_response(all_messages):
 
 def get_models(stdscr):
         stdscr.clear()
-        menu = ["openai", "google", "anthropic", "openrouter", "hyperbolic", "together", "exit"]
+        menu = [key for key in providers.keys()]
+        menu.append("google")
+        menu.append("anthropic")
+        menu.append("exit")
         current_row = 0
         curses.start_color()
         curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
@@ -741,23 +745,11 @@ def get_models(stdscr):
             ]
 
         else:
-            api_key_env = ""
-            url = ""
-            if provider_choice == "openai":
-                api_key_env = "OPENAI_API_KEY"
-                url = "https://api.openai.com/v1"
-            if provider_choice == "openrouter":
-                api_key_env = "OPENROUTER_API_KEY"
-                url = "https://openrouter.ai/api/v1"
-            if provider_choice == "hyperbolic":
-                api_key_env = "HYPERBOLIC_API_KEY"
-                url = "https://api.hyperbolic.xyz/v1"
-            if provider_choice == "together":
-                api_key_env = "TOGETHER_API_KEY"
-                url = "https://api.together.xyz/v1"
+            api_key_name = providers[provider_choice]["api_key_name"]
+            base_url = providers[provider_choice]["base_url"]
             raw_list = client.with_options(
-                    base_url=url,
-                    api_key=os.getenv(api_key_env)
+                    base_url=base_url,
+                    api_key=os.getenv(api_key_name)
                     ).models.list()
             model_list = [str(model.id) for model in raw_list]
 
@@ -783,6 +775,7 @@ def get_models(stdscr):
                     model_choice = model_list[current_row]
                     chat["provider"] = provider_choice
                     chat["model"] = model_choice
+                    chat.update(providers[provider_choice])
                     return True
 
         curses.flushinp()
@@ -952,18 +945,18 @@ def get_and_print_response():
         UnprocessableEntityError,
         APIResponseValidationError,
     ) as e:
-        # bar.terminate()
+        if stop.is_set() == False:
+            stop.set()
+            bar_thread.join()
+        print(terminal["reset"] + "\n")
+
         errorMessage += f"Error: {e}"
         alert(errorMessage)
-        chat["all_messages"][-1]["content"] += errorMessage
-        print(terminal["reset"] + "\n")
+        if chat["all_messages"][-1]["role"] == "assistant":
+            chat["all_messages"][-1]["content"] += errorMessage
+        else:
+            add_message_to_chat("assistant", errorMessage)
         return
-    # except:
-    #     bar.terminate()
-    #     errorMessage += "Unknown error"
-    #     alert(errorMessage)
-    #     chat["all_messages"][-1]["content"] += errorMessage
-
 
     finally:
         print(terminal["reset"] + "\n")
@@ -1107,32 +1100,7 @@ def change_model(new_model):
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
     chat["vision_enabled"] = new_model["vision_enabled"]
-
-    match new_model["provider"]:
-        case "openai":
-            chat["api_key_name"] = "OPENAI_API_KEY"
-            chat["base_url"] = "https://api.openai.com/v1"
-        case "mistral":
-            chat["api_key_name"] = "MISTRAL_API_KEY"
-            chat["base_url"] = "https://api.mistral.ai/v1"
-        case "together":
-            chat["api_key_name"] = "TOGETHER_API_KEY"
-            chat["base_url"] = "https://api.together.xyz"
-        case "groq":
-            chat["api_key_name"] = "GROQ_API_KEY"
-            chat["base_url"] = "https://api.groq.com/openai/v1"
-        case "anthropic":
-            chat["api_key_name"] = "ANTHROPIC_API_KEY"
-            chat["base_url"] = "https://api.anthropic.com/v1/messages"
-        case "openrouter":
-            chat["api_key_name"] = "OPENROUTER_API_KEY"
-            chat["base_url"] = "https://openrouter.ai/api/v1"
-        case "hyperbolic":
-            chat["api_key_name"] = "HYPERBOLIC_API_KEY"
-            chat["base_url"] = "https://api.hyperbolic.xyz/v1/"
-        case "deepseek":
-            chat["api_key_name"] = "DEEPSEEK_API_KEY"
-            chat["base_url"] = "https://api.deepseek.com"
+    chat.update(providers[new_model["provider"]])
 
 
 def choose_mode():

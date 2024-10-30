@@ -1,0 +1,30 @@
+{
+  "openai": {
+    "api_key_name": "OPENAI_API_KEY",
+    "base_url": "https://api.openai.com/v1"
+  },
+  "mistral": {
+    "api_key_name": "MISTRAL_API_KEY",
+    "base_url": "https://api.mistral.ai/v1"
+  },
+  "together": {
+    "api_key_name": "TOGETHER_API_KEY",
+    "base_url": "https://api.together.xyz"
+  },
+  "groq": {
+    "api_key_name": "GROQ_API_KEY",
+    "base_url": "https://api.groq.com/openai/v1"
+  },
+  "openrouter": {
+    "api_key_name": "OPENROUTER_API_KEY",
+    "base_url": "https://openrouter.ai/api/v1"
+  },
+  "hyperbolic": {
+    "api_key_name": "HYPERBOLIC_API_KEY",
+    "base_url": "https://api.hyperbolic.xyz/v1/"
+  },
+  "deepseek": {
+    "api_key_name": "DEEPSEEK_API_KEY",
+    "base_url": "https://api.deepseek.com"
+  }
+}
