@@ -1,18 +1,20 @@
 #!/Users/petar/Projects/Python/BashGPT/env/bin/python
-
 import base64
 import copy
 import json
 import os
 import shlex
 import tempfile
+import curses
 import threading
+from time import sleep
 from multiprocessing import Process
 from pathlib import Path
 from sys import argv
 from typing import cast, Literal
 from subprocess import run
 
+import anthropic
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
 import httpx
@@ -186,7 +188,9 @@ def command(message, con, cur):
             return 1
 
         case "model":
-            if (len(command) == 2):
+            if (len(command) == 1):
+                curses.wrapper(get_models)
+            elif (len(command) == 2):
                 is_a_model = False
                 for model in models:
                     if model["name"] == command[1] or model["shortcut"] == command[1]:
@@ -639,6 +643,150 @@ def get_openai_response(all_messages):
                 )
 
     return stream
+
+def get_models(stdscr):
+        stdscr.clear()
+        menu = ["openai", "google", "anthropic", "openrouter", "hyperbolic", "together", "exit"]
+        current_row = 0
+        curses.start_color()
+        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        provider_choice = ""
+        model_choice = ""
+
+        # Configure screen
+        curses.curs_set(0)  # Hide cursor
+        stdscr.keypad(1)    # Enable keypad
+
+        # Window dimensions
+        height, width = stdscr.getmaxyx()
+        menu_window_height = height - 4  # Leave room for header and border
+
+        def draw_menu(items, title, selected_idx, offset=0):
+            stdscr.clear()
+            # Draw title
+            stdscr.attron(curses.color_pair(1))
+            stdscr.addstr(0, 0, title, curses.A_BOLD)
+            stdscr.attroff(curses.color_pair(1))
+
+            # Draw items
+            visible_items = min(menu_window_height, len(items))
+            for idx in range(visible_items):
+                list_idx = idx + offset
+                if list_idx >= len(items):
+                    break
+
+                x = 0
+                y = idx + 2
+
+                if list_idx == selected_idx:
+                    stdscr.attron(curses.A_REVERSE)
+                    stdscr.addstr(y, x, str(items[list_idx])[:width-1])
+                    stdscr.attroff(curses.A_REVERSE)
+                else:
+                    stdscr.addstr(y, x, str(items[list_idx])[:width-1])
+
+            # Draw scroll indicators if necessary
+            if offset > 0:
+                stdscr.addstr(1, width-3, "↑")
+            if offset + visible_items < len(items):
+                stdscr.addstr(min(height-1, visible_items+2), width-3, "↓")
+
+            stdscr.refresh()
+
+        # Provider selection loop
+        offset = 0
+        while True:
+            draw_menu(menu, "Select the provider:", current_row, offset)
+
+            key = stdscr.getch()
+            if key == curses.KEY_UP and current_row > 0:
+                current_row -= 1
+                if current_row < offset:
+                    offset = current_row
+            elif key == curses.KEY_DOWN and current_row < len(menu) - 1:
+                current_row += 1
+                if current_row >= offset + menu_window_height:
+                    offset = current_row - menu_window_height + 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                if current_row == len(menu) - 1:  # Exit
+                    return False
+                else:
+                    provider_choice = menu[current_row]
+                    break
+
+        # Reset for model selection
+        current_row = 0
+        offset = 0
+        model_list = []
+
+        if provider_choice == "google":
+            try:
+                model_list = [model.name for model in googleai.list_models()]
+            except Exception as e:
+                stdscr.addstr(0, 0, f"Error loading models: {str(e)}")
+                stdscr.refresh()
+                sleep(2)
+                return False
+
+        elif provider_choice == "anthropic":
+            model_list = [
+                'claude-3-5-sonnet-20241022',  # Fixed missing comma
+                'claude-3-5-sonnet-20240620',
+                'claude-3-opus-20240229',
+                'claude-3-sonnet-20240229',
+                'claude-3-haiku-20240307',
+                'claude-2.1',
+                'claude-2.0',
+                'claude-instant-1.2'
+            ]
+
+        else:
+            api_key_env = ""
+            url = ""
+            if provider_choice == "openai":
+                api_key_env = "OPENAI_API_KEY"
+                url = "https://api.openai.com/v1"
+            if provider_choice == "openrouter":
+                api_key_env = "OPENROUTER_API_KEY"
+                url = "https://openrouter.ai/api/v1"
+            if provider_choice == "hyperbolic":
+                api_key_env = "HYPERBOLIC_API_KEY"
+                url = "https://api.hyperbolic.xyz/v1"
+            if provider_choice == "together":
+                api_key_env = "TOGETHER_API_KEY"
+                url = "https://api.together.xyz/v1"
+            raw_list = client.with_options(
+                    base_url=url,
+                    api_key=os.getenv(api_key_env)
+                    ).models.list()
+            model_list = [str(model.id) for model in raw_list]
+
+        model_list.append("exit")
+
+        # Model selection loop
+        while True:
+            draw_menu(model_list, f"Select {provider_choice} model:", current_row, offset)
+
+            key = stdscr.getch()
+            if key == curses.KEY_UP and current_row > 0:
+                current_row -= 1
+                if current_row < offset:
+                    offset = current_row
+            elif key == curses.KEY_DOWN and current_row < len(model_list) - 1:
+                current_row += 1
+                if current_row >= offset + menu_window_height:
+                    offset = current_row - menu_window_height + 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                if model_list[current_row] == "exit":
+                    return False
+                else:
+                    model_choice = model_list[current_row]
+                    chat["provider"] = provider_choice
+                    chat["model"] = model_choice
+                    return True
+
+        curses.flushinp()
+        return False
 
 def get_anthropic_response(all_messages):
     all_messages = all if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)

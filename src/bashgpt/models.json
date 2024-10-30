@@ -1,13 +1,13 @@
 [
   {
     "name": "openai/gpt-4-turbo",
-    "shortcut": "4",
+    "shortcut": "4-turbo",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
     "name": "openai/gpt-4o",
-    "shortcut": "o",
+    "shortcut": "4o",
     "provider": "openrouter",
     "vision_enabled": true
   },
@@ -48,15 +48,21 @@
     "vision_enabled": false
   },
   {
-    "name": "gemini-1.5-pro-exp-0827",
+    "name": "google/gemini-pro-1.5",
     "shortcut": "pro",
-    "provider": "google",
+    "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "gemini-1.5-flash-exp-0827",
+    "name": "google/gemini-flash-1.5",
     "shortcut": "flash",
-    "provider": "google",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
+    "name": "google/gemini-flash-1.5-8b",
+    "shortcut": "flash-8b",
+    "provider": "openrouter",
     "vision_enabled": true
   },
   {
