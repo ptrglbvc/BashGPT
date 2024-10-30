@@ -495,14 +495,14 @@ def speak(message, voice="nova"):
         speech_file_path = Path(__file__).parent / "speech.mp3"
         if not is_valid_voice(voice):
             voice="nova"
-        response = client.audio.speech.create(
+        with client.audio.speech.with_streaming_response.create(
             model="tts-1",
-            voice=cast(VoicesLiteral, voice),
-            input=message
-            )
-        response.stream_to_file(speech_file_path)
-        player = vlc.MediaPlayer(speech_file_path)
-        player.play() # type: ignore
+            voice=voice, # type: ignore
+            input=message,
+        ) as response:
+            response.stream_to_file(speech_file_path)
+            player = vlc.MediaPlayer(speech_file_path)
+            player.play() # type: ignore
     except Exception as e:
         alert(f"Error: {e}")
 
