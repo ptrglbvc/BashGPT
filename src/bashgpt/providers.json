@@ -7,10 +7,6 @@
     "api_key_name": "MISTRAL_API_KEY",
     "base_url": "https://api.mistral.ai/v1"
   },
-  "together": {
-    "api_key_name": "TOGETHER_API_KEY",
-    "base_url": "https://api.together.xyz"
-  },
   "groq": {
     "api_key_name": "GROQ_API_KEY",
     "base_url": "https://api.groq.com/openai/v1"
