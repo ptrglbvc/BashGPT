@@ -775,7 +775,8 @@ def get_models(stdscr):
                     model_choice = model_list[current_row]
                     chat["provider"] = provider_choice
                     chat["model"] = model_choice
-                    chat.update(providers[provider_choice])
+                    if chat["provider"] not in ["google", "anthropic"]: 
+                        chat.update(providers[provider_choice])
                     return True
 
         curses.flushinp()
