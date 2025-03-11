@@ -4,17 +4,14 @@ import copy
 import json
 import os
 import shlex
-import tempfile
 import curses
 import threading
 from time import sleep
-from multiprocessing import Process
 from pathlib import Path
 from sys import argv
 from typing import cast, Literal
 from subprocess import run
 
-import anthropic
 import google.ai.generativelanguage as glm
 import google.generativeai as googleai
 import httpx
@@ -256,6 +253,14 @@ def command(message, con, cur):
             print_chat()
 
             return 2
+
+        case "continue" | "con":
+            print_chat(newline_in_the_end=False)
+            print(" ", end="")
+            get_and_print_response()
+            return 1
+
+
 
 
         case "speak":
@@ -537,15 +542,16 @@ def load_files(cur, id):
             "message_idx": row[3]
         })
 
-# TODO: #13 modify this function so it works with the new system, where we put the image
-# into the chat before we send it to the server.
-def print_chat():
+def print_chat(newline_in_the_end = True):
     global chat
     global terminal
 
     print("\x1b\x5b\x48\x1b\x5b\x32\x4a")
 
     for idx, message in enumerate(chat["all_messages"]):
+        if newline_in_the_end == False and idx == len(chat["all_messages"]) - 1 and message["role"] == "assistant":
+            print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"]), end="")
+            return
         if message["role"] == "user":
             print("You: " + message["content"] + "\n")
             for image in chat["images"]:
@@ -775,7 +781,7 @@ def get_models(stdscr):
                     model_choice = model_list[current_row]
                     chat["provider"] = provider_choice
                     chat["model"] = model_choice
-                    if chat["provider"] not in ["google", "anthropic"]: 
+                    if chat["provider"] not in ["google", "anthropic"]:
                         chat.update(providers[provider_choice])
                     return True
 
@@ -897,7 +903,8 @@ def get_and_print_response():
             case _:
                 stream = get_openai_response(all_messages)
 
-        add_message_to_chat("assistant", "")
+        if chat["all_messages"][-1]["role"] != "assistant":
+            add_message_to_chat("assistant", "")
 
         print(terminal[chat["color"]], end="")
 
