@@ -1,5 +1,6 @@
 src/bashgpt/history.db
 src/bashgpt/defaults.json
+src/bashgpt/modes.json
 audio.wav
 .DS_Store
 __pycache__/

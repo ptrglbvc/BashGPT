@@ -12,93 +12,57 @@
     "vision_enabled": true
   },
   {
+    "name": "openai/gpt-4.5-preview",
+    "shortcut": "4.5",
+    "provider": "openrouter",
+    "vision_enabled": true
+  },
+  {
     "name": "openai/gpt-4o-mini",
     "shortcut": "mini",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "qwen/qwen-2.5-72b-instruct",
+    "name": "qwen/qwen2.5-vl-72b-instruct:free",
     "shortcut": "qwen",
     "provider": "openrouter",
-    "vision_enabled": false
-  },
-  {
-    "name": "Qwen/Qwen2-VL-7B-Instruct",
-    "shortcut": "qwen7b",
-    "provider": "hyperbolic",
     "vision_enabled": true
   },
   {
-    "name": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-    "shortcut": "405b",
-    "provider": "together",
-    "vision_enabled": false
-  },
-  {
-    "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    "shortcut": "70b",
-    "provider": "together",
-    "vision_enabled": false
-  },
-  {
-    "name": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-    "shortcut": "8b",
-    "provider": "together",
-    "vision_enabled": false
-  },
-  {
-    "name": "google/gemini-pro-1.5",
+    "name": "google/gemini-2.0-pro-exp-02-05:free",
     "shortcut": "pro",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "google/gemini-flash-1.5",
+    "name": "google/gemini-2.0-flash",
     "shortcut": "flash",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "google/gemini-flash-1.5-8b",
-    "shortcut": "flash-8b",
+    "name": "google/gemini-2.0-flash-lite",
+    "shortcut": "flash-lite",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "microsoft/phi-3-medium-128k-instruct:free",
+    "name": "microsoft/phi-4",
     "shortcut": "phi",
     "provider": "openrouter",
     "vision_enabled": false
   },
   {
-    "name": "anthropic/claude-3.5-sonnet:beta",
+    "name": "anthropic/claude-3.7-sonnet",
     "shortcut": "sonnet",
     "provider": "openrouter",
     "vision_enabled": true
   },
   {
-    "name": "anthropic/claude-3-opus:beta",
-    "shortcut": "opus",
-    "provider": "openrouter",
-    "vision_enabled": true
-  },
-  {
-    "name": "anthropic/claude-3-haiku:beta",
-    "shortcut": "haiku",
-    "provider": "openrouter",
-    "vision_enabled": true
-  },
-  {
-    "name": "deepseek-chat",
+    "name": "deepseek/deepseek-chat",
     "shortcut": "ds",
-    "provider": "deepseek",
-    "vision_enabled": false
-  },
-  {
-    "name": "qwen2.5-coder:1.5b-instruct-q8_0",
-    "shortcut": "ollama",
-    "provider": "ollama",
+    "provider": "openrouter",
     "vision_enabled": false
   }
 ]
