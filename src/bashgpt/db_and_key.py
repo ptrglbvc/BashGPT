@@ -14,8 +14,18 @@ def setup_db(path):
                     "(chat_id INTEGER,"
                     "message_id INTEGER PRIMARY KEY,"
                     "role TEXT,"
-                    "message TEXT,"
-                    "description TEXT);")
+                    "message TEXT);")
+                )
+            cur.execute(
+                ("CREATE TABLE chats "
+                    "(chat_id INTEGER PRIMARY KEY,"
+                    "description TEXT,"
+                    "model TEXT,"
+                    "provider TEXT,"
+                    "vision_enabled INTEGER,"
+                    "dalle INTEGER,"
+                    "bash INTEGER,"
+                    "autosave INTEGER);")
                 )
             cur.execute(
                 ("CREATE TABLE images ("
@@ -48,7 +58,7 @@ def setup_db(path):
 def setup_key():
     if key:=os.environ.get('OPENAI_API_KEY'):
         return key
-        
+
     else:
         print("Environment variable for key not found, please add one.")
         exit()

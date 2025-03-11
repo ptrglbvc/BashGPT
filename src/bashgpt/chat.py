@@ -24,6 +24,7 @@ class Chat(TypedDict):
     auto_message: str
     bash: bool
     dalle: bool
+    autosave: bool
 
 chat: Chat = {
     "all_messages": [],
@@ -43,7 +44,8 @@ chat: Chat = {
     "auto_turns": 0,
     "auto_message": "",
     "bash": False,
-    "dalle": False
+    "dalle": False,
+    "autosave": False
 }
 
 def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: str) -> None:

@@ -426,54 +426,10 @@ def voice_input():
     return transcription
 
 
-def save_chat(con, cur):
-    # if the message is too short, or more precisely, it's just the role message and the
-    # first user message, there was most likely some error and there's no need to save it.
-    if len(all_messages) > 2:
-        print("Saving chat. Hold on a minute...")
-        if chat["is_loaded"]:
-
-            # deletes the chat, but the now message is saved under a newer number.
-            cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
-            cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
-            con.commit()
-            # this is totally unecessary since chat["id"] is always true in this scenario because it's loaded but pyright is annoying
-            max_chat_id = 0
-            if chat["id"]: max_chat_id = chat["id"] - 1
-
-
-        else:
-            max_chat_id = cur.execute(
-                "SELECT MAX(chat_id) AS max FROM chat_messages").fetchone()[0]
-            if not max_chat_id:
-                max_chat_id = 0
-
-        if not chat["description"]:
-            if discription:=generate_description(chat["all_messages"]):
-                chat["description"] = discription
-
-
-        for message in all_messages:
-            cur.execute("INSERT INTO chat_messages (chat_id, role, message, description) VALUES (?, ?, ?, ?)",
-                (max_chat_id+1, message["role"], message["content"], chat["description"], ))
-            con.commit()
-
-        for image in chat["images"]:
-            cur.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                (image["content"], image["name"], image["extension"], max_chat_id+1, image["message_idx"], ))
-            con.commit()
-
-        for file in chat["files"]:
-            cur.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                (file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"], ))
-            con.commit()
-
-        update_chat_ids(con, cur)
-
 
 def choose_chat(cur):
     options = cur.execute(
-        "SELECT DISTINCT chat_id, description FROM chat_messages").fetchall()
+        "SELECT chat_id, description FROM chats").fetchall()
     print()
     option_ids = []
     for option in options:
@@ -481,7 +437,7 @@ def choose_chat(cur):
         print(f"{option[0]}: {option[1]}")
 
     while 1:
-        option_input = input("\nWhich message do you want to continue? ")
+        option_input = input("\nWhich chat do you want to continue? ")
         if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
             load_chat(cur, choice)
             load_images(cur, choice)
@@ -513,12 +469,19 @@ def speak(message, voice="nova"):
 
 
 def load_chat(cur, choice):
-    data = cur.execute("SELECT role, message, description FROM chat_messages WHERE chat_id=?", (choice, )).fetchall()
+    message_data = cur.execute("SELECT role, message FROM chat_messages WHERE chat_id=?", (choice, )).fetchall()
+    [description, model, provider, vision_enabled, dalle, bash, autosave] = cur.execute("SELECT description, model, provider, vision_enabled, dalle, bash, autosave FROM chats WHERE chat_id=?", (choice, )).fetchall()[0]
 
     chat["id"] = choice
     chat["is_loaded"] = True
-    chat["description"] = data[0][2]
-    for row in data:
+    chat["description"] = description
+    chat["dalle"] = not not dalle
+    chat["bash"] = not not bash
+    chat["autosave"] = not not autosave
+
+    change_model({"name": model, "provider": provider, "vision_enabled": not not vision_enabled})
+
+    for row in message_data:
         add_message_to_chat(row[0], row[1])
 
 
@@ -1069,10 +1032,67 @@ def quick_input():
         return 0  # Success code
 
 
+def save_chat(con, cur):
+    # if the message is too short, or more precisely, it's just the role message and the
+    # first user message, there was most likely some error and there's no need to save it.
+    if len(all_messages) > 2:
+        print("Saving chat. Hold on a minute...")
+        if chat["is_loaded"]:
+
+            # deletes the chat, but the now message is saved under a newer number.
+            cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
+            cur.execute("DELETE FROM chats WHERE chat_id=?", (chat["id"], ))
+            cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
+            cur.execute("DELETE FROM files WHERE chat_id=?", (chat["id"], ))
+            con.commit()
+            # this is totally unecessary since chat["id"] is always true in this scenario because it's loaded but pyright is annoying
+            max_chat_id = 0
+            if chat["id"]: max_chat_id = chat["id"] - 1
+
+
+        else:
+            max_chat_id = cur.execute(
+                "SELECT MAX(chat_id) AS max FROM chats").fetchone()[0]
+            if not max_chat_id:
+                max_chat_id = 0
+
+        if not chat["description"]:
+            if description:=generate_description(chat["all_messages"]):
+                chat["description"] = description
+
+        dalle = 1 if chat["dalle"] else 0
+        bash = 1 if chat["bash"] else 0
+        autosave = 1 if chat["autosave"] else 0
+
+
+        cur.execute("INSERT INTO chats (chat_id, description, model, provider, vision_enabled, dalle, bash, autosave) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (max_chat_id+1, chat["description"], chat["model"], chat["provider"], chat["vision_enabled"], dalle, bash, autosave))
+        con.commit()
+
+
+        for message in all_messages:
+            cur.execute("INSERT INTO chat_messages (chat_id, role, message) VALUES (?, ?, ?)",
+                (max_chat_id+1, message["role"], message["content"]))
+            con.commit()
+
+        for image in chat["images"]:
+            cur.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (image["content"], image["name"], image["extension"], max_chat_id+1, image["message_idx"], ))
+            con.commit()
+
+        for file in chat["files"]:
+            cur.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"], ))
+            con.commit()
+
+        update_chat_ids(con, cur)
+
+
 
 def delete_chat(con, cur):
     global chat
     if chat["is_loaded"]:
+        cur.execute("DELETE FROM chats WHERE chat_id=?", (chat["id"], ))
         cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
         cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
         cur.execute("DELETE FROM files WHERE chat_id=?", (chat["id"], ))
@@ -1082,17 +1102,20 @@ def delete_chat(con, cur):
 
 
 def update_chat_ids(con, cur):
-    old_chat_ids = cur.execute("SELECT DISTINCT chat_id FROM chat_messages;").fetchall()
-    # this check if there are no chats left in the db
+    old_chat_ids = cur.execute("SELECT chat_id FROM chats;").fetchall()
+
+    # this checks if there are no chats left in the db
     if not old_chat_ids or not old_chat_ids[0]: return
 
     old_chat_ids_list = [id[0] for id in old_chat_ids]
 
     # ok so the basic idea here is that we just check if the chat_ids are in order, which should match perfectly with
-    # idx + 1, given that the old_versions of the chat is deleted and the new one is inserted at the very end of the table. And this also words for keeping them succint!
+    # idx + 1, given that the old_versions of the chat is deleted and the new one is inserted at the very end of the table. And this also works for keeping them succint!
     if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids_list[0] != 1 or not is_succinct(old_chat_ids_list):
         for (idx, chat_id) in enumerate(old_chat_ids_list):
             if idx+1 != chat_id:
+                cur.execute("UPDATE chats SET chat_id = ? WHERE chat_id = ?",
+                    (idx+1, chat_id, ))
                 cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?",
                     (idx+1, chat_id, ))
                 cur.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
