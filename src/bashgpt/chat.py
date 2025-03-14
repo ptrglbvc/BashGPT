@@ -25,6 +25,9 @@ class Chat(TypedDict):
     bash: bool
     dalle: bool
     autosave: bool
+    temperature: float
+    frequency_penalty: float
+    max_tokens: int
 
 chat: Chat = {
     "all_messages": [],
@@ -45,7 +48,10 @@ chat: Chat = {
     "auto_message": "",
     "bash": False,
     "dalle": False,
-    "autosave": False
+    "autosave": False,
+    "temperature": 0.7,
+    "frequency_penalty": 1,
+    "max_tokens": 4048
 }
 
 def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: str) -> None:
@@ -53,6 +59,7 @@ def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: s
         raise ValueError("Invalid role. Must be 'user', 'assistant', or 'system'.")
     message: Message = {
         "role": role,
-        "content": content
+        "content": content,
     }
+
     chat["all_messages"].append(message)

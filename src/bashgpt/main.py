@@ -116,6 +116,11 @@ def main():
             last_message = chat["all_messages"][-1]["content"]
             bash(last_message)
 
+        if chat["autosave"]:
+            if not chat["is_loaded"]:
+                (con, cur) = setup_db(path)
+            save_chat(con, cur)
+
         if chat["dalle"]:
             threading.Thread(target=dalle_mode, args=[client]).start()
 
@@ -132,6 +137,7 @@ def command(message, con, cur):
             if len(command) == 1:
                 if not chat["is_loaded"]:
                     (con, cur) = setup_db(path)
+                print("Saving chat. Hold on a minute...")
                 save_chat(con, cur)
                 exit()
             elif len(command) == 2:
@@ -312,6 +318,51 @@ def command(message, con, cur):
             chat["dalle"] = not chat["dalle"]
             return 1
 
+        case "rp" | "reprint":
+            print_chat()
+            return 1
+
+        case "max_tokens" | "mt":
+            if len(command) == 2:
+                try:
+                    num = int(command[1])
+                    if num >= 1:
+                        chat["max_tokens"] = num
+                        alert(f"Max generated tokens set to {num}")
+                except ValueError:
+                    alert("Imput a valid integer larger than 0")
+            return 1
+
+        case "temp" | "temperature":
+            if len(command) == 2:
+                try:
+                    num = float(command[1])
+                    if num >= 0 and num <= 2:
+                        chat["temperature"] = num
+                        alert(f"Temperature set to {num}")
+                except ValueError:
+                    alert("Imput a valid float from 0 to 2")
+            return 1
+
+        case "fp" | "frequency_penalty":
+            if len(command) == 2:
+                try:
+                    num = float(command[1])
+                    if num >= 0 and num <= 2:
+                        chat["frequency_penalty"] = num
+                        alert(f"Frequency penalty set to {num}")
+                except ValueError:
+                    alert("Imput a valid float from 0 to 2")
+            return 1
+        case "autosave":
+            chat["autosave"] = not chat["autosave"]
+            alert("Autosave is " + "on" if chat["autosave"] else "off")
+            return 1
+
+        case "info":
+            alert(f"max_tokens: {chat["max_tokens"]}\ntemperature: {chat["temperature"]}\nfrequency_penalty: {chat["frequency_penalty"]}\nautosave: {chat["autosave"]}")
+            return 1
+
         case _:
             alert("Invalid command")
             return 1
@@ -470,10 +521,13 @@ def speak(message, voice="nova"):
 
 def load_chat(cur, choice):
     message_data = cur.execute("SELECT role, message FROM chat_messages WHERE chat_id=?", (choice, )).fetchall()
-    [description, model, provider, vision_enabled, dalle, bash, autosave] = cur.execute("SELECT description, model, provider, vision_enabled, dalle, bash, autosave FROM chats WHERE chat_id=?", (choice, )).fetchall()[0]
+    [description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave] = cur.execute("SELECT description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave FROM chats WHERE chat_id=?", (choice, )).fetchall()[0]
 
     chat["id"] = choice
     chat["is_loaded"] = True
+    chat["temperature"] = temperature
+    chat["max_tokens"] = max_tokens
+    chat["frequency_penalty"] = frequency_penalty
     chat["description"] = description
     chat["dalle"] = not not dalle
     chat["bash"] = not not bash
@@ -598,21 +652,6 @@ def attach_files(all_messages):
         all_messages_with_files[file["message_idx"]]["content"] = added_text + all_messages_with_files[file["message_idx"]]["content"]
     return all_messages_with_files
 
-
-def get_openai_response(all_messages):
-    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
-
-    stream = client.with_options(
-            base_url=chat["base_url"],
-            api_key=os.getenv(chat["api_key_name"])
-            ).chat.completions.create(
-                max_tokens=2024,
-                model=chat["model"],
-                messages=all_messages,
-                stream=True
-                )
-
-    return stream
 
 def get_models(stdscr):
         stdscr.clear()
@@ -751,15 +790,37 @@ def get_models(stdscr):
         curses.flushinp()
         return False
 
+
+def get_openai_response(all_messages):
+    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
+
+    stream = client.with_options(
+            base_url=chat["base_url"],
+            api_key=os.getenv(chat["api_key_name"])
+            ).chat.completions.create(
+                model=chat["model"],
+                messages=all_messages,
+                stream=True,
+                max_tokens=chat["max_tokens"],
+                temperature=chat["temperature"],
+                frequency_penalty=chat["frequency_penalty"]
+                )
+
+    return stream
+
+
 def get_anthropic_response(all_messages):
-    all_messages = all if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
+    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
 
     stream = anthropic_client.messages.create(
         system=all_messages[0]["content"], # type: ignore
-        max_tokens=2024,
         model=chat["model"],
         messages=all_messages[1:], # type: ignore
-        stream=True)
+        stream=True,
+        max_tokens=chat["max_tokens"],
+        temperature=chat["temperature"],
+        frequency_penalty=chat["frequency_penalty"]
+        )
 
     return stream
 
@@ -776,7 +837,12 @@ def get_google_response(all_messages):
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        })
+        },
+        generation_config={
+            "max_output_tokens": chat["max_tokens"],
+            "temperature": chat["temperature"]
+        }
+        )
     return response
 
 def get_ollama_response(all_messages):
@@ -784,7 +850,12 @@ def get_ollama_response(all_messages):
                       url="http://localhost:11434/api/chat",
                       json={
                           "model": chat["model"],
-                          "messages": all_messages
+                          "messages": all_messages,
+                          "options": {
+                            "temperature": chat["temperature"],
+                            "frequency_penalty": chat["frequency_penalty"],
+                            "num_predict": chat["max_tokens"]
+                          },
                       },
                       timeout=None) as r:
         for chunk in r.iter_text():
@@ -1036,7 +1107,6 @@ def save_chat(con, cur):
     # if the message is too short, or more precisely, it's just the role message and the
     # first user message, there was most likely some error and there's no need to save it.
     if len(all_messages) > 2:
-        print("Saving chat. Hold on a minute...")
         if chat["is_loaded"]:
 
             # deletes the chat, but the now message is saved under a newer number.
@@ -1065,8 +1135,8 @@ def save_chat(con, cur):
         autosave = 1 if chat["autosave"] else 0
 
 
-        cur.execute("INSERT INTO chats (chat_id, description, model, provider, vision_enabled, dalle, bash, autosave) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (max_chat_id+1, chat["description"], chat["model"], chat["provider"], chat["vision_enabled"], dalle, bash, autosave))
+        cur.execute("INSERT INTO chats (chat_id, description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (max_chat_id+1, chat["description"], chat["model"], chat["provider"], chat["vision_enabled"], chat["temperature"], chat["max_tokens"],chat["frequency_penalty"], dalle, bash, autosave))
         con.commit()
 
 

@@ -25,6 +25,9 @@ def setup_db(path):
                     "vision_enabled INTEGER,"
                     "dalle INTEGER,"
                     "bash INTEGER,"
+                    "temperature REAL,"
+                    "frequency_penalty REAL,"
+                    "max_tokens INTEGER,"
                     "autosave INTEGER);")
                 )
             cur.execute(
