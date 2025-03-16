@@ -360,7 +360,7 @@ def command(message, con, cur):
             return 1
 
         case "info":
-            alert(f"max_tokens: {chat["max_tokens"]}\ntemperature: {chat["temperature"]}\nfrequency_penalty: {chat["frequency_penalty"]}\nautosave: {chat["autosave"]}")
+            alert(f"max_tokens: {chat["max_tokens"]}\ntemperature: {chat["temperature"]}\nfrequency_penalty: {chat["frequency_penalty"]}\nautosave: {chat["autosave"]}\nmodel: {chat["model"]} ({chat["provider"]})")
             return 1
 
         case _:
