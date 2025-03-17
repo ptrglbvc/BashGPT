@@ -40,7 +40,7 @@ def is_succinct(list):
 
     return True
 
-def use_text_editor(initial_text):
+def use_temp_file(initial_text):
     editor = os.environ.get('EDITOR', 'nvim')
     tmpfile_contents = ""
 

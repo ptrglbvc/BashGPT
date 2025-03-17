@@ -33,7 +33,7 @@ from bashgpt.get_file import get_file
 from bashgpt.load_defaults import load_defaults
 from bashgpt.data_loader import data_loader
 from bashgpt.terminal_codes import terminal
-from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_text_editor)
+from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_temp_file)
 from bashgpt.whisper import record, whisper
 
 
@@ -165,7 +165,7 @@ def command(message, con, cur):
             nuclear(con, cur)
 
         case "l":
-            message = use_text_editor("")
+            message = use_temp_file("")
             print(message, end="\n\n")
             return message
 
@@ -174,7 +174,7 @@ def command(message, con, cur):
                 message = voice_input()
             except:
                 alert("Recording doesn't work on you device.")
-                message = use_text_editor("")
+                message = use_temp_file("")
                 print(message, end="\n\n")
             finally:
                 return message
@@ -1003,6 +1003,15 @@ def get_and_print_response():
     finally:
         print(terminal["reset"] + "\n")
 
+def edit_file(file_path):
+    editor = os.environ.get('EDITOR', 'nvim')
+    try:
+        run([editor, path + file_path], check=True)
+    except:
+        alert("Unable to open editor. Check your EDITOR environment variable.")
+    finally:
+        return 1
+
 
 def quick_input():
     global chat
@@ -1012,38 +1021,32 @@ def quick_input():
         return 1
 
     elif len(argv) == 2:
-        if argv[1] == "--help" or argv[1] == "-h":
+        if argv[1] in ("--help","-h"):
             help_me()
-            exit()
+            return 1
 
-        if argv[1] == "--load-last" or argv[1] == "-ll":
+        elif argv[1] in ("--load-last", "-ll"):
             chat['load_last'] = True
             return 0
 
         if argv[1] == "--models":
-            editor = os.environ.get('EDITOR', 'nvim')
-            try:
-                run([editor, path + "/models.json"], check=True)
-            except:
-                alert("Unable to open editor. Check your EDITOR environment variable.")
-            finally:
-                return 1
+            edit_file("/models.json")
         if argv[1] == "--modes":
-            editor = os.environ.get('EDITOR', 'nvim')
-            try:
-                run([editor, path + "/modes.json"], check=True)
-            except:
-                alert("Unable to open editor. Check your EDITOR environment variable.")
-            finally:
-                return 1
+            edit_file("/modes.json")
+        if argv[1] == "--defaults":
+            edit_file("/defaults.json")
 
 
-
-        elif argv[1][0] == "-":
+        elif argv[1].startswith("-"):
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
                     change_model(model)
-                    break
+                    return 0
+
+            for mode in modes:
+                if argv[1] == "--" + mode["name"] or argv[1] == "-" + mode["shortcut"]:
+                    add_message_to_chat("system", mode["description"])
+                    return 0
 
         else:
             prompt = argv[1]
@@ -1235,7 +1238,7 @@ def delete_messages(number = 2):
 
 def edit_message(id):
     global chat
-    new_message = use_text_editor(chat["all_messages"][-id]["content"])
+    new_message = use_temp_file(chat["all_messages"][-id]["content"])
     chat["all_messages"][-id]["content"] = new_message
 
 def nuclear(con, cur):
