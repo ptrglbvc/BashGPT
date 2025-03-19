@@ -45,6 +45,7 @@ anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 googleai.configure(api_key=os.getenv("GOOGLEAI_API_KEY"))
 
 
+
 #this has honestly been one of the hardest part of this project. Without the library, I had to resort to really big workarounds
 path = str(Path(os.path.realpath(__file__)).parent) + "/"
 audio_location = path + "audio.wav"
@@ -57,7 +58,7 @@ def main():
     con = cur = None
 
     if len(argv) > 1:
-        status = quick_input()
+        status = input_with_args()
         if status != 0:
             exit()  # Exit if there was an error
 
@@ -959,6 +960,7 @@ def get_and_print_response():
                 # unless we use an async function, since the delay is counted as part of the tiem between chunks, the average will enter into a feedback loop, especially when the chunks are smaller. so best to just use the average between the first 3 chunks
                 # also, the time to the first chunk shouldn't count, since its more due to time to first token than tps
                 if num_of_updates in [1,2,3,4]:
+
                     # Update avg_delay using a simple moving average formula.
                     avg_delay = (avg_delay + delay_since_last) / 2
                 num_of_updates+=1
@@ -990,7 +992,7 @@ def get_and_print_response():
 
                 # Calculate a delay per character so that the whole chunk prints over about avg_delay seconds.
                 if text:
-                    char_delay = avg_delay / len(text)
+                    char_delay = avg_delay / len(text) # type: ignore
                     for char in text:
                         print(char, end="", flush=True)
                         time.sleep(char_delay)
@@ -1041,7 +1043,7 @@ def edit_file(file_path):
         return 1
 
 
-def quick_input():
+def input_with_args():
     global chat
 
     if len(argv) > 4:
@@ -1070,10 +1072,6 @@ def quick_input():
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
                     change_model(model)
                     return 0
-            for mode in modes:
-                if argv[1] == "--" + mode["name"] or argv[1] == "-" + mode["shortcut"]:
-                    add_message_to_chat("system", mode["description"])
-                    return 0
 
         else:
             prompt = argv[1]
@@ -1085,6 +1083,7 @@ def quick_input():
         if argv[1] == "--new-mode":
             chat["mode"] = "custom"
             add_message_to_chat("system", argv[2])
+            alert("\nCustom mode added")
             return 0
         else:
             model_selected = False
@@ -1231,8 +1230,10 @@ def change_model(new_model):
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
     chat["vision_enabled"] = new_model["vision_enabled"]
-    # this updates the base url and the api key variable name. we don't need that if it's the google api, that uses it's own sdk'
-    if chat["provider"] != "google":
+
+    # this updates the base url and the api key variable name
+    # we don't need that for non-openai-sdk models
+    if chat["provider"] not in ["google", "anthropic", "ollama"]:
         chat.update(providers[new_model["provider"]])
 
 
