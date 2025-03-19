@@ -12,12 +12,12 @@ from sys import argv
 from typing import cast, Literal
 from subprocess import run
 
-import google.ai.generativelanguage as glm
-import google.generativeai as googleai
 import httpx
 import vlc
-from anthropic import Anthropic
+import google.ai.generativelanguage as glm
+import google.generativeai as googleai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
+from anthropic import Anthropic
 from openai import (APIConnectionError, APIError, APIResponseValidationError,
                     APIStatusError, APITimeoutError, AuthenticationError,
                     BadRequestError, ConflictError, InternalServerError,
@@ -841,8 +841,9 @@ def get_google_response(all_messages):
         generation_config={
             "max_output_tokens": chat["max_tokens"],
             "temperature": chat["temperature"]
-        }
-        )
+        },
+        stream=True
+    )
     return response
 
 def get_ollama_response(all_messages):
@@ -943,30 +944,57 @@ def get_and_print_response():
         print(terminal[chat["color"]], end="")
 
         try:
+            import time
+
+            # Initialize the previous chunk's timestamp and a default average delay.
+            prev_time = time.time()
+            avg_delay = 0.1
+            num_of_updates = 0
+
             for chunk in stream:
-                if stop.is_set() == False:
+                current_time = time.time()
+                delay_since_last = current_time - prev_time
+                prev_time = current_time
+
+                # unless we use an async function, since the delay is counted as part of the tiem between chunks, the average will enter into a feedback loop, especially when the chunks are smaller. so best to just use the average between the first 3 chunks
+                # also, the time to the first chunk shouldn't count, since its more due to time to first token than tps
+                if num_of_updates in [1,2,3,4]:
+                    # Update avg_delay using a simple moving average formula.
+                    avg_delay = (avg_delay + delay_since_last) / 2
+                num_of_updates+=1
+
+                if not stop.is_set():
                     stop.set()
                     bar_thread.join()
+
                 text = ""
                 if chat["provider"] == "anthropic":
-                    if chunk.type == "content_block_delta": # type: ignore
-                        text = chunk.delta.text # type: ignore
-                        if not text: break
+                    if chunk.type == "content_block_delta":  # type: ignore
+                        text = chunk.delta.text  # type: ignore
+                        if not text:
+                            break
                     else:
                         continue
                 elif chat["provider"] == "google":
-                    text = chunk.text # type: ignore
-                    if not text: break
+                    text = chunk.text  # type: ignore
+                    if not text:
+                        break
                 elif chat["provider"] == "ollama":
                     text = chunk
-                    if not text: break
+                    if not text:
+                        break
                 else:
-                    text = chunk.choices[0].delta.content # type: ignore
+                    text = chunk.choices[0].delta.content  # type: ignore
                     if not text:
                         continue
 
-                print(text, end="", flush=True)
-                chat["all_messages"][-1]["content"] += text # type: ignore
+                # Calculate a delay per character so that the whole chunk prints over about avg_delay seconds.
+                if text:
+                    char_delay = avg_delay / len(text)
+                    for char in text:
+                        print(char, end="", flush=True)
+                        time.sleep(char_delay)
+                chat["all_messages"][-1]["content"] += text  # type: ignore
 
         except KeyboardInterrupt:
             print("\033[2D  ", end="")
@@ -1042,7 +1070,6 @@ def quick_input():
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
                     change_model(model)
                     return 0
-
             for mode in modes:
                 if argv[1] == "--" + mode["name"] or argv[1] == "-" + mode["shortcut"]:
                     add_message_to_chat("system", mode["description"])
@@ -1204,7 +1231,9 @@ def change_model(new_model):
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
     chat["vision_enabled"] = new_model["vision_enabled"]
-    chat.update(providers[new_model["provider"]])
+    # this updates the base url and the api key variable name. we don't need that if it's the google api, that uses it's own sdk'
+    if chat["provider"] != "google":
+        chat.update(providers[new_model["provider"]])
 
 
 def choose_mode():
