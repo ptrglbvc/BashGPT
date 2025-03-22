@@ -141,9 +141,7 @@ body {
 }
 
 .message-wrapper.system {
-    height: 0px;
-    padding: 0px;
-    min-height: 0px;
+    display: none;
 }
 
 .provider-badge {
@@ -206,6 +204,10 @@ body {
     padding: 0;
     font-size: 1rem;
     line-height: 1.5;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .message-text {
@@ -561,4 +563,35 @@ p code {
 
 .chat-card:hover {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+.message-actions {
+    display: flex;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    padding: 0.25rem 0;
+}
+
+.message-wrapper:hover .message-actions {
+    opacity: 1;
+}
+
+.message-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.message-action-btn:hover {
+    color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.preserve-whitespace {
+    white-space: pre-wrap;
 }

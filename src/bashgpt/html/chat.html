@@ -6,9 +6,35 @@ endblock %} {% block content %}
         <div class="message-wrapper {{ message.role }}">
             <div class="message">
                 <div class="message-content">
-                    <div class="message-text">{{message["content"]|safe}}</div>
-                    {% for image in images %} {% if image.message_idx ==
-                    message.message_id %}
+                    <div
+                        class="message-text preserve-whitespace"
+                        data-raw-text="{{message['content']}}"
+                    >
+                        {{message["content"]|safe}}
+                    </div>
+                    {% if message.role == "assistant" %}
+                    <div class="message-actions">
+                        <button
+                            class="message-action-btn copy-message"
+                            title="Copy message"
+                        >
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <button
+                            class="message-action-btn regenerate-message"
+                            title="Regenerate"
+                        >
+                            <i class="fa-solid fa-rotate"></i>
+                        </button>
+                        <button
+                            class="message-action-btn continue-message"
+                            title="Continue"
+                        >
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    {% endif %} {% for image in images %} {% if
+                    image.message_idx == message.message_id %}
                     <div class="message-image">
                         <img
                             src="data:image/{{ image.extension }};base64,{{ image.content }}"
@@ -49,15 +75,126 @@ endblock %} {% block content %}
         messageContentDiv.className = "message-content";
 
         const messageText = document.createElement("div");
-        messageText.className = "message-text";
+        messageText.className = "message-text preserve-whitespace";
+        messageText.setAttribute("data-raw-text", message);
         messageText.innerHTML = marked.parse(message);
 
         messageWrapper.appendChild(messageDiv);
         messageDiv.appendChild(messageContentDiv);
         messageContentDiv.appendChild(messageText);
 
+        if (role === "assistant") {
+            const messageActions = document.createElement("div");
+            messageActions.className = "message-actions";
+
+            const copyBtn = document.createElement("button");
+            copyBtn.className = "message-action-btn copy-message";
+            copyBtn.title = "Copy message";
+            copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+            copyBtn.addEventListener("click", () => copyMessage(messageText));
+
+            const regenerateBtn = document.createElement("button");
+            regenerateBtn.className = "message-action-btn regenerate-message";
+            regenerateBtn.title = "Regenerate";
+            regenerateBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+            regenerateBtn.addEventListener("click", () =>
+                regenerateMessage(messageWrapper)
+            );
+
+            const continueBtn = document.createElement("button");
+            continueBtn.className = "message-action-btn continue-message";
+            continueBtn.title = "Continue";
+            continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i>';
+            continueBtn.addEventListener("click", () =>
+                continueMessage(messageWrapper)
+            );
+
+            messageActions.appendChild(copyBtn);
+            messageActions.appendChild(regenerateBtn);
+            messageActions.appendChild(continueBtn);
+            messageContentDiv.appendChild(messageActions);
+        }
+
         return messageWrapper;
     }
+
+    function copyMessage(messageElement) {
+        const rawText = messageElement.getAttribute("data-raw-text");
+        navigator.clipboard
+            .writeText(rawText)
+            .then(() => {
+                const copyBtn =
+                    messageElement.nextElementSibling.querySelector(
+                        ".copy-message"
+                    );
+                const originalIcon = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalIcon;
+                }, 2000);
+            })
+            .catch((err) => {
+                console.error("Failed to copy message:", err);
+            });
+    }
+
+    function regenerateMessage(messageWrapper) {
+        console.log("Regenerate message:", messageWrapper);
+    }
+
+    function continueMessage(messageWrapper) {
+        console.log("Continue message:", messageWrapper);
+    }
+
+    // Add event listeners to existing messages
+    document.addEventListener("DOMContentLoaded", function () {
+        document
+            .querySelectorAll(".message-wrapper.assistant")
+            .forEach((messageWrapper) => {
+                const messageText =
+                    messageWrapper.querySelector(".message-text");
+                const messageContent =
+                    messageWrapper.querySelector(".message-content");
+                const copyBtn = messageContent.querySelector(".copy-message");
+
+                if (copyBtn) {
+                    copyBtn.addEventListener("click", function () {
+                        const rawText =
+                            messageText.getAttribute("data-raw-text");
+                        navigator.clipboard
+                            .writeText(rawText)
+                            .then(() => {
+                                const originalIcon = this.innerHTML;
+                                this.innerHTML =
+                                    '<i class="fa-solid fa-check"></i>';
+                                setTimeout(() => {
+                                    this.innerHTML = originalIcon;
+                                }, 2000);
+                            })
+                            .catch((err) => {
+                                console.error("Failed to copy message:", err);
+                            });
+                    });
+                }
+
+                const regenerateBtn = messageContent.querySelector(
+                    ".regenerate-message"
+                );
+                if (regenerateBtn) {
+                    regenerateBtn.addEventListener("click", function () {
+                        regenerateMessage(messageWrapper);
+                    });
+                }
+
+                const continueBtn =
+                    messageContent.querySelector(".continue-message");
+                if (continueBtn) {
+                    continueBtn.addEventListener("click", function () {
+                        continueMessage(messageWrapper);
+                    });
+                }
+            });
+    });
 
     function isUserAtBottom() {
         const tolerance = 15; // Pixels of tolerance to consider "at bottom"
@@ -116,9 +253,9 @@ endblock %} {% block content %}
 
     async function get_assistant_response(message, wasAtBottom) {
         let assistant_message = createMessageElement("assistant");
-
-        assistant_message_text =
+        let assistant_message_text =
             assistant_message.querySelector(".message-text");
+        assistant_message_text.setAttribute("data-raw-text", ""); // Initialize raw text
 
         let messages_container = document.querySelector(".messages-container");
         messages_container.appendChild(assistant_message);
@@ -142,30 +279,12 @@ endblock %} {% block content %}
         });
 
         const observer_config = { childList: true, subtree: true };
-        observer.o;
-        // For tracking if we need to scroll during streaming
-        const shouldAutoScroll = wasAtBottom;
+        observer.observe(assistant_message_text, observer_config);
 
         while (true) {
             const { done, value } = await reader.read();
-            output += new TextDecoder()
-                .decode(value)
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-            assistant_message_text.innerHTML = marked.parse(output);
-
-            // Auto-scroll if the user was at the bottom
-            if (shouldAutoScroll) {
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: "auto", // Using 'auto' instead of 'smooth' for streaming to avoid lag
-                });
-            }
-
             if (done) {
                 observer.disconnect();
-
-                // without this the button may very likely disappear
                 assistant_message_text
                     .querySelectorAll("pre")
                     .forEach((pre) => {
@@ -175,8 +294,29 @@ endblock %} {% block content %}
                     });
                 return;
             }
+
+            const decodedValue = new TextDecoder().decode(value);
+            output += decodedValue;
+            // Update the raw text attribute
+            const currentRawText =
+                assistant_message_text.getAttribute("data-raw-text") || "";
+            assistant_message_text.setAttribute(
+                "data-raw-text",
+                currentRawText + decodedValue
+            );
+
+            assistant_message_text.innerHTML = marked.parse(
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            );
+
+            if (wasAtBottom) {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: "auto",
+                });
+            }
         }
-        bserve(assistant_message_text, observer_config);
     }
 </script>
+
 {% endblock %}
