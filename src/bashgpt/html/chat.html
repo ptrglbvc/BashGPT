@@ -1,237 +1,182 @@
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{{ chat_info.description }}</title>
-        <link rel="stylesheet" href="/static/css/style.css" />
-        <link
-            rel="stylesheet"
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-        />
-        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-        <script
-            src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"
-            integrity="sha512-Y1p/STLW/B+l+MPJ5K5OdILMwJa2gMFXXmC/qsyDuGH9uc1MZMUo6/8YQUg9Ut4ns8KGCrCtt+58UwmNFFiVvA=="
-            crossorigin="anonymous"
-            referrerpolicy="no-referrer"
-        ></script>
-    </head>
-    <body>
-        <div class="app-container">
-            <header class="app-header">
-                <div class="app-logo">
-                    <a href="/" title="Home">
-                        <i class="fa-solid fa-terminal"></i>
-                        <h1>BashGPT</h1>
-                    </a>
+{% extends "layout.html" %} {% block title %}{{ chat_info.description }}{%
+endblock %} {% block content %}
+<main class="chat-container">
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="message-wrapper {{ message.role }}">
+            <div class="message">
+                <div class="message-content">
+                    <div class="message-text">{{message["content"]|safe}}</div>
+                    {% for image in images %} {% if image.message_idx ==
+                    message.message_id %}
+                    <div class="message-image">
+                        <img
+                            src="data:image/{{ image.extension }};base64,{{ image.content }}"
+                            alt="{{ image.name }}"
+                        />
+                    </div>
+                    {% endif %} {% endfor %} {% for file in files %} {% if
+                    file.message_idx == message.message_id %}
+                    <div class="message-file">
+                        <i class="fa-solid fa-file"></i>
+                        <span>{{ file.name }}</span>
+                    </div>
+                    {% endif %} {% endfor %}
                 </div>
-                <div class="chat-info">
-                    {% if chat_info %}
-                    <h2>{{ chat_info.description or 'New Chat' }}</h2>
-                    <div class="chat-metadata">
-                        <span class="model-badge">{{ chat_info.model }}</span>
-                        <span class="provider-badge"
-                            >{{ chat_info.provider }}</span
-                        >
-                        {% if chat_info.vision_enabled %}
-                        <span class="feature-badge">Vision</span>
-                        {% endif %} {% if chat_info.bash %}
-                        <span class="feature-badge">Bash</span>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <h2>New Chat</h2>
-                    <div class="chat-metadata">
-                        <span class="model-badge">BashGPT</span>
-                    </div>
-                    {% endif %}
-                </div>
-                <nav class="app-nav">
-                    <a
-                        href="#"
-                        class="nav-button"
-                        id="settings-btn"
-                        title="Settings"
-                    >
-                        <i class="fa-solid fa-gear"></i>
-                    </a>
-                </nav>
-            </header>
-            <div class="header-spacer"></div>
-
-            <main class="chat-container">
-                <div class="messages-container">
-                    {% if not messages %}
-                    <div class="empty-chat">
-                        <i class="fa-solid fa-message"></i>
-                        <h3>How can I help you today?</h3>
-                        <p>
-                            Ask me anything, or use the examples below to get
-                            started.
-                        </p>
-                    </div>
-                    {% endif %} {% for message in messages %}
-                    <div class="message-wrapper {{ message.role }}">
-                        <div class="message">
-                            <div class="message-content">
-                                <div class="message-text">
-                                    {{message.message|safe}}
-                                </div>
-                                {% for image in images %} {% if
-                                image.message_idx == message.message_id %}
-                                <div class="message-image">
-                                    <img
-                                        src="data:image/{{ image.extension }};base64,{{ image.content }}"
-                                        alt="{{ image.name }}"
-                                    />
-                                </div>
-                                {% endif %} {% endfor %} {% for file in files %}
-                                {% if file.message_idx == message.message_id %}
-                                <div class="message-file">
-                                    <i class="fa-solid fa-file"></i>
-                                    <span>{{ file.name }}</span>
-                                </div>
-                                {% endif %} {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </main>
-
-            <footer class="input-container">
-                <form id="message-form">
-                    <div class="input-wrapper">
-                        <textarea
-                            id="message-input"
-                            placeholder="Message BashGPT..."
-                            rows="1"
-                        ></textarea>
-                        <div class="input-actions">
-                            <button
-                                type="button"
-                                id="upload-btn"
-                                class="action-btn"
-                                title="Upload files"
-                            >
-                                <i class="fa-solid fa-paperclip"></i>
-                            </button>
-                            <button
-                                type="submit"
-                                id="send-btn"
-                                class="action-btn"
-                                title="Send message"
-                            >
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </footer>
+            </div>
         </div>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %} {% block form_logic %}
+<script>
+    async function send_message(message) {
+        return await fetch("/api/answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: message }),
+        });
+    }
 
-        <script>
-            // Auto-resize textarea as user types
-            const textarea = document.getElementById("message-input");
-            textarea.addEventListener("input", function () {
-                this.style.height = "auto";
-                this.style.height = Math.min(200, this.scrollHeight) + "px";
-            });
+    function createMessageElement(role, message = "") {
+        const messageWrapper = document.createElement("div");
+        messageWrapper.className = `message-wrapper ${role}`;
 
-            // for the markdown parsing of previous messages
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message";
 
-            if (typeof marked !== "undefined") {
-                const messageTexts = document.querySelectorAll(".message-text");
+        const messageContentDiv = document.createElement("div");
+        messageContentDiv.className = "message-content";
 
-                messageTexts.forEach((mt) => {
-                    const content = mt.innerHTML.trim();
-                    mt.innerHTML = "";
+        const messageText = document.createElement("div");
+        messageText.className = "message-text";
+        messageText.innerHTML = marked.parse(message);
 
-                    const escapedContent = content
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;");
+        messageWrapper.appendChild(messageDiv);
+        messageDiv.appendChild(messageContentDiv);
+        messageContentDiv.appendChild(messageText);
 
-                    try {
-                        mt.innerHTML = DOMPurify.sanitize(
-                            marked.parse(escapedContent)
-                        );
-                    } catch (err) {
-                        console.error("Error parsing markdown:", err);
-                        mt.innerHTML = content;
-                    }
+        return messageWrapper;
+    }
+
+    function isUserAtBottom() {
+        const tolerance = 15; // Pixels of tolerance to consider "at bottom"
+        return (
+            window.innerHeight + window.scrollY >=
+            document.body.offsetHeight - tolerance
+        );
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const params = {};
+    for (const [key, value] of urlParams) {
+        params[key] = value;
+    }
+
+    if (params["new_chat"] == "true") {
+        wasAtBottom = isUserAtBottom();
+        message = "";
+        get_assistant_response(message, wasAtBottom);
+    }
+
+    let shoudlAutoScroll = false;
+
+    // this handles the message sending part
+    document
+        .getElementById("message-form")
+        .addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const message = textarea.value.trim();
+            if (!message) return;
+            console.log(message);
+
+            const wasAtBottom = isUserAtBottom();
+
+            textarea.value = "";
+            textarea.style.height = "auto";
+
+            let user_message = createMessageElement("user", message);
+
+            let messages_container = document.querySelector(
+                ".messages-container"
+            );
+
+            messages_container.appendChild(user_message, message);
+
+            get_assistant_response(message, wasAtBottom);
+
+            // Scroll to bottom after adding user message if they were already at bottom
+            if (wasAtBottom) {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: "smooth",
                 });
-            } else {
-                console.error("Marked library is not loaded!");
+            }
+        });
+
+    async function get_assistant_response(message, wasAtBottom) {
+        let assistant_message = createMessageElement("assistant");
+
+        assistant_message_text =
+            assistant_message.querySelector(".message-text");
+
+        let messages_container = document.querySelector(".messages-container");
+        messages_container.appendChild(assistant_message);
+
+        res = await send_message(message);
+        const reader = res.body.getReader();
+        let output = "";
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (
+                    mutation.type === "childList" &&
+                    mutation.addedNodes.length > 0
+                ) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && node.matches("pre")) {
+                            attach_copy_button_to_code_block(node);
+                        }
+                    });
+                }
+            }
+        });
+
+        const observer_config = { childList: true, subtree: true };
+        observer.o;
+        // For tracking if we need to scroll during streaming
+        const shouldAutoScroll = wasAtBottom;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            output += new TextDecoder()
+                .decode(value)
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+            assistant_message_text.innerHTML = marked.parse(output);
+
+            // Auto-scroll if the user was at the bottom
+            if (shouldAutoScroll) {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: "auto", // Using 'auto' instead of 'smooth' for streaming to avoid lag
+                });
             }
 
-            // for the copy button in code blocks
+            if (done) {
+                observer.disconnect();
 
-            document.querySelectorAll("pre").forEach((pre) => {
-                const copyButton = document.createElement("button");
-                copyButton.className = "code-copy-button";
-                copyButton.innerHTML =
-                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
-
-                copyButton.addEventListener("click", () => {
-                    const code = pre.querySelector("code").textContent;
-                    navigator.clipboard.writeText(code);
-
-                    // Optional: Show feedback
-                    copyButton.textContent = "Copied!";
-                    setTimeout(() => {
-                        copyButton.innerHTML =
-                            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
-                    }, 2000);
-                });
-
-                pre.appendChild(copyButton);
-
-                // Add language attribute for the label
-                if (!pre.getAttribute("data-language") && pre.className) {
-                    pre.setAttribute("data-language", pre.className);
-                }
-            });
-
-            // for the header sticking only when scrolling up
-
-            let lastScrollY = window.scrollY;
-
-            window.addEventListener("scroll", () => {
-                const header = document.querySelector(".app-header");
-                if (lastScrollY < window.scrollY) {
-                    header.classList.add("hide");
-                } else {
-                    header.classList.remove("hide");
-                }
-                lastScrollY = window.scrollY;
-            });
-
-            // without the spacer the first message is cut off
-            function updateSpacerHeight() {
-                const headerHeight =
-                    document.querySelector(".app-header").offsetHeight;
-                document.querySelector(".header-spacer").style.height =
-                    headerHeight + "px";
+                // without this the button may very likely disappear
+                assistant_message_text
+                    .querySelectorAll("pre")
+                    .forEach((pre) => {
+                        if (!pre.querySelector(".code-copy-button")) {
+                            attach_copy_button_to_code_block(pre);
+                        }
+                    });
+                return;
             }
-            updateSpacerHeight();
-            window.addEventListener("resize", updateSpacerHeight);
-
-            // Form submission (placeholder for now)
-            document
-                .getElementById("message-form")
-                .addEventListener("submit", function (e) {
-                    e.preventDefault();
-                    const message = textarea.value.trim();
-                    if (!message) return;
-
-                    // In the future, this would send the message to the backend
-                    console.log("Message to send:", message);
-
-                    // Reset textarea
-                    textarea.value = "";
-                    textarea.style.height = "auto";
-                });
-        </script>
-    </body>
-</html>
+        }
+        bserve(assistant_message_text, observer_config);
+    }
+</script>
+{% endblock %}

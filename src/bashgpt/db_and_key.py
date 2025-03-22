@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from bashgpt.util_functions import alert
 
 def setup_db(path):
     db_location = path + "history.db"
@@ -63,5 +64,5 @@ def setup_key():
         return key
 
     else:
-        print("Environment variable for key not found, please add one.")
+        alert("Environment variable for key not found, please add one.")
         exit()

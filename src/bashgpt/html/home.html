@@ -1,0 +1,54 @@
+{% extends "layout.html" %} {% block title %}BashGPT{% endblock %} {% block
+content %}
+<main class="chats-container">
+    <div class="welcome-text">
+        <i class="fa-solid fa-message"></i>
+        <h3>How can I help you today?</h3>
+        <p>Ask me anything, or resume a previous chat.</p>
+    </div>
+    {% if not chats %}
+    <div class="empty-chats">
+        <i class="fa-solid fa-comments"></i>
+        <p>No chats yet. Start a new conversation!</p>
+        <a href="#" class="new-chat-button">New Chat</a>
+    </div>
+    {% else %}
+    <div class="chats-list">
+        {% for chat in chats %}
+        <a href="/chat/{{ chat.chat_id }}" class="chat-card">
+            <div class="chat-card-header">
+                <p>{{ chat.description or 'Chat #' + chat.chat_id|string }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div style="height: 100px"></div>
+</main>
+
+{% endblock %} {% block form_logic %}
+<script>
+    document
+        .querySelector("#message-form")
+        .addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const message = textarea.value.trim();
+
+            textarea.value = "";
+
+            if (!message) return;
+            console.log(message);
+            const create_new_chat = async () => {
+                res = await fetch("/api/create-new-chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: message }),
+                });
+                const data = await res.json();
+                const chat_id = data.chat_id;
+                window.location.href = "/chat/" + chat_id + "?new_chat=true";
+            };
+            create_new_chat();
+        });
+</script>
+{% endblock %}

@@ -17,6 +17,7 @@
         "Segoe UI", Helvetica, Arial, sans-serif;
     --border-radius: 6px;
     --message-border-radius: 0;
+    --header-height: 73px;
 }
 
 * {
@@ -52,6 +53,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
+    height: var(--header-height);
     z-index: 100;
     transition: transform 0.4s ease; /* Add smooth transition */
 }
@@ -141,6 +143,7 @@ body {
 .message-wrapper.system {
     height: 0px;
     padding: 0px;
+    min-height: 0px;
 }
 
 .provider-badge {
@@ -173,8 +176,9 @@ body {
     display: flex;
     justify-content: center;
     margin-bottom: 0;
-    padding: 1.5rem;
+    padding: 1rem;
     width: 100%;
+    min-height: 72px;
 }
 
 .message-wrapper.user {
@@ -241,20 +245,20 @@ body {
 }
 
 /* Empty States */
-.empty-chat,
-.empty-chats {
+.welcome-text,
+.welcome-texts {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    height: 100%;
+    /* height: 100%; */
     padding: 2rem;
     color: var(--text-light);
 }
 
-.empty-chat i,
-.empty-chats i {
+.welcome-text i,
+.welcome-texts i {
     font-size: 2.5rem;
     margin-bottom: 1rem;
     opacity: 0.5;
@@ -508,12 +512,53 @@ pre[data-language] code {
     align-items: center;
     gap: 0.25rem;
     z-index: 2;
+    transition: background-color 0.25s ease-in-out;
 }
 
 pre:hover .code-copy-button {
     opacity: 1;
 }
 
+p code {
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+    padding: 0 3px;
+}
+
 .code-copy-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.chats-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: calc(100svh - var(--header-height));
+}
+
+.chats-list {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
+.chats-list a {
+    text-decoration: none;
+    color: var(--text-color);
+    font-family: var(--font-family);
+}
+.chats-list p {
+    font-weight: 400;
+}
+
+.chat-card {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.chat-card:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }

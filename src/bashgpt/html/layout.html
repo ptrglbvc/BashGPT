@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}{% endblock %}</title>
+        <link rel="stylesheet" href="/static/css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"
+            integrity="sha512-Y1p/STLW/B+l+MPJ5K5OdILMwJa2gMFXXmC/qsyDuGH9uc1MZMUo6/8YQUg9Ut4ns8KGCrCtt+58UwmNFFiVvA=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        ></script>
+    </head>
+    <body>
+        <div class="app-container">
+            <header class="app-header">
+                <div class="app-logo">
+                    <a href="/" title="Home">
+                        <i class="fa-solid fa-terminal"></i>
+                        <h1>BashGPT</h1>
+                    </a>
+                </div>
+                <div class="chat-info">
+                    {% if chat_info %}
+                    <h2>{{ chat_info.description or 'New Chat' }}</h2>
+                    <div class="chat-metadata">
+                        <span class="model-badge">{{ chat_info.model }}</span>
+                        <span class="provider-badge"
+                            >{{ chat_info.provider }}</span
+                        >
+                        {% if chat_info.vision_enabled %}
+                        <span class="feature-badge">Vision</span>
+                        {% endif %} {% if chat_info.bash %}
+                        <span class="feature-badge">Bash</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <nav class="app-nav">
+                    <a
+                        href="#"
+                        class="nav-button"
+                        id="settings-btn"
+                        title="Settings"
+                    >
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+                </nav>
+            </header>
+            <div class="header-spacer"></div>
+            {% block content %}{% endblock %}
+
+            <footer class="input-container">
+                <form id="message-form">
+                    <div class="input-wrapper">
+                        <textarea
+                            id="message-input"
+                            placeholder="Message BashGPT..."
+                            rows="1"
+                        ></textarea>
+                        <div class="input-actions">
+                            <button
+                                type="button"
+                                id="upload-btn"
+                                class="action-btn"
+                                title="Upload files"
+                            >
+                                <i class="fa-solid fa-paperclip"></i>
+                            </button>
+                            <button
+                                type="submit"
+                                id="send-btn"
+                                class="action-btn"
+                                title="Send message"
+                            >
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </footer>
+        </div>
+        <script>
+            // Auto-resize textarea as user types
+            const textarea = document.getElementById("message-input");
+            textarea.addEventListener("input", function () {
+                this.style.height = "auto";
+                this.style.height = Math.min(200, this.scrollHeight) + "px";
+            });
+
+            // this makes so that the message is sent on enter
+            document.addEventListener("DOMContentLoaded", function () {
+                const messageInput = document.getElementById("message-input");
+                const messageForm = document.getElementById("message-form");
+                const sendButton = document.getElementById("send-btn");
+
+                messageInput.addEventListener("keypress", function (event) {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        sendButton.click();
+                    }
+                });
+            });
+
+            // for the markdown parsing of previous messages
+
+            if (typeof marked !== "undefined") {
+                const messageTexts = document.querySelectorAll(".message-text");
+
+                messageTexts.forEach((mt) => {
+                    const content = mt.innerHTML.trim();
+                    mt.innerHTML = "";
+
+                    const escapedContent = content
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;");
+
+                    try {
+                        mt.innerHTML = DOMPurify.sanitize(
+                            marked.parse(escapedContent)
+                        );
+                    } catch (err) {
+                        console.error("Error parsing markdown:", err);
+                        mt.innerHTML = content;
+                    }
+                });
+            } else {
+                console.error("Marked library is not loaded!");
+            }
+
+            // for the copy button in code blocks
+            function attach_copy_button_to_code_block(pre) {
+                const copyButton = document.createElement("button");
+                copyButton.className = "code-copy-button";
+                copyButton.innerHTML =
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
+
+                copyButton.addEventListener("click", () => {
+                    const code = pre.querySelector("code").textContent;
+                    navigator.clipboard.writeText(code);
+
+                    // Optional: Show feedback
+                    copyButton.textContent = "Copied!";
+                    setTimeout(() => {
+                        copyButton.innerHTML =
+                            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
+                    }, 2000);
+                });
+
+                pre.appendChild(copyButton);
+
+                // Add language attribute for the label
+                if (!pre.getAttribute("data-language") && pre.className) {
+                    pre.setAttribute("data-language", pre.className);
+                }
+            }
+
+            document.querySelectorAll("pre").forEach((pre) => {
+                attach_copy_button_to_code_block(pre);
+            });
+
+            // for the header sticking only when scrolling up
+
+            let lastScrollY = window.scrollY;
+
+            window.addEventListener("scroll", () => {
+                const header = document.querySelector(".app-header");
+                if (lastScrollY < window.scrollY) {
+                    header.classList.add("hide");
+                } else {
+                    header.classList.remove("hide");
+                }
+                lastScrollY = window.scrollY;
+            });
+
+            // without the spacer the first message is cut off
+            function updateSpacerHeight() {
+                const headerHeight =
+                    document.querySelector(".app-header").offsetHeight;
+                document.querySelector(".header-spacer").style.height =
+                    headerHeight + "px";
+            }
+            updateSpacerHeight();
+            window.addEventListener("resize", updateSpacerHeight);
+
+            window.addEventListener("scroll", function () {
+                if (isUserAtBottom()) {
+                    shouldAutoScroll = true;
+                } else if (typeof shouldAutoScroll !== "undefined") {
+                    shouldAutoScroll = false;
+                }
+            });
+        </script>
+        {% block form_logic %}{% endblock %}
+    </body>
+</html>

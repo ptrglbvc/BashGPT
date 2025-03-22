@@ -1,32 +1,20 @@
 #!/Users/petar/Projects/Python/BashGPT/env/bin/python
 import base64
-import copy
-import json
 import os
 import shlex
 import curses
 import threading
 from time import sleep
-from pathlib import Path
 from sys import argv
 from typing import cast, Literal
 from subprocess import run
 
 import httpx
 import vlc
-import google.ai.generativelanguage as glm
-import google.generativeai as googleai
-from google.generativeai.types import HarmBlockThreshold, HarmCategory
-from anthropic import Anthropic
-from openai import (APIConnectionError, APIError, APIResponseValidationError,
-                    APIStatusError, APITimeoutError, AuthenticationError,
-                    BadRequestError, ConflictError, InternalServerError,
-                    NotFoundError, OpenAI, OpenAIError, PermissionDeniedError,
-                    RateLimitError, UnprocessableEntityError)
 
 from bashgpt.autonomous import auto_system_message, parse_auto_message
 from bashgpt.bash import bash, bash_system_message
-from bashgpt.chat import add_message_to_chat, chat
+from bashgpt.chat import add_message_to_chat, chat, load_chat, load_images, load_files, change_model, save_chat, delete_chat, apply_defaults, change_defaults, defaults
 from bashgpt.dalle import dalle_mode, dalle_system_message
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
@@ -35,22 +23,16 @@ from bashgpt.data_loader import data_loader
 from bashgpt.terminal_codes import terminal
 from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_temp_file)
 from bashgpt.whisper import record, whisper
+from bashgpt.api import client, googleai, get_and_print_response
+from bashgpt.path import get_path
 
 
 all_messages = chat["all_messages"]
 (modes, models, providers) = data_loader()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-googleai.configure(api_key=os.getenv("GOOGLEAI_API_KEY"))
-
-
-
 #this has honestly been one of the hardest part of this project. Without the library, I had to resort to really big workarounds
-path = str(Path(os.path.realpath(__file__)).parent) + "/"
+path = get_path()
 audio_location = path + "audio.wav"
-
-defaults = load_defaults(path)
 
 def main():
     apply_defaults()
@@ -105,8 +87,6 @@ def main():
             if output == 1: continue
             elif output == 2: message = ""
             elif output: message = output
-
-
 
         if (message):
             add_message_to_chat("user", message)
@@ -199,7 +179,7 @@ def command(message, con, cur):
                 is_a_model = False
                 for model in models:
                     if model["name"] == command[1] or model["shortcut"] == command[1]:
-                        change_model(model)
+                        change_model(model, providers)
                         is_a_model = True
                         alert(f"Changed model to: {model['name']}")
                         break
@@ -415,49 +395,6 @@ def get_image(image_url):
         alert("Invalid url")
 
 
-def apply_defaults():
-    global chat
-    if defaults["color"]:
-        chat["color"] = defaults["color"]
-    if defaults["model"]:
-        change_model(defaults["model"])
-    if defaults["mode"]:
-        chat["mode"] = defaults["mode"]["name"]
-
-
-def change_defaults(target, newValue):
-    match target:
-        case "color":
-            try:
-                defaults["color"] = newValue
-                alert(f"Changed default color to {newValue}")
-            except:
-                alert("Color is not valid")
-        case "model":
-            valid_model = False
-            for model in models:
-                if model["shortcut"] == newValue or model["name"] == newValue:
-                    defaults["model"] = model
-                    valid_model = True
-                    alert(f"Changed default model to {model['name']}")
-                    break
-            if not valid_model:
-                alert("Invalid model")
-        case "mode":
-            valid_mode = False
-            for mode in modes:
-                if mode["shortcut"] == newValue or mode["name"] == newValue:
-                    defaults["mode"] = mode
-                    valid_mode = True
-                    alert(f"Changed default mode to {mode['name']}")
-                    break
-            if not valid_mode:
-                alert("Invalid mode")
-        case _:
-            alert("Invalid default property")
-
-    with open(path + "defaults.json", "w") as def_file:
-        def_file.write(json.dumps(defaults, indent=4))
 
 
 def voice_input():
@@ -505,7 +442,7 @@ def is_valid_voice(value: str) -> bool:
 
 def speak(message, voice="nova"):
     try:
-        speech_file_path = Path(__file__).parent / "speech.mp3"
+        speech_file_path = path + "speech.mp3"
         if not is_valid_voice(voice):
             voice="nova"
         with client.audio.speech.with_streaming_response.create(
@@ -520,45 +457,6 @@ def speak(message, voice="nova"):
         alert(f"Error: {e}")
 
 
-def load_chat(cur, choice):
-    message_data = cur.execute("SELECT role, message FROM chat_messages WHERE chat_id=?", (choice, )).fetchall()
-    [description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave] = cur.execute("SELECT description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave FROM chats WHERE chat_id=?", (choice, )).fetchall()[0]
-
-    chat["id"] = choice
-    chat["is_loaded"] = True
-    chat["temperature"] = temperature
-    chat["max_tokens"] = max_tokens
-    chat["frequency_penalty"] = frequency_penalty
-    chat["description"] = description
-    chat["dalle"] = not not dalle
-    chat["bash"] = not not bash
-    chat["autosave"] = not not autosave
-
-    change_model({"name": model, "provider": provider, "vision_enabled": not not vision_enabled})
-
-    for row in message_data:
-        add_message_to_chat(row[0], row[1])
-
-
-def load_images(cur, id):
-    data = cur.execute("SELECT content, name, extension, message_idx FROM images WHERE chat_id=?", (id, )).fetchall()
-    for row in data:
-        chat["images"].append({
-            "content": row[0],
-            "name": row[1],
-            "extension": row[2],
-            "message_idx": row[3]
-        })
-
-def load_files(cur, id):
-    data = cur.execute("SELECT content, name, extension, message_idx FROM files WHERE chat_id=?", (id, )).fetchall()
-    for row in data:
-        chat["files"].append({
-            "content": row[0],
-            "name": row[1],
-            "extension": row[2],
-            "message_idx": row[3]
-        })
 
 def print_chat(newline_in_the_end = True):
     global chat
@@ -584,20 +482,10 @@ def print_chat(newline_in_the_end = True):
 
 def remember_mode():
     for mode in modes:
-        if mode["description"] == all_messages[0]["content"]:
+        if mode["description"] == chat["all_messages"][0]["content"]:
             return mode["name"]
 
     return "custom"
-
-
-def generate_description(all_messages):
-    try:
-        return client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "describe the chat using 10 words or less. For example: 'The culture of Malat', 'French words in War and peace', 'Frog facts', etc."},
-                  {"role": "user", "content": f"human: {all_messages[1]['content']};\n ai: {all_messages[2]['content']}"}]).choices[0].message.content
-    except:
-        return "No description"
 
 
 def help_me():
@@ -611,47 +499,6 @@ def help_me():
 
     available_modes = available_modes.strip(" ,") + "."
     print(available_modes)
-
-
-def attach_images_anthropic_openai(all_messages):
-    memo = {}
-    messages_with_images = copy.deepcopy(all_messages, memo)
-    for image in chat["images"]:
-        if (curr_idx:=image["message_idx"]) < len(messages_with_images):
-            image_data = {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": f'image/{image["extension"]}',
-                    "data": image["content"]
-                },
-            } if chat["provider"] == "anthropic" else {
-                "type": "image_url", "image_url": {
-                    "url": f'data:image/{image["extension"]};base64,{image["content"]}'
-                }
-            }
-
-            # this is for checking if the message already has an image attached
-            if str(type(messages_with_images[curr_idx]["content"])) == "<class 'str'>":
-                newValue = {"role": "user", "content": [
-                    {"type": "text", "text": all_messages[curr_idx]["content"]},
-                    image_data
-                ]}
-                messages_with_images[curr_idx] = newValue
-            else:
-                messages_with_images[curr_idx]["content"].append(newValue.append(newValue)) # type: ignore
-
-    return messages_with_images
-
-
-def attach_files(all_messages):
-    global chat
-    memo = {}
-    all_messages_with_files = copy.deepcopy(all_messages, memo)
-    for file in chat["files"]:
-        added_text = f"'''\nuser attached {'webpage' if 'extension' == 'html' else 'file'}'" + file["name"] + "':\n" + file["content"] + "\n\n\n'''"
-        all_messages_with_files[file["message_idx"]]["content"] = added_text + all_messages_with_files[file["message_idx"]]["content"]
-    return all_messages_with_files
 
 
 def get_models(stdscr):
@@ -792,247 +639,6 @@ def get_models(stdscr):
         return False
 
 
-def get_openai_response(all_messages):
-    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
-
-    stream = client.with_options(
-            base_url=chat["base_url"],
-            api_key=os.getenv(chat["api_key_name"])
-            ).chat.completions.create(
-                model=chat["model"],
-                messages=all_messages,
-                stream=True,
-                max_tokens=chat["max_tokens"],
-                temperature=chat["temperature"],
-                frequency_penalty=chat["frequency_penalty"]
-                )
-
-    return stream
-
-
-def get_anthropic_response(all_messages):
-    all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(all_messages)
-
-    stream = anthropic_client.messages.create(
-        system=all_messages[0]["content"], # type: ignore
-        model=chat["model"],
-        messages=all_messages[1:], # type: ignore
-        stream=True,
-        max_tokens=chat["max_tokens"],
-        temperature=chat["temperature"],
-        frequency_penalty=chat["frequency_penalty"]
-        )
-
-    return stream
-
-def get_google_response(all_messages):
-    model = googleai.GenerativeModel(
-        chat["model"],
-        system_instruction=all_messages[0]["content"])
-    all_messages = adapt_messages_to_google(all_messages)
-
-    response = model.generate_content(
-        all_messages,
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        },
-        generation_config={
-            "max_output_tokens": chat["max_tokens"],
-            "temperature": chat["temperature"]
-        },
-        stream=True
-    )
-    return response
-
-def get_ollama_response(all_messages):
-    with httpx.stream(method="POST",
-                      url="http://localhost:11434/api/chat",
-                      json={
-                          "model": chat["model"],
-                          "messages": all_messages,
-                          "options": {
-                            "temperature": chat["temperature"],
-                            "frequency_penalty": chat["frequency_penalty"],
-                            "num_predict": chat["max_tokens"]
-                          },
-                      },
-                      timeout=None) as r:
-        for chunk in r.iter_text():
-            yield json.loads(chunk)["message"]["content"]
-
-
-
-
-def adapt_messages_to_google(all_messages):
-    new_all_messages = []
-    for message in all_messages[1:]:
-        new_message = {}
-
-        new_message["role"] = message["role"]
-        if new_message["role"] == "assistant": new_message["role"] = "model"
-
-        new_message["parts"] = [glm.Part(text=message["content"])]
-        new_all_messages.append(new_message)
-
-    attach_glm_images(new_all_messages)
-
-    return new_all_messages
-
-
-def attach_glm_images(new_all_messages):
-    for image in chat["images"]:
-        # this -1 is here because we removed the system message previously
-        if (curr_idx:=(image["message_idx"] - 1)) < len(new_all_messages):
-            new_all_messages[curr_idx]["parts"].append(
-                glm.Part(
-                    inline_data=glm.Blob(
-                        mime_type=f'image/{image["extension"]}',
-                        data=base64.b64decode(image["content"])
-                    )
-                ),
-            )
-
-def attach_system_messages(all_messages):
-    new_system_message = {
-        "role": "system",
-        "content": all_messages[0]["content"]
-    }
-
-    if chat["auto_turns"] > 0:
-        new_system_message["content"] += ("\n" + auto_system_message + "Number of turns left: " + str(chat["auto_turns"]))
-    if chat["bash"] is True:
-        new_system_message["content"] += ("\n" + bash_system_message)
-    if chat["dalle"] is True:
-        new_system_message["content"] += ("\n" + dalle_system_message)
-
-
-    if new_system_message["content"] == all_messages[0]["content"]:
-        return all_messages
-    else:
-        new_all_messages = all_messages.copy()
-        new_all_messages[0] = new_system_message
-        return new_all_messages
-
-
-def get_and_print_response():
-    # I reversed this just to confuse you, dear reader (including myself, yes)
-    all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
-    all_messages = attach_system_messages(all_messages)
-
-    stop = threading.Event()
-    bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
-    bar_thread.start()
-
-    errorMessage = ""
-
-    try:
-        match chat["provider"]:
-            case "anthropic":
-                stream = get_anthropic_response(all_messages)
-            case "google":
-                stream = get_google_response(all_messages)
-            case "ollama":
-                stream = get_ollama_response(all_messages)
-            case _:
-                stream = get_openai_response(all_messages)
-
-        if chat["all_messages"][-1]["role"] != "assistant":
-            add_message_to_chat("assistant", "")
-
-        print(terminal[chat["color"]], end="")
-
-        try:
-            import time
-
-            # Initialize the previous chunk's timestamp and a default average delay.
-            prev_time = time.time()
-            avg_delay = 0.1
-            num_of_updates = 0
-
-            for chunk in stream:
-                current_time = time.time()
-                delay_since_last = current_time - prev_time
-                prev_time = current_time
-
-                # unless we use an async function, since the delay is counted as part of the tiem between chunks, the average will enter into a feedback loop, especially when the chunks are smaller. so best to just use the average between the first 3 chunks
-                # also, the time to the first chunk shouldn't count, since its more due to time to first token than tps
-                if num_of_updates in [1,2,3,4]:
-
-                    # Update avg_delay using a simple moving average formula.
-                    avg_delay = (avg_delay + delay_since_last) / 2
-                num_of_updates+=1
-
-                if not stop.is_set():
-                    stop.set()
-                    bar_thread.join()
-
-                text = ""
-                if chat["provider"] == "anthropic":
-                    if chunk.type == "content_block_delta":  # type: ignore
-                        text = chunk.delta.text  # type: ignore
-                        if not text:
-                            break
-                    else:
-                        continue
-                elif chat["provider"] == "google":
-                    text = chunk.text  # type: ignore
-                    if not text:
-                        break
-                elif chat["provider"] == "ollama":
-                    text = chunk
-                    if not text:
-                        break
-                else:
-                    text = chunk.choices[0].delta.content  # type: ignore
-                    if not text:
-                        continue
-
-                # Calculate a delay per character so that the whole chunk prints over about avg_delay seconds.
-                if text:
-                    char_delay = avg_delay / len(text) # type: ignore
-                    for char in text:
-                        print(char, end="", flush=True)
-                        time.sleep(char_delay)
-                chat["all_messages"][-1]["content"] += text  # type: ignore
-
-        except KeyboardInterrupt:
-            print("\033[2D  ", end="")
-
-    except (
-        APIError,
-        OpenAIError,
-        ConflictError,
-        NotFoundError,
-        APIStatusError,
-        RateLimitError,
-        APITimeoutError,
-        BadRequestError,
-        APIConnectionError,
-        AuthenticationError,
-        InternalServerError,
-        PermissionDeniedError,
-        UnprocessableEntityError,
-        APIResponseValidationError,
-    ) as e:
-        if stop.is_set() == False:
-            stop.set()
-            bar_thread.join()
-        print(terminal["reset"] + "\n")
-
-        errorMessage += f"Error: {e}"
-        alert(errorMessage)
-        if chat["all_messages"][-1]["role"] == "assistant":
-            chat["all_messages"][-1]["content"] += errorMessage
-        else:
-            add_message_to_chat("assistant", errorMessage)
-        return
-
-    finally:
-        print(terminal["reset"] + "\n")
-
 def edit_file(file_path):
     editor = os.environ.get('EDITOR', 'nvim')
     try:
@@ -1070,7 +676,7 @@ def input_with_args():
         elif argv[1].startswith("-"):
             for model in models:
                 if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
-                    change_model(model)
+                    change_model(model, providers)
                     return 0
 
         else:
@@ -1091,7 +697,7 @@ def input_with_args():
             for model in models:
                 if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
                     model_selected = True
-                    change_model(model)
+                    change_model(model, providers)
                     break
 
             if not model_selected:
@@ -1114,7 +720,7 @@ def input_with_args():
 
         for model in models:
             if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                change_model(model)
+                change_model(model, providers)
                 model_selected = True
                 break
 
@@ -1130,111 +736,6 @@ def input_with_args():
 
         add_message_to_chat("user", argv[3])
         return 0  # Success code
-
-
-def save_chat(con, cur):
-    # if the message is too short, or more precisely, it's just the role message and the
-    # first user message, there was most likely some error and there's no need to save it.
-    if len(all_messages) > 2:
-        if chat["is_loaded"]:
-
-            # deletes the chat, but the now message is saved under a newer number.
-            cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
-            cur.execute("DELETE FROM chats WHERE chat_id=?", (chat["id"], ))
-            cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
-            cur.execute("DELETE FROM files WHERE chat_id=?", (chat["id"], ))
-            con.commit()
-            # this is totally unecessary since chat["id"] is always true in this scenario because it's loaded but pyright is annoying
-            max_chat_id = 0
-            if chat["id"]: max_chat_id = chat["id"] - 1
-
-
-        else:
-            max_chat_id = cur.execute(
-                "SELECT MAX(chat_id) AS max FROM chats").fetchone()[0]
-            if not max_chat_id:
-                max_chat_id = 0
-
-        if not chat["description"]:
-            if description:=generate_description(chat["all_messages"]):
-                chat["description"] = description
-
-        dalle = 1 if chat["dalle"] else 0
-        bash = 1 if chat["bash"] else 0
-        autosave = 1 if chat["autosave"] else 0
-
-
-        cur.execute("INSERT INTO chats (chat_id, description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (max_chat_id+1, chat["description"], chat["model"], chat["provider"], chat["vision_enabled"], chat["temperature"], chat["max_tokens"],chat["frequency_penalty"], dalle, bash, autosave))
-        con.commit()
-
-
-        for message in all_messages:
-            cur.execute("INSERT INTO chat_messages (chat_id, role, message) VALUES (?, ?, ?)",
-                (max_chat_id+1, message["role"], message["content"]))
-            con.commit()
-
-        for image in chat["images"]:
-            cur.execute("INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                (image["content"], image["name"], image["extension"], max_chat_id+1, image["message_idx"], ))
-            con.commit()
-
-        for file in chat["files"]:
-            cur.execute("INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
-                (file["content"], file["name"], file["extension"], max_chat_id+1, file["message_idx"], ))
-            con.commit()
-
-        update_chat_ids(con, cur)
-
-
-
-def delete_chat(con, cur):
-    global chat
-    if chat["is_loaded"]:
-        cur.execute("DELETE FROM chats WHERE chat_id=?", (chat["id"], ))
-        cur.execute("DELETE FROM chat_messages WHERE chat_id=?", (chat["id"], ))
-        cur.execute("DELETE FROM images WHERE chat_id=?", (chat["id"], ))
-        cur.execute("DELETE FROM files WHERE chat_id=?", (chat["id"], ))
-        con.commit()
-        update_chat_ids(con, cur)
-    exit()
-
-
-def update_chat_ids(con, cur):
-    old_chat_ids = cur.execute("SELECT chat_id FROM chats;").fetchall()
-
-    # this checks if there are no chats left in the db
-    if not old_chat_ids or not old_chat_ids[0]: return
-
-    old_chat_ids_list = [id[0] for id in old_chat_ids]
-
-    # ok so the basic idea here is that we just check if the chat_ids are in order, which should match perfectly with
-    # idx + 1, given that the old_versions of the chat is deleted and the new one is inserted at the very end of the table. And this also works for keeping them succint!
-    if old_chat_ids_list != sorted(old_chat_ids_list) or old_chat_ids_list[0] != 1 or not is_succinct(old_chat_ids_list):
-        for (idx, chat_id) in enumerate(old_chat_ids_list):
-            if idx+1 != chat_id:
-                cur.execute("UPDATE chats SET chat_id = ? WHERE chat_id = ?",
-                    (idx+1, chat_id, ))
-                cur.execute("UPDATE images SET chat_id = ? WHERE chat_id = ?",
-                    (idx+1, chat_id, ))
-                cur.execute("UPDATE files SET chat_id = ? WHERE chat_id = ?",
-                    (idx+1, chat_id, ))
-                cur.execute("UPDATE chat_messages SET chat_id = ? WHERE chat_id = ?",
-                    (idx+1, chat_id, ))
-                con.commit()
-
-
-def change_model(new_model):
-    global chat
-
-    chat["provider"] = new_model["provider"]
-    chat["model"] = new_model["name"]
-    chat["vision_enabled"] = new_model["vision_enabled"]
-
-    # this updates the base url and the api key variable name
-    # we don't need that for non-openai-sdk models
-    if chat["provider"] not in ["google", "anthropic", "ollama"]:
-        chat.update(providers[new_model["provider"]])
 
 
 def choose_mode():
