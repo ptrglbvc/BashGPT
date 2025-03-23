@@ -19,6 +19,69 @@
     </head>
     <body>
         <div class="app-container">
+            <!-- Left sidebar toggle -->
+            <div id="chat-history-toggle" class="sidebar-toggle left-toggle">
+                <div class="toggle-indicator"></div>
+            </div>
+
+            <!-- Left sidebar for chat history -->
+            <div id="chat-history-sidebar" class="sidebar left-sidebar">
+                <div class="sidebar-header">
+                    <h2>Chat History</h2>
+                    <button
+                        id="close-chat-history"
+                        class="close-sidebar"
+                        title="Close chat history"
+                    >
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+                <div class="sidebar-body">
+                    <div id="chat-list" class="chat-list">
+                        <!-- Chat history will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay for left sidebar -->
+            <div id="left-sidebar-overlay" class="sidebar-overlay"></div>
+
+            <!-- Rename Chat Modal -->
+            <div id="rename-modal" class="rename-modal">
+                <div class="rename-modal-content">
+                    <div class="rename-modal-header">
+                        <h2>Rename Chat</h2>
+                        <span class="close" id="close-rename-modal"
+                            >&times;</span
+                        >
+                    </div>
+                    <div class="rename-modal-body">
+                        <input
+                            type="text"
+                            id="rename-input"
+                            class="rename-input"
+                            placeholder="Enter new chat name"
+                            maxlength="50"
+                        />
+                        <input type="hidden" id="chat-id-to-rename" />
+                        <div class="rename-modal-actions">
+                            <button
+                                id="rename-cancel-btn"
+                                class="rename-cancel-btn"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                id="rename-save-btn"
+                                class="rename-save-btn"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <header class="app-header">
                 <div class="app-logo">
                     <a href="/" title="Home">
@@ -30,7 +93,9 @@
                     {% if chat_info %}
                     <h2>{{ chat_info.description or 'New Chat' }}</h2>
                     <div class="chat-metadata">
-                        <span class="model-badge">{{ chat_info.model }}</span>
+                        <span class="model-badge" id="model-badge"
+                            >{{ chat_info.model }}</span
+                        >
                         <span class="provider-badge"
                             >{{ chat_info.provider }}</span
                         >
@@ -86,6 +151,123 @@
                 </form>
             </footer>
         </div>
+
+        <!-- Model Selection Modal -->
+        <div id="model-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Select Model</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="models-list" class="models-list">
+                        <!-- Models will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Sidebar -->
+        <div id="settings-sidebar" class="settings-sidebar">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button
+                    id="close-settings"
+                    class="close-settings"
+                    title="Close settings"
+                >
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-section">
+                    <h3>System Message</h3>
+                    <div class="system-message-container">
+                        <textarea
+                            id="system-message"
+                            placeholder="Enter system message..."
+                        ></textarea>
+                        <div class="system-message-actions">
+                            <button id="save-system-message" class="save-btn">
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>
+                        Temperature:
+                        <span id="temperature-value" style="margin-left: 5px"
+                            >0.7</span
+                        >
+                    </h3>
+                    <div class="slider-container">
+                        <input
+                            type="range"
+                            id="temperature-slider"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value="0.7"
+                        />
+                    </div>
+                    <p class="setting-description">
+                        Higher values make output more random, lower values make
+                        it more deterministic.
+                    </p>
+                </div>
+
+                <div class="settings-section">
+                    <h3>
+                        Repetition Penalty:
+                        <span id="repetition-value" style="margin-left: 5px"
+                            >1.0</span
+                        >
+                    </h3>
+                    <div class="slider-container">
+                        <input
+                            type="range"
+                            id="repetition-slider"
+                            min="0.1"
+                            max="2"
+                            step="0.1"
+                            value="1"
+                        />
+                    </div>
+                    <p class="setting-description">
+                        Higher values discourage repetition in the response.
+                    </p>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Max Tokens</h3>
+                    <div class="input-container-settings">
+                        <input
+                            type="number"
+                            id="max-tokens"
+                            placeholder="Max tokens"
+                            min="1"
+                            max="32000"
+                            value="4096"
+                        />
+                    </div>
+                    <p class="setting-description">
+                        Maximum number of tokens to generate in the completion.
+                    </p>
+                </div>
+
+                <div class="settings-section settings-actions">
+                    <button id="save-settings" class="save-settings-btn">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overlay for when sidebar is open -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
         <script>
             // Auto-resize textarea as user types
             const textarea = document.getElementById("message-input");
@@ -139,25 +321,39 @@
                 const copyButton = document.createElement("button");
                 copyButton.className = "code-copy-button";
                 copyButton.innerHTML =
-                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
+                    '<i class="fa-solid fa-copy"></i> Copy code';
 
                 copyButton.addEventListener("click", () => {
                     const code = pre.querySelector("code").textContent;
                     navigator.clipboard.writeText(code);
 
                     // Optional: Show feedback
-                    copyButton.textContent = "Copied!";
+                    const originalIcon = copyButton.innerHTML;
+                    copyButton.innerHTML =
+                        '<i class="fa-solid fa-check"></i> Copy code';
                     setTimeout(() => {
-                        copyButton.innerHTML =
-                            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy code';
+                        copyButton.innerHTML = originalIcon;
                     }, 2000);
                 });
 
                 pre.appendChild(copyButton);
 
-                // Add language attribute for the label
-                if (!pre.getAttribute("data-language") && pre.className) {
-                    pre.setAttribute("data-language", pre.className);
+                // Add language attribute for the label if it doesn't exist already
+                if (!pre.getAttribute("data-language")) {
+                    const codeElement = pre.querySelector("code");
+                    if (codeElement && codeElement.className) {
+                        const classes = codeElement.className.split(" ");
+                        const languageClass = classes.find((cls) =>
+                            cls.startsWith("language-")
+                        );
+                        if (languageClass) {
+                            const language = languageClass.replace(
+                                "language-",
+                                ""
+                            );
+                            pre.setAttribute("data-language", language);
+                        }
+                    }
                 }
             }
 
@@ -196,6 +392,523 @@
                     shouldAutoScroll = false;
                 }
             });
+
+            // Model selection modal
+            const modelBadge = document.getElementById("model-badge");
+            const modelModal = document.getElementById("model-modal");
+            const closeBtn = document.querySelector(".close");
+            const modelsList = document.getElementById("models-list");
+
+            // Function to load models
+            async function loadModels() {
+                try {
+                    const response = await fetch("/api/get_models");
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch models");
+                    }
+
+                    const models = await response.json();
+                    modelsList.innerHTML = ""; // Clear existing models
+
+                    models.forEach((model) => {
+                        const modelItem = document.createElement("div");
+                        modelItem.className = "model-item";
+
+                        // Check if this is the current model
+                        const isCurrentModel =
+                            model.name === "{{ chat_info.model }}";
+                        if (isCurrentModel) {
+                            modelItem.classList.add("selected");
+                        }
+
+                        // Create model content
+                        modelItem.innerHTML = `
+                            <div class="model-info">
+                                <div class="model-name">${model.name}</div>
+                                <div class="model-provider">${
+                                    model.provider
+                                }</div>
+                            </div>
+                            <div class="model-features">
+                                ${
+                                    model.vision_enabled
+                                        ? '<span class="feature-badge">Vision</span>'
+                                        : ""
+                                }
+                            </div>
+                        `;
+
+                        // Add click event to select this model
+                        modelItem.addEventListener("click", () => {
+                            changeModel(model.name);
+                        });
+
+                        modelsList.appendChild(modelItem);
+                    });
+                } catch (error) {
+                    console.error("Error loading models:", error);
+                    modelsList.innerHTML =
+                        '<div class="error-message">Failed to load models</div>';
+                }
+            }
+
+            // Function to change the model
+            async function changeModel(modelName) {
+                try {
+                    const response = await fetch("/api/change_settings", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ model: modelName }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Failed to change model");
+                    }
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // Update UI to reflect the change
+                        modelBadge.textContent = modelName;
+
+                        // Close the modal
+                        modelModal.style.display = "none";
+
+                        // Reload the page to ensure all components are updated
+                        window.location.reload();
+                    } else {
+                        console.error("Error changing model:", result.error);
+                    }
+                } catch (error) {
+                    console.error("Error changing model:", error);
+                }
+            }
+
+            // Open modal when model badge is clicked
+            if (modelBadge) {
+                modelBadge.addEventListener("click", function () {
+                    modelModal.style.display = "block";
+                    loadModels();
+                });
+            }
+
+            // Close modal when close button is clicked
+            if (closeBtn) {
+                closeBtn.addEventListener("click", function () {
+                    modelModal.style.display = "none";
+                });
+            }
+
+            // Close modal when clicking outside the modal content
+            window.addEventListener("click", function (event) {
+                if (event.target === modelModal) {
+                    modelModal.style.display = "none";
+                }
+            });
+
+            // Left sidebar chat history functionality
+            const chatHistoryToggle = document.getElementById(
+                "chat-history-toggle"
+            );
+            const chatHistorySidebar = document.getElementById(
+                "chat-history-sidebar"
+            );
+            const closeChatHistoryBtn =
+                document.getElementById("close-chat-history");
+            const leftSidebarOverlay = document.getElementById(
+                "left-sidebar-overlay"
+            );
+            const chatList = document.getElementById("chat-list");
+
+            // Function to load chat history
+            async function loadChatHistory() {
+                try {
+                    const response = await fetch("/api/get_chats");
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch chat history");
+                    }
+
+                    const chats = await response.json();
+                    chatList.innerHTML = ""; // Clear existing chats
+
+                    if (chats.length === 0) {
+                        chatList.innerHTML =
+                            '<div class="empty-state">No chat history found</div>';
+                        return;
+                    }
+
+                    chats.forEach((chat) => {
+                        const chatItem = document.createElement("div");
+                        chatItem.className = "chat-item";
+
+                        // Set title - use description if available, otherwise "Chat #ID"
+                        const chatTitle =
+                            chat.description || `Chat #${chat.chat_id}`;
+
+                        // Add chat title and buttons
+                        chatItem.innerHTML = `
+                            <div class="chat-item-title">${chatTitle}</div>
+                            <div class="chat-item-actions">
+                                <button class="chat-action-btn chat-rename-btn" title="Rename chat">
+                                    <i class="fa-solid fa-edit"></i>
+                                </button>
+                                <button class="chat-action-btn chat-delete-btn" title="Delete chat">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+
+                        // Add click event to navigate to chat (only for the title area)
+                        chatItem.addEventListener("click", (e) => {
+                            // Don't navigate if clicking on action buttons
+                            if (!e.target.closest(".chat-item-actions")) {
+                                window.location.href = `/chat/${chat.chat_id}`;
+                            }
+                        });
+
+                        // Add event listeners for action buttons
+                        const renameBtn =
+                            chatItem.querySelector(".chat-rename-btn");
+                        const deleteBtn =
+                            chatItem.querySelector(".chat-delete-btn");
+
+                        renameBtn.addEventListener("click", (e) => {
+                            e.stopPropagation(); // Prevent navigation
+                            openRenameModal(chat.chat_id, chatTitle);
+                        });
+
+                        deleteBtn.addEventListener("click", (e) => {
+                            e.stopPropagation(); // Prevent navigation
+                            if (
+                                confirm(
+                                    `Are you sure you want to delete "${chatTitle}"?`
+                                )
+                            ) {
+                                deleteChat(chat.chat_id);
+                            }
+                        });
+
+                        chatList.appendChild(chatItem);
+                    });
+                } catch (error) {
+                    console.error("Error loading chat history:", error);
+                    chatList.innerHTML =
+                        '<div class="error-message">Failed to load chat history</div>';
+                }
+            }
+
+            // Delete chat function
+            async function deleteChat(chatId) {
+                try {
+                    const response = await fetch(`/api/delete_chat/${chatId}`, {
+                        method: "DELETE",
+                    });
+
+                    if (response.ok) {
+                        showToast("Chat deleted successfully");
+                        loadChatHistory(); // Reload chat list
+                    } else {
+                        const error = await response.json();
+                        throw new Error(
+                            error.message || "Failed to delete chat"
+                        );
+                    }
+                } catch (error) {
+                    console.error("Error deleting chat:", error);
+                    showToast("Error deleting chat", "error");
+                }
+            }
+
+            // Rename modal functionality
+            const renameModal = document.getElementById("rename-modal");
+            const closeRenameModal =
+                document.getElementById("close-rename-modal");
+            const renameInput = document.getElementById("rename-input");
+            const chatIdToRename = document.getElementById("chat-id-to-rename");
+            const renameCancelBtn =
+                document.getElementById("rename-cancel-btn");
+            const renameSaveBtn = document.getElementById("rename-save-btn");
+
+            function openRenameModal(chatId, currentName) {
+                renameInput.value = currentName;
+                chatIdToRename.value = chatId;
+                renameModal.style.display = "block";
+                renameInput.focus();
+            }
+
+            function closeRenameModalFn() {
+                renameModal.style.display = "none";
+                renameInput.value = "";
+                chatIdToRename.value = "";
+            }
+
+            closeRenameModal.addEventListener("click", closeRenameModalFn);
+            renameCancelBtn.addEventListener("click", closeRenameModalFn);
+
+            // Close modal when clicking outside the modal content
+            renameModal.addEventListener("click", function (event) {
+                if (event.target === renameModal) {
+                    closeRenameModalFn();
+                }
+            });
+
+            // Handle rename form submission
+            renameSaveBtn.addEventListener("click", async function () {
+                const newName = renameInput.value.trim();
+                const chatId = chatIdToRename.value;
+
+                if (!newName) {
+                    alert("Please enter a name for the chat");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/rename_chat", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            new_name: newName,
+                        }),
+                    });
+
+                    if (response.ok) {
+                        closeRenameModalFn();
+                        showToast("Chat renamed successfully");
+                        loadChatHistory(); // Reload chat list
+
+                        // Update current page title if we're viewing the renamed chat
+                        const currentChatId = window.location.pathname
+                            .split("/")
+                            .pop();
+                        if (currentChatId === chatId) {
+                            document.querySelector(
+                                ".chat-info h2"
+                            ).textContent = newName;
+                        }
+                    } else {
+                        const error = await response.json();
+                        throw new Error(
+                            error.message || "Failed to rename chat"
+                        );
+                    }
+                } catch (error) {
+                    console.error("Error renaming chat:", error);
+                    showToast("Error renaming chat", "error");
+                }
+            });
+
+            // Keyboard shortcut to submit rename form
+            renameInput.addEventListener("keypress", function (event) {
+                if (event.key === "Enter") {
+                    renameSaveBtn.click();
+                }
+            });
+
+            // Settings sidebar functionality
+            const settingsBtn = document.getElementById("settings-btn");
+            const settingsSidebar = document.getElementById("settings-sidebar");
+            const closeSettingsBtn = document.getElementById("close-settings");
+            const rightSidebarOverlay =
+                document.getElementById("sidebar-overlay");
+            const saveSettingsBtn = document.getElementById("save-settings");
+            const temperatureSlider =
+                document.getElementById("temperature-slider");
+            const temperatureValue =
+                document.getElementById("temperature-value");
+            const repetitionSlider =
+                document.getElementById("repetition-slider");
+            const repetitionValue = document.getElementById("repetition-value");
+            const maxTokensInput = document.getElementById("max-tokens");
+            const systemMessageTextarea =
+                document.getElementById("system-message");
+            const saveSystemMessageBtn = document.getElementById(
+                "save-system-message"
+            );
+
+            // Initialize values from chat settings
+            function initializeSettingsValues() {
+                temperatureSlider.value = "{{ chat_info.temperature }}";
+                temperatureValue.textContent = "{{ chat_info.temperature }}";
+                repetitionSlider.value = "{{ chat_info.frequency_penalty }}";
+                repetitionValue.textContent =
+                    "{{ chat_info.frequency_penalty }}";
+                maxTokensInput.value = "{{ chat_info.max_tokens }}";
+
+                // Fetch and set system message if it exists
+                fetchSystemMessage();
+            }
+
+            // Custom number input controls for max tokens
+            document.addEventListener("DOMContentLoaded", function () {
+                const tokenInputContainer = maxTokensInput.parentElement;
+
+                // Handle up arrow click (increase value)
+                tokenInputContainer.addEventListener("click", function (e) {
+                    const rect = tokenInputContainer.getBoundingClientRect();
+                    const clickY = e.clientY - rect.top;
+                    const isTopHalf = clickY < rect.height / 2;
+                    const isRightSide = e.clientX > rect.right - 30;
+
+                    if (isRightSide) {
+                        if (isTopHalf) {
+                            // Increment value
+                            const currentVal =
+                                parseInt(maxTokensInput.value) || 0;
+                            const max = parseInt(maxTokensInput.max) || 32000;
+                            maxTokensInput.value = Math.min(
+                                currentVal + 100,
+                                max
+                            );
+                            maxTokensInput.focus();
+                        } else {
+                            // Decrement value
+                            const currentVal =
+                                parseInt(maxTokensInput.value) || 0;
+                            const min = parseInt(maxTokensInput.min) || 1;
+                            maxTokensInput.value = Math.max(
+                                currentVal - 100,
+                                min
+                            );
+                            maxTokensInput.focus();
+                        }
+                    }
+                });
+            });
+
+            async function fetchSystemMessage() {
+                try {
+                    const response = await fetch("/api/get_system_message");
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.message) {
+                            systemMessageTextarea.value = data.message;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching system message:", error);
+                }
+            }
+
+            // Update displayed values as sliders change
+            temperatureSlider.addEventListener("input", function () {
+                temperatureValue.textContent = this.value;
+            });
+
+            repetitionSlider.addEventListener("input", function () {
+                repetitionValue.textContent = this.value;
+            });
+
+            // Open settings sidebar
+            settingsBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                settingsSidebar.classList.add("open");
+                rightSidebarOverlay.classList.add("active");
+                initializeSettingsValues();
+            });
+
+            // Close settings sidebar
+            function closeSettings() {
+                settingsSidebar.classList.remove("open");
+                rightSidebarOverlay.classList.remove("active");
+            }
+
+            closeSettingsBtn.addEventListener("click", closeSettings);
+            rightSidebarOverlay.addEventListener("click", closeSettings);
+
+            // Save system message
+            saveSystemMessageBtn.addEventListener("click", async function () {
+                const systemMessage = systemMessageTextarea.value.trim();
+
+                try {
+                    const response = await fetch("/api/update_system_message", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ content: systemMessage }),
+                    });
+
+                    if (response.ok) {
+                        showToast("System message saved");
+                    } else {
+                        showToast("Failed to save system message", "error");
+                    }
+                } catch (error) {
+                    console.error("Error saving system message:", error);
+                    showToast("Error saving system message", "error");
+                }
+            });
+
+            // Save all settings
+            saveSettingsBtn.addEventListener("click", async function () {
+                const settings = {
+                    temperature: parseFloat(temperatureSlider.value),
+                    frequency_penalty: parseFloat(repetitionSlider.value),
+                    max_tokens: parseInt(maxTokensInput.value),
+                };
+
+                try {
+                    const response = await fetch("/api/change_settings", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(settings),
+                    });
+
+                    if (response.ok) {
+                        showToast("Settings saved");
+                        closeSettings();
+                    } else {
+                        showToast("Failed to save settings", "error");
+                    }
+                } catch (error) {
+                    console.error("Error saving settings:", error);
+                    showToast("Error saving settings", "error");
+                }
+            });
+
+            // Toast notification
+            function showToast(message, type = "success") {
+                const toast = document.createElement("div");
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+
+                document.body.appendChild(toast);
+
+                // Trigger animation
+                setTimeout(() => {
+                    toast.classList.add("show");
+                }, 10);
+
+                // Remove toast after animation
+                setTimeout(() => {
+                    toast.classList.remove("show");
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 3000);
+            }
+
+            // Open chat history sidebar
+            chatHistoryToggle.addEventListener("click", function () {
+                chatHistorySidebar.classList.add("open");
+                leftSidebarOverlay.classList.add("active");
+                loadChatHistory();
+            });
+
+            // Close chat history sidebar
+            function closeChatHistory() {
+                chatHistorySidebar.classList.remove("open");
+                leftSidebarOverlay.classList.remove("active");
+            }
+
+            closeChatHistoryBtn.addEventListener("click", closeChatHistory);
+            leftSidebarOverlay.addEventListener("click", closeChatHistory);
         </script>
         {% block form_logic %}{% endblock %}
     </body>

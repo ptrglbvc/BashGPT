@@ -194,10 +194,12 @@ def attach_system_messages(all_messages):
         new_all_messages[0] = new_system_message
         return new_all_messages
 
-def get_response():
+def get_response(messages=None):
+    if messages is None:
+        messages = chat["all_messages"]
     # I reversed this just to confuse you, dear reader (including myself, yes)
-    all_messages = attach_files(chat["all_messages"]) if chat["files"] else chat["all_messages"]
-    all_messages = attach_system_messages(all_messages)
+    messages = attach_files(messages) if chat["files"] else messages
+    messages = attach_system_messages(messages)
 
 
     errorMessage = ""
@@ -205,16 +207,15 @@ def get_response():
     try:
         match chat["provider"]:
             case "anthropic":
-                stream = get_anthropic_response(all_messages)
+                stream = get_anthropic_response(messages)
             case "google":
-                stream = get_google_response(all_messages)
+                stream = get_google_response(messages)
             case "ollama":
-                stream = get_ollama_response(all_messages)
+                stream = get_ollama_response(messages)
             case _:
-                stream = get_openai_response(all_messages)
+                stream = get_openai_response(messages)
 
-        if chat["all_messages"][-1]["role"] != "assistant":
-            add_message_to_chat("assistant", "")
+
 
         print(terminal[chat["color"]], end="")
 
@@ -266,7 +267,6 @@ def get_response():
                 for char in text:
                     yield char
                     time.sleep(char_delay)
-                    chat["all_messages"][-1]["content"] += char # type: ignore
 
 
     except (
@@ -305,12 +305,16 @@ def get_and_print_response():
     bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
     bar_thread.start()
 
+    if chat["all_messages"][-1]["role"] != "assistant":
+        add_message_to_chat("assistant", "")
+
     try:
         for char in text:
             if not stop.is_set():
                 stop.set()
                 bar_thread.join()
             print(char, end="", flush=True)
+            chat["all_messages"][-1]["content"] += char # type: ignore
     except KeyboardInterrupt:
         if stop.is_set() == False:
             stop.set()

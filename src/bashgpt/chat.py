@@ -70,6 +70,9 @@ def reset_chat():
     chat["images"] = []
     chat["files"] = []
     chat["is_loaded"] = False
+    chat["description"] = ""
+    chat["bash"] = False
+    chat["dalle"] = False
 
 def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: str) -> None:
     global chat
@@ -79,7 +82,6 @@ def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: s
         "role": role,
         "content": content,
     }
-
     chat["all_messages"].append(message)
 
 

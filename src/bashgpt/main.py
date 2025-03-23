@@ -664,6 +664,31 @@ def input_with_args():
         elif argv[1] in ("--load-last", "-ll"):
             chat['load_last'] = True
             return 0
+            
+        elif argv[1] == "--server":
+            from bashgpt.server import server
+            import webbrowser
+            import threading
+            
+            # Start server in a thread
+            threading.Thread(target=server, daemon=True).start()
+            
+            # Open browser after a short delay to allow server to start
+            def open_browser():
+                import time
+                time.sleep(1)  # Give the server a moment to start
+                webbrowser.open("http://127.0.0.1:5000")
+                
+            threading.Thread(target=open_browser).start()
+            
+            # Keep the main thread running
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\nShutting down server...")
+                
+            return 1
 
         if argv[1] == "--models":
             edit_file("/models.json")
@@ -686,6 +711,45 @@ def input_with_args():
             return 0
 
     elif len(argv) == 3:
+        if argv[1] == "--server" and argv[2] in ("--load-last", "-ll"):
+            from bashgpt.server import server
+            import webbrowser
+            import threading
+            import sqlite3
+            import time
+            
+            # Get the last chat ID
+            con = sqlite3.connect(path + "history.db")
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
+            cur.close()
+            con.close()
+            
+            if not last_id:
+                print("No previous chats found. Opening homepage instead.")
+                last_id = ""
+            
+            # Start server in a thread
+            threading.Thread(target=server, daemon=True).start()
+            
+            # Open browser with last chat after a short delay
+            def open_browser():
+                time.sleep(1)  # Give the server a moment to start
+                url = f"http://127.0.0.1:5000/chat/{last_id}" if last_id else "http://127.0.0.1:5000"
+                webbrowser.open(url)
+                
+            threading.Thread(target=open_browser).start()
+            
+            # Keep the main thread running
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\nShutting down server...")
+                
+            return 1
+            
         if argv[1] == "--new-mode":
             chat["mode"] = "custom"
             add_message_to_chat("system", argv[2])

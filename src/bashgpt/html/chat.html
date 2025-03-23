@@ -6,13 +6,23 @@ endblock %} {% block content %}
         <div class="message-wrapper {{ message.role }}">
             <div class="message">
                 <div class="message-content">
+                    {% if message.role == "assistant" %}
+                    <div class="message-role-icon">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>Assistant</span>
+                    </div>
+                    {% elif message.role == "user" %}
+                    <div class="message-role-icon">
+                        <i class="fa-solid fa-user"></i>
+                        <span>You</span>
+                    </div>
+                    {% endif %}
                     <div
                         class="message-text preserve-whitespace"
                         data-raw-text="{{message['content']}}"
                     >
                         {{message["content"]|safe}}
                     </div>
-                    {% if message.role == "assistant" %}
                     <div class="message-actions">
                         <button
                             class="message-action-btn copy-message"
@@ -20,6 +30,7 @@ endblock %} {% block content %}
                         >
                             <i class="fa-solid fa-copy"></i>
                         </button>
+                        {% if message.role == "assistant" %}
                         <button
                             class="message-action-btn regenerate-message"
                             title="Regenerate"
@@ -32,9 +43,22 @@ endblock %} {% block content %}
                         >
                             <i class="fa-solid fa-arrow-right"></i>
                         </button>
+                        {% endif %}
+                        <button
+                            class="message-action-btn edit-message"
+                            title="Edit message"
+                        >
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button
+                            class="message-action-btn delete-message"
+                            title="Delete message"
+                        >
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </div>
-                    {% endif %} {% for image in images %} {% if
-                    image.message_idx == message.message_id %}
+                    {% for image in images %} {% if image.message_idx ==
+                    message.message_id %}
                     <div class="message-image">
                         <img
                             src="data:image/{{ image.extension }};base64,{{ image.content }}"
@@ -64,6 +88,22 @@ endblock %} {% block content %}
         });
     }
 
+    async function regenerate_message(index) {
+        return await fetch("/api/regenerate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: index }),
+        });
+    }
+
+    async function continue_message(index) {
+        return await fetch("/api/continue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: index }),
+        });
+    }
+
     function createMessageElement(role, message = "") {
         const messageWrapper = document.createElement("div");
         messageWrapper.className = `message-wrapper ${role}`;
@@ -74,6 +114,20 @@ endblock %} {% block content %}
         const messageContentDiv = document.createElement("div");
         messageContentDiv.className = "message-content";
 
+        // Add role icon
+        const roleIconDiv = document.createElement("div");
+        roleIconDiv.className = "message-role-icon";
+
+        if (role === "assistant") {
+            roleIconDiv.innerHTML =
+                '<i class="fa-solid fa-robot"></i><span>Assistant</span>';
+        } else if (role === "user") {
+            roleIconDiv.innerHTML =
+                '<i class="fa-solid fa-user"></i><span>You</span>';
+        }
+
+        messageContentDiv.appendChild(roleIconDiv);
+
         const messageText = document.createElement("div");
         messageText.className = "message-text preserve-whitespace";
         messageText.setAttribute("data-raw-text", message);
@@ -83,16 +137,19 @@ endblock %} {% block content %}
         messageDiv.appendChild(messageContentDiv);
         messageContentDiv.appendChild(messageText);
 
+        // Create message actions
+        const messageActions = document.createElement("div");
+        messageActions.className = "message-actions";
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "message-action-btn copy-message";
+        copyBtn.title = "Copy message";
+        copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+        copyBtn.addEventListener("click", () => copyMessage(messageText));
+
+        messageActions.appendChild(copyBtn);
+
         if (role === "assistant") {
-            const messageActions = document.createElement("div");
-            messageActions.className = "message-actions";
-
-            const copyBtn = document.createElement("button");
-            copyBtn.className = "message-action-btn copy-message";
-            copyBtn.title = "Copy message";
-            copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
-            copyBtn.addEventListener("click", () => copyMessage(messageText));
-
             const regenerateBtn = document.createElement("button");
             regenerateBtn.className = "message-action-btn regenerate-message";
             regenerateBtn.title = "Regenerate";
@@ -109,11 +166,30 @@ endblock %} {% block content %}
                 continueMessage(messageWrapper)
             );
 
-            messageActions.appendChild(copyBtn);
             messageActions.appendChild(regenerateBtn);
             messageActions.appendChild(continueBtn);
-            messageContentDiv.appendChild(messageActions);
         }
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "message-action-btn edit-message";
+        editBtn.title = "Edit message";
+        editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        editBtn.addEventListener("click", () => editMessage(messageWrapper));
+
+        messageActions.appendChild(editBtn);
+
+        // Add delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "message-action-btn delete-message";
+        deleteBtn.title = "Delete message";
+        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        deleteBtn.addEventListener("click", () =>
+            deleteMessage(messageWrapper)
+        );
+
+        messageActions.appendChild(deleteBtn);
+
+        messageContentDiv.appendChild(messageActions);
 
         return messageWrapper;
     }
@@ -138,63 +214,409 @@ endblock %} {% block content %}
             });
     }
 
-    function regenerateMessage(messageWrapper) {
-        console.log("Regenerate message:", messageWrapper);
+    function animateRegenerateBtn(regenerateBtn) {
+        regenerateBtn.classList.add("rotate-animation");
+
+        // Remove the animation class after it completes to allow it to be triggered again
+        regenerateBtn.addEventListener(
+            "animationend",
+            function () {
+                regenerateBtn.classList.remove("rotate-animation");
+            },
+            { once: true }
+        );
     }
 
-    function continueMessage(messageWrapper) {
-        console.log("Continue message:", messageWrapper);
-    }
+    async function regenerateMessage(messageWrapper) {
+        // Find the index of this message among all message wrappers
+        const allMessageWrappers = Array.from(
+            document.querySelectorAll(".message-wrapper")
+        );
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
-    // Add event listeners to existing messages
-    document.addEventListener("DOMContentLoaded", function () {
-        document
-            .querySelectorAll(".message-wrapper.assistant")
-            .forEach((messageWrapper) => {
-                const messageText =
-                    messageWrapper.querySelector(".message-text");
-                const messageContent =
-                    messageWrapper.querySelector(".message-content");
-                const copyBtn = messageContent.querySelector(".copy-message");
+        // this is for the animation
+        const regenerateBtn = messageWrapper.querySelector(
+            ".regenerate-message"
+        );
+        animateRegenerateBtn(regenerateBtn);
 
-                if (copyBtn) {
-                    copyBtn.addEventListener("click", function () {
-                        const rawText =
-                            messageText.getAttribute("data-raw-text");
-                        navigator.clipboard
-                            .writeText(rawText)
-                            .then(() => {
-                                const originalIcon = this.innerHTML;
-                                this.innerHTML =
-                                    '<i class="fa-solid fa-check"></i>';
-                                setTimeout(() => {
-                                    this.innerHTML = originalIcon;
-                                }, 2000);
-                            })
-                            .catch((err) => {
-                                console.error("Failed to copy message:", err);
-                            });
+        const text_contents = messageWrapper.querySelector(".message-text");
+        text_contents.childList = [];
+
+        const res = await regenerate_message(messageIndex);
+
+        const reader = res.body.getReader();
+        let output = "";
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (
+                    mutation.type === "childList" &&
+                    mutation.addedNodes.length > 0
+                ) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && node.matches("pre")) {
+                            attach_copy_button_to_code_block(node);
+                        }
                     });
                 }
+            }
+        });
 
-                const regenerateBtn = messageContent.querySelector(
-                    ".regenerate-message"
+        const observer_config = { childList: true, subtree: true };
+        observer.observe(text_contents, observer_config);
+
+        const wasAtBottom = isUserAtBottom();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                observer.disconnect();
+                text_contents.querySelectorAll("pre").forEach((pre) => {
+                    if (!pre.querySelector(".code-copy-button")) {
+                        attach_copy_button_to_code_block(pre);
+                    }
+                });
+                return;
+            }
+
+            const decodedValue = new TextDecoder().decode(value);
+            output += decodedValue;
+            // Update the raw text attribute
+            text_contents.setAttribute("data-raw-text", output);
+
+            // Render the markdown
+            text_contents.innerHTML = marked.parse(
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            );
+
+            // Set language attribute on code blocks
+            text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
+                const classes = codeBlock.className.split(" ");
+                const languageClass = classes.find((cls) =>
+                    cls.startsWith("language-")
                 );
-                if (regenerateBtn) {
-                    regenerateBtn.addEventListener("click", function () {
-                        regenerateMessage(messageWrapper);
-                    });
-                }
-
-                const continueBtn =
-                    messageContent.querySelector(".continue-message");
-                if (continueBtn) {
-                    continueBtn.addEventListener("click", function () {
-                        continueMessage(messageWrapper);
-                    });
+                if (languageClass) {
+                    const language = languageClass.replace("language-", "");
+                    codeBlock.parentElement.setAttribute(
+                        "data-language",
+                        language
+                    );
                 }
             });
-    });
+
+            if (wasAtBottom) {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: "auto",
+                });
+            }
+        }
+    }
+
+    async function continueMessage(messageWrapper) {
+        // Find the index of this message among all message wrappers
+        const allMessageWrappers = Array.from(
+            document.querySelectorAll(".message-wrapper")
+        );
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+
+        const text_contents = messageWrapper.querySelector(".message-text");
+
+        const res = await continue_message(messageIndex);
+
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (
+                    mutation.type === "childList" &&
+                    mutation.addedNodes.length > 0
+                ) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && node.matches("pre")) {
+                            attach_copy_button_to_code_block(node);
+                        }
+                    });
+                }
+            }
+        });
+
+        const observer_config = { childList: true, subtree: true };
+        observer.observe(text_contents, observer_config);
+
+        const wasAtBottom = isUserAtBottom();
+
+        const reader = res.body.getReader();
+        let output = text_contents.getAttribute("data-raw-text");
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                observer.disconnect();
+                text_contents.querySelectorAll("pre").forEach((pre) => {
+                    if (!pre.querySelector(".code-copy-button")) {
+                        attach_copy_button_to_code_block(pre);
+                    }
+                });
+                return;
+            }
+
+            const decodedValue = new TextDecoder().decode(value);
+            output += decodedValue;
+            // Update the raw text attribute
+            text_contents.setAttribute("data-raw-text", output);
+
+            // Render the markdown
+            text_contents.innerHTML = marked.parse(
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            );
+
+            // Set language attribute on code blocks
+            text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
+                const classes = codeBlock.className.split(" ");
+                const languageClass = classes.find((cls) =>
+                    cls.startsWith("language-")
+                );
+                if (languageClass) {
+                    const language = languageClass.replace("language-", "");
+                    codeBlock.parentElement.setAttribute(
+                        "data-language",
+                        language
+                    );
+                }
+            });
+
+            if (wasAtBottom) {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: "auto",
+                });
+            }
+        }
+    }
+
+    async function editMessage(messageWrapper) {
+        const messageText = messageWrapper.querySelector(".message-text");
+        const rawText = messageText.getAttribute("data-raw-text");
+        const messageContent = messageWrapper.querySelector(".message-content");
+
+        // Create edit container
+        const editContainer = document.createElement("div");
+        editContainer.className = "message-edit-container";
+
+        // Create textarea
+        const textarea = document.createElement("textarea");
+        textarea.className = "message-edit-textarea";
+        textarea.value = rawText;
+
+        // Create buttons container
+        const buttonsContainer = document.createElement("div");
+        buttonsContainer.className = "message-edit-buttons";
+
+        // Create save button
+        const saveButton = document.createElement("button");
+        saveButton.className = "message-edit-btn save-edit";
+        saveButton.innerHTML = "Save";
+
+        // Create cancel button
+        const cancelButton = document.createElement("button");
+        cancelButton.className = "message-edit-btn cancel-edit";
+        cancelButton.innerHTML = "Cancel";
+
+        // Add buttons to container
+        buttonsContainer.appendChild(saveButton);
+        buttonsContainer.appendChild(cancelButton);
+
+        // Add textarea and buttons to edit container
+        editContainer.appendChild(textarea);
+        editContainer.appendChild(buttonsContainer);
+
+        // Store original content
+        const originalContent = messageContent.innerHTML;
+
+        // Replace content with edit container
+        messageContent.innerHTML = "";
+        messageContent.appendChild(editContainer);
+
+        // Adjust textarea height
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+
+        // Add event listeners
+        cancelButton.addEventListener("click", () => {
+            messageContent.innerHTML = originalContent;
+
+            // Re-attach event listeners to buttons
+            reattachButtonListeners(messageWrapper);
+        });
+
+        saveButton.addEventListener("click", async () => {
+            const newContent = textarea.value.trim();
+            if (!newContent) return;
+
+            // Find the index of this message among all message wrappers
+            const allMessageWrappers = Array.from(
+                document.querySelectorAll(".message-wrapper")
+            );
+            const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+
+            // Send update to server
+            try {
+                const response = await fetch("/api/update_message", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        index: messageIndex,
+                        content: newContent,
+                    }),
+                });
+
+                if (response.ok) {
+                    // Update the messageText with new content
+                    messageText.setAttribute("data-raw-text", newContent);
+                    messageText.innerHTML = marked.parse(
+                        newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                    );
+
+                    // Set language attribute on code blocks
+                    messageText
+                        .querySelectorAll("pre code")
+                        .forEach((codeBlock) => {
+                            const classes = codeBlock.className.split(" ");
+                            const languageClass = classes.find((cls) =>
+                                cls.startsWith("language-")
+                            );
+                            if (languageClass) {
+                                const language = languageClass.replace(
+                                    "language-",
+                                    ""
+                                );
+                                codeBlock.parentElement.setAttribute(
+                                    "data-language",
+                                    language
+                                );
+                            }
+                        });
+
+                    // Add copy buttons to code blocks
+                    messageText.querySelectorAll("pre").forEach((pre) => {
+                        if (!pre.querySelector(".code-copy-button")) {
+                            attach_copy_button_to_code_block(pre);
+                        }
+                    });
+
+                    // Restore original UI structure
+                    messageContent.innerHTML = originalContent;
+                    messageContent.querySelector(".message-text").innerHTML =
+                        messageText.innerHTML;
+                    messageContent
+                        .querySelector(".message-text")
+                        .setAttribute("data-raw-text", newContent);
+
+                    // Re-attach event listeners to buttons
+                    reattachButtonListeners(messageWrapper);
+                } else {
+                    console.error("Failed to update message");
+                }
+            } catch (error) {
+                console.error("Error updating message:", error);
+            }
+        });
+    }
+
+    async function deleteMessage(messageWrapper) {
+        // Ask for confirmation
+        if (!confirm("Are you sure you want to delete this message?")) {
+            return;
+        }
+
+        // Find the index of this message among all message wrappers
+        const allMessageWrappers = Array.from(
+            document.querySelectorAll(".message-wrapper")
+        );
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+
+        // Send delete request to server
+        try {
+            const response = await fetch("/api/delete_message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    index: messageIndex,
+                }),
+            });
+
+            if (response.ok) {
+                // Remove the message from the DOM
+                messageWrapper.remove();
+            } else {
+                console.error("Failed to delete message");
+                alert("Failed to delete message");
+            }
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            alert("Error deleting message");
+        }
+    }
+
+    function reattachButtonListeners(messageWrapper) {
+        const messageText = messageWrapper.querySelector(".message-text");
+        const messageContent = messageWrapper.querySelector(".message-content");
+
+        // Copy button
+        const copyBtn = messageContent.querySelector(".copy-message");
+        if (copyBtn) {
+            copyBtn.addEventListener("click", function () {
+                const rawText = messageText.getAttribute("data-raw-text");
+                navigator.clipboard
+                    .writeText(rawText)
+                    .then(() => {
+                        const originalIcon = this.innerHTML;
+                        this.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        setTimeout(() => {
+                            this.innerHTML = originalIcon;
+                        }, 2000);
+                    })
+                    .catch((err) => {
+                        console.error("Failed to copy message:", err);
+                    });
+            });
+        }
+
+        // Only add these event listeners for assistant messages
+        if (messageWrapper.classList.contains("assistant")) {
+            const regenerateBtn = messageContent.querySelector(
+                ".regenerate-message"
+            );
+            if (regenerateBtn) {
+                regenerateBtn.addEventListener("click", function () {
+                    regenerateMessage(messageWrapper);
+                });
+            }
+
+            const continueBtn =
+                messageContent.querySelector(".continue-message");
+            if (continueBtn) {
+                continueBtn.addEventListener("click", function () {
+                    continueMessage(messageWrapper);
+                });
+            }
+        }
+
+        // Edit button
+        const editBtn = messageContent.querySelector(".edit-message");
+        if (editBtn) {
+            editBtn.addEventListener("click", function () {
+                editMessage(messageWrapper);
+            });
+        }
+
+        // Delete button
+        const deleteBtn = messageContent.querySelector(".delete-message");
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", function () {
+                deleteMessage(messageWrapper);
+            });
+        }
+    }
 
     function isUserAtBottom() {
         const tolerance = 15; // Pixels of tolerance to consider "at bottom"
@@ -203,53 +625,6 @@ endblock %} {% block content %}
             document.body.offsetHeight - tolerance
         );
     }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const params = {};
-    for (const [key, value] of urlParams) {
-        params[key] = value;
-    }
-
-    if (params["new_chat"] == "true") {
-        wasAtBottom = isUserAtBottom();
-        message = "";
-        get_assistant_response(message, wasAtBottom);
-    }
-
-    let shoudlAutoScroll = false;
-
-    // this handles the message sending part
-    document
-        .getElementById("message-form")
-        .addEventListener("submit", async function (e) {
-            e.preventDefault();
-            const message = textarea.value.trim();
-            if (!message) return;
-            console.log(message);
-
-            const wasAtBottom = isUserAtBottom();
-
-            textarea.value = "";
-            textarea.style.height = "auto";
-
-            let user_message = createMessageElement("user", message);
-
-            let messages_container = document.querySelector(
-                ".messages-container"
-            );
-
-            messages_container.appendChild(user_message, message);
-
-            get_assistant_response(message, wasAtBottom);
-
-            // Scroll to bottom after adding user message if they were already at bottom
-            if (wasAtBottom) {
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: "smooth",
-                });
-            }
-        });
 
     async function get_assistant_response(message, wasAtBottom) {
         let assistant_message = createMessageElement("assistant");
@@ -260,7 +635,7 @@ endblock %} {% block content %}
         let messages_container = document.querySelector(".messages-container");
         messages_container.appendChild(assistant_message);
 
-        res = await send_message(message);
+        const res = await send_message(message);
         const reader = res.body.getReader();
         let output = "";
         const observer = new MutationObserver((mutations) => {
@@ -298,16 +673,29 @@ endblock %} {% block content %}
             const decodedValue = new TextDecoder().decode(value);
             output += decodedValue;
             // Update the raw text attribute
-            const currentRawText =
-                assistant_message_text.getAttribute("data-raw-text") || "";
-            assistant_message_text.setAttribute(
-                "data-raw-text",
-                currentRawText + decodedValue
-            );
+            assistant_message_text.setAttribute("data-raw-text", output);
 
+            // Render the markdown
             assistant_message_text.innerHTML = marked.parse(
                 output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
             );
+
+            // Set language attribute on code blocks
+            assistant_message_text
+                .querySelectorAll("pre code")
+                .forEach((codeBlock) => {
+                    const classes = codeBlock.className.split(" ");
+                    const languageClass = classes.find((cls) =>
+                        cls.startsWith("language-")
+                    );
+                    if (languageClass) {
+                        const language = languageClass.replace("language-", "");
+                        codeBlock.parentElement.setAttribute(
+                            "data-language",
+                            language
+                        );
+                    }
+                });
 
             if (wasAtBottom) {
                 window.scrollTo({
@@ -317,6 +705,132 @@ endblock %} {% block content %}
             }
         }
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Get reference to the textarea from the parent layout
+        const textarea = document.getElementById("message-input");
+
+        document
+            .querySelectorAll(".message-wrapper")
+            .forEach((messageWrapper) => {
+                const messageText =
+                    messageWrapper.querySelector(".message-text");
+                const messageContent =
+                    messageWrapper.querySelector(".message-content");
+                const copyBtn = messageContent.querySelector(".copy-message");
+
+                if (copyBtn) {
+                    copyBtn.addEventListener("click", function () {
+                        const rawText =
+                            messageText.getAttribute("data-raw-text");
+                        navigator.clipboard
+                            .writeText(rawText)
+                            .then(() => {
+                                const originalIcon = this.innerHTML;
+                                this.innerHTML =
+                                    '<i class="fa-solid fa-check"></i>';
+                                setTimeout(() => {
+                                    this.innerHTML = originalIcon;
+                                }, 2000);
+                            })
+                            .catch((err) => {
+                                console.error("Failed to copy message:", err);
+                            });
+                    });
+                }
+
+                // Only add these event listeners for assistant messages
+                if (messageWrapper.classList.contains("assistant")) {
+                    const regenerateBtn = messageContent.querySelector(
+                        ".regenerate-message"
+                    );
+                    if (regenerateBtn) {
+                        regenerateBtn.addEventListener("click", function () {
+                            regenerateMessage(messageWrapper);
+                        });
+                    }
+
+                    const continueBtn =
+                        messageContent.querySelector(".continue-message");
+                    if (continueBtn) {
+                        continueBtn.addEventListener("click", function () {
+                            continueMessage(messageWrapper);
+                        });
+                    }
+                }
+
+                // Add edit button listener
+                const editBtn = messageContent.querySelector(".edit-message");
+                if (editBtn) {
+                    editBtn.addEventListener("click", function () {
+                        editMessage(messageWrapper);
+                    });
+                }
+
+                // Add delete button listener
+                const deleteBtn =
+                    messageContent.querySelector(".delete-message");
+                if (deleteBtn) {
+                    deleteBtn.addEventListener("click", function () {
+                        deleteMessage(messageWrapper);
+                    });
+                }
+            });
+
+        // Handle URL parameters for new chat
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = {};
+        for (const [key, value] of urlParams) {
+            params[key] = value;
+        }
+
+        if (params["new_chat"] == "true") {
+            const wasAtBottom = isUserAtBottom();
+            const message = "";
+            // Remove the new_chat parameter from URL
+            if (window.history && window.history.replaceState) {
+                const url = new URL(window.location);
+                url.searchParams.delete("new_chat");
+                window.history.replaceState({}, document.title, url);
+            }
+            get_assistant_response(message, wasAtBottom);
+        }
+
+        // Message form submission handler
+        document
+            .getElementById("message-form")
+            .addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const message = textarea.value.trim();
+                if (!message) return;
+                console.log(message);
+
+                const wasAtBottom = isUserAtBottom();
+
+                textarea.value = "";
+                textarea.style.height = "auto";
+
+                let user_message = createMessageElement("user", message);
+
+                let messages_container = document.querySelector(
+                    ".messages-container"
+                );
+
+                messages_container.appendChild(user_message, message);
+
+                get_assistant_response(message, wasAtBottom);
+
+                // Scroll to bottom after adding user message if they were already at bottom
+                if (wasAtBottom) {
+                    window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: "smooth",
+                    });
+                }
+            });
+    });
+
+    let shoudlAutoScroll = false;
 </script>
 
 {% endblock %}
