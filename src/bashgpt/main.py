@@ -675,8 +675,7 @@ def input_with_args():
             
             # Open browser after a short delay to allow server to start
             def open_browser():
-                import time
-                time.sleep(1)  # Give the server a moment to start
+                sleep(1)  # Give the server a moment to start
                 webbrowser.open("http://127.0.0.1:5000")
                 
             threading.Thread(target=open_browser).start()
@@ -684,7 +683,7 @@ def input_with_args():
             # Keep the main thread running
             try:
                 while True:
-                    time.sleep(1)
+                    sleep(1)
             except KeyboardInterrupt:
                 print("\nShutting down server...")
                 

@@ -23,6 +23,27 @@ endblock %} {% block content %}
                     >
                         {{message["content"]|safe}}
                     </div>
+
+                    {% for image in images %} {% if image.message_idx ==
+                    message.message_id %}
+                    <div
+                        class="message-image message-image-wrapper"
+                        data-image-src="data:image/{{ image.extension }};base64,{{ image.content }}"
+                        data-image-name="{{ image.name }}"
+                    >
+                        <img
+                            src="data:image/{{ image.extension }};base64,{{ image.content }}"
+                            alt="{{ image.name }}"
+                        />
+                    </div>
+                    {% endif %} {% endfor %} {% for file in files %} {% if
+                    file.message_idx == message.message_id %}
+                    <div class="message-file">
+                        <i class="fa-solid fa-file"></i>
+                        <span>{{ file.name }}</span>
+                    </div>
+                    {% endif %} {% endfor %}
+
                     <div class="message-actions">
                         <button
                             class="message-action-btn copy-message"
@@ -57,25 +78,18 @@ endblock %} {% block content %}
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
-                    {% for image in images %} {% if image.message_idx ==
-                    message.message_id %}
-                    <div class="message-image">
-                        <img
-                            src="data:image/{{ image.extension }};base64,{{ image.content }}"
-                            alt="{{ image.name }}"
-                        />
-                    </div>
-                    {% endif %} {% endfor %} {% for file in files %} {% if
-                    file.message_idx == message.message_id %}
-                    <div class="message-file">
-                        <i class="fa-solid fa-file"></i>
-                        <span>{{ file.name }}</span>
-                    </div>
-                    {% endif %} {% endfor %}
                 </div>
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- Image Modal -->
+    <div class="image-modal">
+        <div class="image-modal-close">
+            <i class="fa-solid fa-times"></i>
+        </div>
+        <img class="image-modal-content" src="" alt="Expanded Image" />
     </div>
 </main>
 {% endblock %} {% block form_logic %}
@@ -190,6 +204,56 @@ endblock %} {% block content %}
         messageActions.appendChild(deleteBtn);
 
         messageContentDiv.appendChild(messageActions);
+
+        // Process message for images (data:image pattern)
+        const imgRegex = /!\[.*?\]\((data:image\/[\w+]+;base64,[^\s)]+)\)/g;
+        let match;
+
+        while ((match = imgRegex.exec(message)) !== null) {
+            const imgSrc = match[1];
+            const extension = imgSrc.split(";")[0].split("/")[1];
+
+            // Create image wrapper
+            const imageWrapper = document.createElement("div");
+            imageWrapper.className = "message-image message-image-wrapper";
+            imageWrapper.setAttribute("data-image-src", imgSrc);
+            imageWrapper.setAttribute("data-image-name", "Image");
+
+            // Create image element
+            const img = document.createElement("img");
+            img.src = imgSrc;
+            img.alt = "Image";
+
+            // Append image to wrapper
+            imageWrapper.appendChild(img);
+
+            // Add click event listener to open modal
+            imageWrapper.addEventListener("click", function () {
+                const imageSrc = this.getAttribute("data-image-src");
+                const imageName = this.getAttribute("data-image-name");
+                const imageModal = document.querySelector(".image-modal");
+                const modalImage = document.querySelector(
+                    ".image-modal-content"
+                );
+
+                // Check if the browser supports View Transitions API
+                if (document.startViewTransition) {
+                    document.startViewTransition(() => {
+                        modalImage.src = imageSrc;
+                        modalImage.alt = imageName;
+                        imageModal.classList.add("active");
+                    });
+                } else {
+                    // Fallback for browsers without View Transitions API
+                    modalImage.src = imageSrc;
+                    modalImage.alt = imageName;
+                    imageModal.classList.add("active");
+                }
+            });
+
+            // Append image wrapper to message content
+            messageContentDiv.appendChild(imageWrapper);
+        }
 
         return messageWrapper;
     }
@@ -446,6 +510,9 @@ endblock %} {% block content %}
 
             // Re-attach event listeners to buttons
             reattachButtonListeners(messageWrapper);
+
+            // Re-attach image click listeners
+            reattachImageListeners(messageWrapper);
         });
 
         saveButton.addEventListener("click", async () => {
@@ -513,6 +580,9 @@ endblock %} {% block content %}
 
                     // Re-attach event listeners to buttons
                     reattachButtonListeners(messageWrapper);
+
+                    // Re-attach image click listeners
+                    reattachImageListeners(messageWrapper);
                 } else {
                     console.error("Failed to update message");
                 }
@@ -555,6 +625,37 @@ endblock %} {% block content %}
             console.error("Error deleting message:", error);
             alert("Error deleting message");
         }
+    }
+
+    function reattachImageListeners(messageWrapper) {
+        // Find all images within this message
+        const imageWrappers = messageWrapper.querySelectorAll(".message-image");
+
+        // Loop through each image and add click event
+        imageWrappers.forEach((imageWrapper) => {
+            imageWrapper.addEventListener("click", function () {
+                const imageSrc = this.getAttribute("data-image-src");
+                const imageName = this.getAttribute("data-image-name");
+                const imageModal = document.querySelector(".image-modal");
+                const modalImage = document.querySelector(
+                    ".image-modal-content"
+                );
+
+                // Check if the browser supports View Transitions API
+                if (document.startViewTransition) {
+                    document.startViewTransition(() => {
+                        modalImage.src = imageSrc;
+                        modalImage.alt = imageName;
+                        imageModal.classList.add("active");
+                    });
+                } else {
+                    // Fallback for browsers without View Transitions API
+                    modalImage.src = imageSrc;
+                    modalImage.alt = imageName;
+                    imageModal.classList.add("active");
+                }
+            });
+        });
     }
 
     function reattachButtonListeners(messageWrapper) {
@@ -667,6 +768,9 @@ endblock %} {% block content %}
                             attach_copy_button_to_code_block(pre);
                         }
                     });
+
+                // Attach image click listeners to the new message
+                reattachImageListeners(assistant_message);
                 return;
             }
 
@@ -775,7 +879,59 @@ endblock %} {% block content %}
                         deleteMessage(messageWrapper);
                     });
                 }
+
+                // Attach image click listeners
+                reattachImageListeners(messageWrapper);
             });
+
+        // Add event listeners to all code blocks
+        document.querySelectorAll("pre").forEach((pre) => {
+            if (!pre.querySelector(".code-copy-button")) {
+                attach_copy_button_to_code_block(pre);
+            }
+        });
+
+        // Initialize image modal functionality
+        const imageModal = document.querySelector(".image-modal");
+        const modalImage = document.querySelector(".image-modal-content");
+        const modalClose = document.querySelector(".image-modal-close");
+
+        // Close modal when clicking the close button
+        modalClose.addEventListener("click", function () {
+            if (document.startViewTransition) {
+                document.startViewTransition(() => {
+                    imageModal.classList.remove("active");
+                });
+            } else {
+                imageModal.classList.remove("active");
+            }
+        });
+
+        // Close modal when clicking outside the image
+        imageModal.addEventListener("click", function (e) {
+            if (e.target === imageModal) {
+                if (document.startViewTransition) {
+                    document.startViewTransition(() => {
+                        imageModal.classList.remove("active");
+                    });
+                } else {
+                    imageModal.classList.remove("active");
+                }
+            }
+        });
+
+        // Close modal with escape key
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && imageModal.classList.contains("active")) {
+                if (document.startViewTransition) {
+                    document.startViewTransition(() => {
+                        imageModal.classList.remove("active");
+                    });
+                } else {
+                    imageModal.classList.remove("active");
+                }
+            }
+        });
 
         // Handle URL parameters for new chat
         const urlParams = new URLSearchParams(window.location.search);

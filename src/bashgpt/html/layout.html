@@ -3,7 +3,9 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="view-transition" content="same-origin" />
         <title>{% block title %}{% endblock %}</title>
+        <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/static/css/style.css" />
         <link
             rel="stylesheet"
@@ -86,7 +88,6 @@
                 <div class="app-logo">
                     <a href="/" title="Home">
                         <i class="fa-solid fa-terminal"></i>
-                        <h1>BashGPT</h1>
                     </a>
                 </div>
                 <div class="chat-info">
@@ -180,6 +181,31 @@
                 </button>
             </div>
             <div class="settings-body">
+                <div class="settings-section">
+                    <h3>Model Selection</h3>
+                    <div class="sidebar-model-selector">
+                        <button
+                            id="sidebar-model-btn"
+                            class="sidebar-model-btn"
+                        >
+                            <span id="sidebar-current-model"
+                                >{{ chat_info.model }}</span
+                            >
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div class="sidebar-model-provider">
+                            {{ chat_info.provider }}
+                        </div>
+                        <div class="sidebar-model-features">
+                            {% if chat_info.vision_enabled %}
+                            <span class="feature-badge">Vision</span>
+                            {% endif %} {% if chat_info.bash %}
+                            <span class="feature-badge">Bash</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="settings-section">
                     <h3>System Message</h3>
                     <div class="system-message-container">
@@ -396,7 +422,7 @@
             // Model selection modal
             const modelBadge = document.getElementById("model-badge");
             const modelModal = document.getElementById("model-modal");
-            const closeBtn = document.querySelector(".close");
+            const modelCloseBtn = document.querySelector("#model-modal .close");
             const modelsList = document.getElementById("models-list");
 
             // Function to load models
@@ -472,6 +498,14 @@
                         // Update UI to reflect the change
                         modelBadge.textContent = modelName;
 
+                        // Update sidebar model display if it exists
+                        const sidebarCurrentModel = document.getElementById(
+                            "sidebar-current-model"
+                        );
+                        if (sidebarCurrentModel) {
+                            sidebarCurrentModel.textContent = modelName;
+                        }
+
                         // Close the modal
                         modelModal.style.display = "none";
 
@@ -493,9 +527,19 @@
                 });
             }
 
+            // Open modal when sidebar model button is clicked
+            const sidebarModelBtn =
+                document.getElementById("sidebar-model-btn");
+            if (sidebarModelBtn) {
+                sidebarModelBtn.addEventListener("click", function () {
+                    modelModal.style.display = "block";
+                    loadModels();
+                });
+            }
+
             // Close modal when close button is clicked
-            if (closeBtn) {
-                closeBtn.addEventListener("click", function () {
+            if (modelCloseBtn) {
+                modelCloseBtn.addEventListener("click", function () {
                     modelModal.style.display = "none";
                 });
             }

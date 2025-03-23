@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request, Response
 from bashgpt.main import path
 import os
 import sqlite3
+import base64
 from bashgpt.chat import chat, load_chat, add_message_to_chat, save_chat, reset_chat, defaults, change_model, update_chat_ids
 from bashgpt.api import get_response
 from bashgpt.data_loader import data_loader
@@ -28,6 +29,99 @@ def with_db(f):
             con.close()
     return decorated_function
 
+def sanitize_images(images):
+    """
+    Ensure all images are properly formatted before sending to frontend.
+    This checks if the image content is properly base64 encoded and formats accordingly.
+    """
+    sanitized_images = []
+    
+    for idx, image in enumerate(images):
+        # Create a copy of the image dict to avoid modifying the original
+        sanitized_image = image.copy()
+        
+        # Ensure message_idx exists and is an integer
+        if 'message_idx' not in sanitized_image:
+            continue
+            
+        # Convert message_idx to integer if it's not already
+        try:
+            sanitized_image['message_idx'] = int(sanitized_image['message_idx'])
+        except (ValueError, TypeError):
+            continue
+        
+        # Ensure content is a valid base64 string
+        content = image.get('content', '')
+        try:
+            # Try to decode the content to check if it's valid base64
+            if not content:
+                continue
+                
+            # Try base64 decoding (this will fail if not valid base64)
+            base64.b64decode(content)
+            # If we get here, the content is valid base64
+            sanitized_image['content'] = content
+        except Exception as e:
+            # If there's an error, try to re-encode the content properly
+            try:
+                # If it's bytes, encode to base64
+                if isinstance(content, bytes):
+                    sanitized_image['content'] = base64.b64encode(content).decode('utf-8')
+                # If it's a string that's not base64, try to encode it
+                else:
+                    sanitized_image['content'] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+            except Exception:
+                # If all else fails, skip this image
+                continue
+        
+        # Ensure extension is valid
+        if 'extension' not in sanitized_image or not sanitized_image['extension']:
+            sanitized_image['extension'] = 'png'  # Default to PNG if no extension
+            
+        # Add the sanitized image to our list
+        sanitized_images.append(sanitized_image)
+    
+    return sanitized_images
+
+def prepare_messages_for_template(messages):
+    """
+    Add message_id to each message based on its position in the array.
+    This ensures that images can correctly reference their associated message.
+    """
+    prepared_messages = []
+    for idx, message in enumerate(messages):
+        # Create a copy of the message
+        prepared_message = message.copy()
+        # Add message_id field that matches the index
+        prepared_message["message_id"] = idx
+        prepared_messages.append(prepared_message)
+    return prepared_messages
+
+def map_message_idx_to_id(images, messages):
+    """
+    Create a mapping from message_idx (from database) to message_id (for template).
+    This handles cases where message indexes might not be sequential or aligned.
+    
+    In the database, message_idx often refers to the length of all_messages 
+    at the time the image was added, while in the template, message_id is 
+    the sequential position in the current messages array.
+    """
+    mapped_images = []
+    for image in images:
+        img_copy = image.copy()
+        # message_idx is already validated as an integer in sanitize_images
+        message_idx = img_copy.get('message_idx', -1)
+        
+        # If message_idx is out of range, skip this image
+        if message_idx >= len(messages) or message_idx < 0:
+            continue
+            
+        # Assign the correct message_id from the template's perspective
+        img_copy['message_idx'] = message_idx  # message_id in template corresponds to index
+        mapped_images.append(img_copy)
+    
+    return mapped_images
+
 def server():
     (modes, models, providers) = data_loader()
     app = Flask(__name__,
@@ -40,11 +134,18 @@ def server():
     def get_chat(con, cur, chat_id):
         try:
             load_chat(cur, chat_id)
+            # Prepare messages by adding message_id
+            prepared_messages = prepare_messages_for_template(chat["all_messages"])
+            # Sanitize images before sending to template
+            sanitized_images = sanitize_images(chat["images"])
+            # Map message_idx to message_id
+            mapped_images = map_message_idx_to_id(sanitized_images, prepared_messages)
+            
             return render_template("chat.html",
                                 chat_id=chat_id,
                                 chat_info=chat,
-                                messages=chat["all_messages"],
-                                images=chat["images"],
+                                messages=prepared_messages,
+                                images=mapped_images,
                                 files=chat["files"])
         except Exception as e:
             return f"Error: {str(e)}", 500
@@ -56,10 +157,17 @@ def server():
         reset_chat()
         cur.execute("SELECT * FROM chats ORDER BY chat_id DESC LIMIT 3")
         chats = [dict(row) for row in cur.fetchall()]
+        # Prepare messages by adding message_id
+        prepared_messages = prepare_messages_for_template(chat["all_messages"])
+        # Sanitize images before sending to template
+        sanitized_images = sanitize_images(chat["images"])
+        # Map message_idx to message_id
+        mapped_images = map_message_idx_to_id(sanitized_images, prepared_messages)
+        
         return render_template("home.html", 
                                chat_info=chat,
-                               messages=chat["all_messages"],
-                               images=chat["images"],
+                               messages=prepared_messages,
+                               images=mapped_images,
                                files=chat["files"],
                                chats=chats)
 
