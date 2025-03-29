@@ -463,15 +463,20 @@ pre::after {
 
 pre code {
     display: block;
-    padding: 1rem;
-    padding-top: calc(32px + 1rem);
+    margin-top: 32px;
     overflow-x: auto;
     color: #d1d5db;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
         monospace;
-    font-size: 14px;
     line-height: 1.5;
-    background-color: black;
+}
+
+pre[class*="language-"] {
+    background-color: black !important;
+}
+
+code[class*="language-"] {
+    font-size: 14px !important;
 }
 
 /* Language label */
@@ -487,13 +492,6 @@ pre::before {
     z-index: 2;
 }
 
-/* Add language label space */
-pre[data-language] code {
-    padding-top: 1rem;
-    margin-top: 32px;
-}
-
-/* Syntax highlighting similar to ChatGPT */
 .token.keyword,
 .token.selector,
 .token.important,

@@ -8,6 +8,10 @@
         <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/static/css/style.css" />
         <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css"
+            rel="stylesheet"
+        />
+        <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
@@ -18,6 +22,8 @@
             crossorigin="anonymous"
             referrerpolicy="no-referrer"
         ></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     </head>
     <body>
         <div class="app-container">
@@ -955,5 +961,48 @@
             leftSidebarOverlay.addEventListener("click", closeChatHistory);
         </script>
         {% block form_logic %}{% endblock %}
+
+        <!-- Test code for Prism.js -->
+        <div style="display: none" id="prism-test">
+            <h3>Testing Prism.js</h3>
+            <pre><code class="language-javascript">
+// Test JavaScript code
+function testFunction() {
+    const x = 10;
+    return x * 2;
+}
+            </code></pre>
+        </div>
+
+        <script>
+            // Force Prism to highlight test code
+            document.addEventListener("DOMContentLoaded", function () {
+                if (typeof Prism !== "undefined") {
+                    console.log("Prism is loaded!");
+                    Prism.highlightAll();
+
+                    // Check if highlighting actually worked
+                    setTimeout(() => {
+                        const testElement = document.querySelector(
+                            "#prism-test pre code"
+                        );
+                        if (testElement) {
+                            const hasTokens =
+                                testElement.querySelectorAll(".token").length >
+                                0;
+                            console.log("Prism tokens found:", hasTokens);
+                            console.log(
+                                "Class names on test element:",
+                                testElement.className
+                            );
+                        } else {
+                            console.log("Test element not found");
+                        }
+                    }, 1000);
+                } else {
+                    console.error("Prism is NOT loaded");
+                }
+            });
+        </script>
     </body>
 </html>
