@@ -1170,6 +1170,8 @@ input[type="number"] {
     color: var(--text-color);
     font-family: var(--font-family);
     font-size: 0.9rem;
+    font-size: 0.9rem;
+    appearance: textfield; /* Firefox */
     -moz-appearance: textfield; /* Firefox */
     transition: all 0.2s ease;
     height: 36px; /* Control the height of the input */
