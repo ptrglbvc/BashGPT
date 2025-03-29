@@ -5,6 +5,7 @@
     --text-color: #d1d5db;
     --text-light: #9ca3af;
     --background-color: #343541;
+    --background-color-rgb: 52, 53, 65; /* Add RGB version for transparency */
     --sidebar-color: #202123;
     --user-message-color: #444654;
     --assistant-message-color: #343541;
@@ -319,8 +320,9 @@ body {
     left: 0;
     right: 0;
     padding: 1rem 1rem 1rem 1rem;
-    background-color: var(--background-color);
-    border-top: 1px solid var(--border-color);
+    /* Use rgba for semi-transparent background */
+    background-color: rgba(var(--background-color-rgb), 0);
+    border-top: none;
     z-index: 10;
     transition: margin-left 0.3s ease; /* Remove width transition */
     display: flex; /* Add flex display */
@@ -330,7 +332,8 @@ body {
 #message-form {
     width: 100%;
     max-width: 768px;
-    background-color: var(--background-color);
+    /* Make form background transparent as container handles it */
+    background-color: transparent;
     /* The form itself doesn't need margin: auto anymore */
 }
 
@@ -339,7 +342,8 @@ body {
     border-radius: 8px;
     border: 1px solid var(--border-color);
     overflow: hidden;
-    background-color: transparent;
+    /* Give the wrapper a solid background */
+    background-color: var(--background-color);
     box-shadow: 0 2px 6px var(--shadow-color);
 }
 
@@ -1646,4 +1650,12 @@ input[type="number"]:focus {
 
 .message-image-wrapper {
     view-transition-name: thumbnail-image;
+}
+
+.message-text h3 {
+    margin-top: 0.8em;
+}
+/* Reduce spacing between list items in message text */
+.message-text ul li {
+    margin-top: -0.7em; /* Negative margin to pull items closer together */
 }
