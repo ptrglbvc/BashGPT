@@ -440,15 +440,36 @@ li {
     margin-left: 25px;
 }
 
+/* === Code Block Styling Start === */
+
+/* Selection colours (Night Owl) */
+pre[class*="language-"]::-moz-selection,
+pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection,
+code[class*="language-"] ::-moz-selection {
+    text-shadow: none;
+    background: rgba(29, 59, 83, 0.99);
+}
+
+pre[class*="language-"]::selection,
+pre[class*="language-"] ::selection,
+code[class*="language-"]::selection,
+code[class*="language-"] ::selection {
+    text-shadow: none;
+    background: rgba(29, 59, 83, 0.99);
+}
+
+/* General pre formatting (Keep existing layout) */
 pre {
     border-radius: 6px;
     margin: 1rem 0;
-    padding: 0;
+    padding: 0; /* Padding is handled by inner code */
     overflow: hidden;
     position: relative;
     border: 1px solid rgba(77, 79, 104, 0.5);
 }
 
+/* Top bar (Keep existing) */
 pre::after {
     content: "";
     position: absolute;
@@ -461,25 +482,47 @@ pre::after {
     z-index: 1;
 }
 
+/* Inner code block formatting (Apply Night Owl bg/text, keep layout/font) */
 pre code {
+    background-color: #011627; /* Night Owl background */
     display: block;
-    margin-top: 32px;
-    overflow-x: auto;
-    color: #d1d5db;
+    margin-top: 32px; /* Keep existing margin for top bar */
+    padding: 1rem; /* Keep existing padding */
+    padding-top: calc(32px - 1rem); /* Keep existing padding-top */
+    overflow-x: auto; /* Keep existing overflow */
+    color: #d6deeb; /* Night Owl base text color */
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
-        monospace;
-    line-height: 1.5;
+        monospace; /* Keep existing font */
+    line-height: 1.5; /* Keep existing line-height */
+    font-size: 14px; /* Keep existing font-size */
+    white-space: pre; /* From Night Owl, good practice */
+    word-spacing: normal; /* From Night Owl */
+    word-break: normal; /* From Night Owl */
+    word-wrap: normal; /* From Night Owl */
+    -moz-tab-size: 4; /* From Night Owl */
+    -o-tab-size: 4; /* From Night Owl */
+    tab-size: 4; /* From Night Owl */
+    -webkit-hyphens: none; /* From Night Owl */
+    -moz-hyphens: none; /* From Night Owl */
+    -ms-hyphens: none; /* From Night Owl */
+    hyphens: none; /* From Night Owl */
 }
 
+/* Ensure language-specific pre has correct background */
 pre[class*="language-"] {
-    background-color: black !important;
+    background-color: #011627 !important; /* Night Owl background */
 }
 
+/* Ensure language-specific code has correct font size */
 code[class*="language-"] {
-    font-size: 14px !important;
+    padding: 1rem; /* Keep existing padding reset */
+    padding-top: calc(32px - 1rem);
+    font-size: 14px !important; /* Keep existing font-size */
+    color: #d6deeb; /* Ensure base color applies here too */
+    background: none; /* Prevent double background */
 }
 
-/* Language label */
+/* Language label (Keep existing) */
 pre::before {
     content: attr(data-language);
     position: absolute;
@@ -492,58 +535,96 @@ pre::before {
     z-index: 2;
 }
 
-.token.keyword,
-.token.selector,
-.token.important,
-.token.atrule,
-.token.operator {
-    color: #ff79c6;
-}
-
-.token.function,
-.token.class-name {
-    color: #ffb86c;
-}
-
-.token.property,
-.token.constant,
-.token.symbol,
-.token.deleted {
-    color: #bd93f9;
-}
-
-.token.string,
-.token.char,
-.token.attr-value,
-.token.regex,
-.token.variable {
-    color: #50fa7b;
-}
-
-.token.number,
-.token.boolean {
-    color: #bd93f9;
-}
-
+/* --- Night Owl Token Colors --- */
 .token.comment,
 .token.prolog,
-.token.doctype,
 .token.cdata {
-    color: #6272a4;
+    color: rgb(99, 119, 119);
+    font-style: italic;
 }
 
 .token.punctuation {
-    color: #f8f8f2;
+    color: rgb(199, 146, 234);
+}
+
+.namespace {
+    color: rgb(178, 204, 214);
+}
+
+.token.deleted {
+    color: rgba(239, 83, 80, 0.56);
+    font-style: italic;
+}
+
+.token.symbol,
+.token.property {
+    color: rgb(128, 203, 196);
 }
 
 .token.tag,
-.token.attr-name,
-.token.namespace,
-.token.deleted {
-    color: #ff79c6;
+.token.operator,
+.token.keyword {
+    color: rgb(127, 219, 202);
 }
 
-/* Copy code button */
+.token.boolean {
+    color: rgb(255, 88, 116);
+}
+
+.token.number {
+    color: rgb(247, 140, 108);
+}
+
+.token.constant,
+.token.function,
+.token.builtin,
+.token.char {
+    color: rgb(130, 170, 255);
+}
+
+.token.selector,
+.token.doctype {
+    color: rgb(199, 146, 234);
+    font-style: italic;
+}
+
+.token.attr-name,
+.token.inserted {
+    color: rgb(173, 219, 103);
+    font-style: italic;
+}
+
+.token.string,
+.token.url,
+.token.entity,
+.language-css .token.string,
+.style .token.string {
+    color: rgb(173, 219, 103);
+}
+
+.token.class-name,
+.token.atrule,
+.token.attr-value {
+    color: rgb(255, 203, 139);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+    color: rgb(214, 222, 235);
+}
+
+.token.important,
+.token.bold {
+    font-weight: bold;
+}
+
+.token.italic {
+    font-style: italic;
+}
+/* --- End Night Owl Token Colors --- */
+
+/* Copy code button (Keep existing) */
 .code-copy-button {
     position: absolute;
     top: 0;
@@ -571,12 +652,12 @@ pre:hover .code-copy-button {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Add styling for the check icon when copied */
+/* Add styling for the check icon when copied (Keep existing) */
 .code-copy-button i.fa-check {
     color: #50fa7b;
 }
 
-/* Animation for regenerate button */
+/* Animation for regenerate button (Keep existing) */
 @keyframes rotate360 {
     from {
         transform: rotate(0deg);
@@ -590,11 +671,18 @@ pre:hover .code-copy-button {
     animation: rotate360 0.7s ease-out;
 }
 
+/* Inline code styling (Update to Night Owl style) */
 p code {
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 4px;
-    padding: 0 3px;
+    color: #d6deeb; /* Night owl base */
+    background: #011627; /* Night owl background */
+    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace; /* Consistent font */
+    padding: 0.2em 0.4em;
+    border-radius: 0.3em;
+    font-size: 85%; /* Slightly smaller than surrounding text */
+    white-space: normal;
 }
+
+/* === Code Block Styling End === */
 
 .chats-container {
     display: flex;
@@ -1216,42 +1304,6 @@ input[type="number"]:focus {
     transition: all 0.3s ease; /* Transition all properties */
     /* Remove margin-left if using justify-content on parent */
     /* margin-left: 3px; */
-}
-
-/* Remove previous pseudo-element styles if they exist */
-.toggle-indicator::before,
-.toggle-indicator::after {
-    content: ""; /* Ensure content is set */
-    position: absolute;
-    height: 2px; /* Thickness */
-    width: 8px; /* Length */
-    background-color: #4caf50; /* Green arrow color */
-    border-radius: 1px;
-    left: 50%; /* Start horizontal center */
-    transition: transform 0.3s ease;
-    transform-origin: calc(100% - 1px) center; /* Rotate near the right end */
-    opacity: 1; /* Make sure they are visible */
-}
-
-/* Initial position: Top segment */
-.toggle-indicator::before {
-    top: 0; /* Align with top */
-    transform: translateX(-50%) rotate(0deg);
-}
-
-/* Initial position: Bottom segment */
-.toggle-indicator::after {
-    bottom: 0; /* Align with bottom */
-    transform: translateX(-50%) rotate(0deg);
-}
-
-/* Rotate segments into arrow shape on hover */
-.left-toggle:hover .toggle-indicator::before {
-    transform: translateX(-50%) translateY(0.5px) rotate(45deg);
-}
-
-.left-toggle:hover .toggle-indicator::after {
-    transform: translateX(-50%) translateY(-0.5px) rotate(-45deg);
 }
 
 /* Fade original indicator slightly on hover */

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient background for depth -->
+  <defs>
+    <linearGradient id="terminalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#202123" />
+      <stop offset="100%" stop-color="#1a1a1d" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background rectangle with rounded corners -->
+  <rect x="32" y="64" width="448" height="384" rx="24" ry="24" fill="url(#terminalGradient)" stroke="#4d4f68" stroke-width="8" filter="url(#shadow)"/>
+  
+  <!-- Terminal header bar with gradient -->
+  <rect x="32" y="64" width="448" height="40" rx="24" ry="0" fill="#343541"/>
+  
+  <!-- Terminal window controls -->
+  <circle cx="60" cy="84" r="8" fill="#ef4444"/>
+  <circle cx="88" cy="84" r="8" fill="#fbbf24"/>
+  <circle cx="116" cy="84" r="8" fill="#10a37f"/>
+  
+  <!-- Command prompt symbol (>) with glow effect -->
+  <path d="M80 160 L120 200 L80 240" fill="none" stroke="#10a37f" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="stroke-opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Command output lines with staggered animation -->
+  <line x1="160" y1="200" x2="320" y2="200" stroke="#9ca3af" stroke-width="12" stroke-linecap="round">
+    <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="4s" repeatCount="indefinite"/>
+  </line>
+  <line x1="80" y1="280" x2="320" y2="280" stroke="#9ca3af" stroke-width="12" stroke-linecap="round">
+    <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="4s" begin="1s" repeatCount="indefinite"/>
+  </line>
+  <line x1="80" y1="330" x2="400" y2="330" stroke="#9ca3af" stroke-width="12" stroke-linecap="round">
+    <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="4s" begin="2s" repeatCount="indefinite"/>
+  </line>
+  
+  <!-- Blinking cursor -->
+  <rect x="80" y="370" width="16" height="24" fill="#d1d5db">
+    <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- BashGPT text with glow effect -->
+  <text x="256" y="420" font-family="Söhne, Söhne Buch, -apple-system, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#10a37f" filter="url(#shadow)">BashGPT</text>
+</svg> 
