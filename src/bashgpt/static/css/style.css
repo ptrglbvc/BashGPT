@@ -1338,7 +1338,8 @@ input[type="number"]:focus {
 }
 
 .left-sidebar {
-    left: -300px;
+    width: 240px; /* Changed to 80% of original 300px */
+    left: -240px; /* Changed from -60px */
     top: 0;
 }
 
@@ -1352,11 +1353,11 @@ input[type="number"]:focus {
     .left-sidebar.open ~ .app-header,
     .left-sidebar.open ~ .chat-container,
     .left-sidebar.open ~ .input-container {
-        margin-left: 300px;
+        margin-left: 240px; /* Changed from 60px */
     }
 
     .left-sidebar.open ~ .header-spacer {
-        margin-left: 300px;
+        margin-left: 240px; /* Changed from 60px */
     }
 
     .left-sidebar {
@@ -1438,10 +1439,37 @@ input[type="number"]:focus {
     font-weight: 500;
     color: var(--text-color);
     margin-bottom: 5px;
+    white-space: nowrap; /* Keep text on one line */
+    overflow: hidden; /* Hide overflowing text */
+    font-size: 0.9rem;
+    mask-image: linear-gradient(to right, black 55%, transparent 75%);
+    -webkit-mask-image: linear-gradient(
+        to right,
+        black 55%,
+        transparent 75%
+    ); /* Final adjustment: fade 55%-75% */
+    position: relative; /* Added for tooltip positioning */
+}
+
+/* Tooltip for showing full chat title on hover */
+.chat-item-title:hover::after {
+    content: attr(title); /* Uses the title attribute as content */
+    position: absolute;
+    bottom: 100%; /* Position bottom edge at the top of the parent */
+    left: 0;
+    margin-bottom: 5px; /* Add a small gap above the title */
+    background-color: var(--sidebar-color);
+    color: var(--text-color);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
     white-space: nowrap;
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.9rem;
 }
 
 .chat-item-model {
