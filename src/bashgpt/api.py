@@ -124,24 +124,6 @@ def get_google_response(all_messages, stream=True, model=""):
     )
     return response
 
-def get_ollama_response(all_messages):
-    with httpx.stream(method="POST",
-                      url="http://localhost:11434/api/chat",
-                      json={
-                          "model": chat["model"],
-                          "messages": all_messages,
-                          "options": {
-                            "temperature": chat["temperature"],
-                            "frequency_penalty": chat["frequency_penalty"],
-                            "num_predict": chat["max_tokens"]
-                          },
-                      },
-                      timeout=None) as r:
-        for chunk in r.iter_text():
-            yield json.loads(chunk)["message"]["content"]
-
-
-
 
 def adapt_messages_to_google(all_messages):
     new_all_messages = []
@@ -210,10 +192,9 @@ def get_response(messages=None):
                 stream = get_anthropic_response(messages)
             case "google":
                 stream = get_google_response(messages)
-            case "ollama":
-                stream = get_ollama_response(messages)
             case _:
                 stream = get_openai_response(messages)
+
 
 
 
@@ -250,10 +231,6 @@ def get_response(messages=None):
                     continue
             elif chat["provider"] == "google":
                 text = chunk.text  # type: ignore
-                if not text:
-                    break
-            elif chat["provider"] == "ollama":
-                text = chunk
                 if not text:
                     break
             else:

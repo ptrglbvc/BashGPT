@@ -6,8 +6,26 @@
         "vision_enabled": true
     },
     {
-        "name": "openai/gpt-4.5-preview",
+        "name": "openai/gpt-4.1",
+        "shortcut": "4.1",
+        "provider": "openrouter",
+        "vision_enabled": true
+    },
+    {
+        "name": "gpt-4.5-preview",
         "shortcut": "4.5",
+        "provider": "openai",
+        "vision_enabled": true
+    },
+    {
+        "name": "openai/o4-mini",
+        "shortcut": "o4",
+        "provider": "openrouter",
+        "vision_enabled": true
+    },
+    {
+        "name": "openai/o3",
+        "shortcut": "o3",
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -60,9 +78,33 @@
         "vision_enabled": false
     },
     {
-        "name": "gemini-2.5-pro-exp-03-25",
+        "name": "openrouter/optimus-alpha",
+        "shortcut": "qa",
+        "provider": "openrouter",
+        "vision_enabled": true 
+    },
+    {
+        "name": "google/gemini-2.5-pro-preview-03-25",
         "shortcut": "pro",
-        "provider": "google",
+        "provider": "openrouter",
+        "vision_enabled": true
+    },
+    {
+        "name": "x-ai/grok-3-mini-beta",
+        "shortcut": "grok",
+        "provider": "openrouter",
+        "vision_enabled": false
+    },
+    {
+        "name": "glm-4-air-250414",
+        "shortcut": "glm",
+        "provider": "zhipu",
+        "vision_enabled": false
+    },
+    {
+        "name": "hf.co/bartowski/google_gemma-3-4b-it-qat-GGUF:IQ3_XXS",
+        "shortcut": "gemma",
+        "provider": "ollama",
         "vision_enabled": true
     }
 ]

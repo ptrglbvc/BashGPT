@@ -135,7 +135,7 @@ def change_model(new_model, providers):
 
     # this updates the base url and the api key variable name
     # we don't need that for non-openai-sdk models
-    if chat["provider"] not in ["google", "anthropic", "ollama"]:
+    if chat["provider"] not in ["google", "anthropic"]:
         chat.update(providers[new_model["provider"]])
 
 
