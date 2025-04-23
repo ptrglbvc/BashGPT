@@ -4,12 +4,14 @@ import os
 import shlex
 import curses
 import threading
+from io import BytesIO
 from time import sleep
 from sys import argv
 from typing import cast, Literal
 from subprocess import run
 
 import httpx
+from PIL import ImageGrab, Image
 import vlc
 
 from bashgpt.autonomous import auto_system_message, parse_auto_message
@@ -349,8 +351,49 @@ def command(message, con, cur):
             return 1
 
 
+def image_to_base64_and_info(img: Image.Image, default_name="pasted image") -> dict:
+    fmt = img.format or "PNG"  # default to PNG if unknown
+    ext = fmt.lower()
+
+    buffer = BytesIO()
+    img.save(buffer, format=fmt)
+    img_bytes = buffer.getvalue()
+
+    b64_bytes = base64.b64encode(img_bytes)
+    b64_str = b64_bytes.decode("utf-8")
+
+    filename = f"{default_name}.{ext}"
+
+    return {
+        "base64": b64_str,
+        "extension": ext,
+        "name": filename,
+    }
+
+
 def get_image(image_url):
     global chat
+
+    if image_url == "paste":
+        image = ImageGrab.grabclipboard()
+
+        if isinstance(image, Image.Image):
+            image_data = image_to_base64_and_info(image)
+
+            chat["images"].append({
+                "content" : image_data["base64"],
+                "name": image_data["name"],
+                "extension": image_data["extension"],
+                "message_idx": len(chat["all_messages"])
+                })
+            alert(f"Image attached: \033[3m{image_data['name']}\033[0m")
+            return
+
+        else:
+            alert("Could not get image from clipboard")
+            return
+
+
     clean_image_url = image_url.replace(r"\ ", " ")
     image_name = clean_image_url.split("/")[-1]
 
@@ -664,29 +707,29 @@ def input_with_args():
         elif argv[1] in ("--load-last", "-ll"):
             chat['load_last'] = True
             return 0
-            
+
         elif argv[1] == "--server":
             from bashgpt.server import server
             import webbrowser
             import threading
-            
+
             # Start server in a thread
             threading.Thread(target=server, daemon=True).start()
-            
+
             # Open browser after a short delay to allow server to start
             def open_browser():
                 sleep(1)  # Give the server a moment to start
                 webbrowser.open("http://127.0.0.1:5000")
-                
+
             threading.Thread(target=open_browser).start()
-            
+
             # Keep the main thread running
             try:
                 while True:
                     sleep(1)
             except KeyboardInterrupt:
                 print("\nShutting down server...")
-                
+
             return 1
 
         if argv[1] == "--models":
@@ -716,7 +759,7 @@ def input_with_args():
             import threading
             import sqlite3
             import time
-            
+
             # Get the last chat ID
             con = sqlite3.connect(path + "history.db")
             con.row_factory = sqlite3.Row
@@ -724,31 +767,31 @@ def input_with_args():
             last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
             cur.close()
             con.close()
-            
+
             if not last_id:
                 print("No previous chats found. Opening homepage instead.")
                 last_id = ""
-            
+
             # Start server in a thread
             threading.Thread(target=server, daemon=True).start()
-            
+
             # Open browser with last chat after a short delay
             def open_browser():
                 time.sleep(1)  # Give the server a moment to start
                 url = f"http://127.0.0.1:5000/chat/{last_id}" if last_id else "http://127.0.0.1:5000"
                 webbrowser.open(url)
-                
+
             threading.Thread(target=open_browser).start()
-            
+
             # Keep the main thread running
             try:
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
                 print("\nShutting down server...")
-                
+
             return 1
-            
+
         if argv[1] == "--new-mode":
             chat["mode"] = "custom"
             add_message_to_chat("system", argv[2])
