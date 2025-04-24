@@ -4,6 +4,7 @@ import os
 import shlex
 import curses
 import threading
+import argparse
 from io import BytesIO
 from time import sleep
 from sys import argv
@@ -14,16 +15,15 @@ import httpx
 from PIL import ImageGrab, Image
 import vlc
 
-from bashgpt.autonomous import auto_system_message, parse_auto_message
-from bashgpt.bash import bash, bash_system_message
-from bashgpt.chat import add_message_to_chat, chat, load_chat, load_images, load_files, change_model, save_chat, delete_chat, apply_defaults, change_defaults, defaults
-from bashgpt.dalle import dalle_mode, dalle_system_message
+from bashgpt.autonomous import parse_auto_message
+from bashgpt.bash import bash
+from bashgpt.chat import add_message_to_chat, chat, load_chat,  change_model, save_chat, delete_chat, apply_defaults, change_defaults, defaults
+from bashgpt.dalle import dalle_mode
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
-from bashgpt.load_defaults import load_defaults
 from bashgpt.data_loader import data_loader
 from bashgpt.terminal_codes import terminal
-from bashgpt.util_functions import (alert, is_succinct, loading_bar, parse_md, use_temp_file)
+from bashgpt.util_functions import (alert, loading_bar, parse_md, use_temp_file)
 from bashgpt.whisper import record, whisper
 from bashgpt.api import client, googleai, get_and_print_response
 from bashgpt.path import get_path
@@ -527,19 +527,6 @@ def remember_mode():
     return "custom"
 
 
-def help_me():
-    print("Valid usage:\n dp -bs 'delete every file from my downloads folder' (it will work, do not try it).\n")
-    print("Also valid usages:\n dp (this brings you to the the history tab\n dp 'what is the height of the Eiffel Tower'\n dp --gpt-4 -h 'Why did you lose to Chrollo?'\n")
-    print("You can also add a new mode like this: dp --add-mode 'You are a DumbGPT. You get every question wrong.\n")
-
-    available_modes = "Available modes: "
-    for mode in modes:
-        available_modes += f'{mode["shortcut"]} ({mode["name"]} mode), '
-
-    available_modes = available_modes.strip(" ,") + "."
-    print(available_modes)
-
-
 def get_models(stdscr):
         stdscr.clear()
         menu = [key for key in providers.keys()]
@@ -687,158 +674,105 @@ def edit_file(file_path):
     finally:
         return 1
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='dp',
+        description='BashGPT CLI – talk to your AI overlord from the terminal.'
+    )
+
+    parser.add_argument('-ll', '--load-last', action='store_true',
+                        help='load the last conversation from the DB')
+    parser.add_argument('--server', action='store_true',
+                        help='start the web server and open browser')
+
+    parser.add_argument('-m', '--model', metavar='MODEL',
+                        choices=[model['name'] for model in models] +
+                                [model['shortcut'] for model in models],
+                        help='select which model to use')
+
+    parser.add_argument('-p', '--persona', metavar='DESCRIPTION',
+                        help='create and use a custom persona with DESCRIPTION')
+
+    parser.add_argument('-i', '--image', metavar='LINK',
+                        help='attach an image to the prompt with LINK')
+
+    parser.add_argument("-b", "--bash", action="store_true",
+                        help="enable Bash execution mode")
+
+    # user prompt
+    parser.add_argument('prompt', nargs='?', default=None,
+                        help='the prompt to send to the AI')
+
+    return parser.parse_args()
+
 
 def input_with_args():
     global chat
 
-    if len(argv) > 4:
-        print("Too many arguments. For help with usage type 'dp help'.")
+    args = parse_args()
+
+    # --load-last
+    if args.load_last:
+        chat['load_last'] = True
+        return 0
+
+    # --server
+    if args.server:
+        from bashgpt.server import server
+        import webbrowser
+        import threading
+
+        threading.Thread(target=server, daemon=True).start()
+
+        def open_browser():
+            sleep(1)
+            webbrowser.open("http://127.0.0.1:5000")
+
+        threading.Thread(target=open_browser).start()
+
+        try:
+            while True:
+                sleep(1)
+        except KeyboardInterrupt:
+            print("\nShutting down server...")
         return 1
 
-    elif len(argv) == 2:
-        if argv[1] in ("--help","-h"):
-            help_me()
-            return 1
+    if args.image:
+        get_image(args.image)
 
-        elif argv[1] in ("--load-last", "-ll"):
-            chat['load_last'] = True
-            return 0
+    if args.bash:
+        chat["bash"] = True
 
-        elif argv[1] == "--server":
-            from bashgpt.server import server
-            import webbrowser
-            import threading
-
-            # Start server in a thread
-            threading.Thread(target=server, daemon=True).start()
-
-            # Open browser after a short delay to allow server to start
-            def open_browser():
-                sleep(1)  # Give the server a moment to start
-                webbrowser.open("http://127.0.0.1:5000")
-
-            threading.Thread(target=open_browser).start()
-
-            # Keep the main thread running
-            try:
-                while True:
-                    sleep(1)
-            except KeyboardInterrupt:
-                print("\nShutting down server...")
-
-            return 1
-
-        if argv[1] == "--models":
-            edit_file("/models.json")
-        if argv[1] == "--modes":
-            edit_file("/modes.json")
-        if argv[1] == "--defaults":
-            edit_file("/defaults.json")
-
-
-        elif argv[1].startswith("-"):
-            for model in models:
-                if argv[1] == "--" + model["name"] or argv[1] == "-" + model["shortcut"]:
-                    change_model(model, providers)
-                    return 0
-
-        else:
-            prompt = argv[1]
-            add_message_to_chat("system", defaults["mode"]["description"])
-            add_message_to_chat("user", prompt)
-            return 0
-
-    elif len(argv) == 3:
-        if argv[1] == "--server" and argv[2] in ("--load-last", "-ll"):
-            from bashgpt.server import server
-            import webbrowser
-            import threading
-            import sqlite3
-            import time
-
-            # Get the last chat ID
-            con = sqlite3.connect(path + "history.db")
-            con.row_factory = sqlite3.Row
-            cur = con.cursor()
-            last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
-            cur.close()
-            con.close()
-
-            if not last_id:
-                print("No previous chats found. Opening homepage instead.")
-                last_id = ""
-
-            # Start server in a thread
-            threading.Thread(target=server, daemon=True).start()
-
-            # Open browser with last chat after a short delay
-            def open_browser():
-                time.sleep(1)  # Give the server a moment to start
-                url = f"http://127.0.0.1:5000/chat/{last_id}" if last_id else "http://127.0.0.1:5000"
-                webbrowser.open(url)
-
-            threading.Thread(target=open_browser).start()
-
-            # Keep the main thread running
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                print("\nShutting down server...")
-
-            return 1
-
-        if argv[1] == "--new-mode":
-            chat["mode"] = "custom"
-            add_message_to_chat("system", argv[2])
-            alert("\nCustom mode added")
-            return 0
-        else:
-            model_selected = False
-            mode_selected = False
-            for model in models:
-                if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
-                    model_selected = True
-                    change_model(model, providers)
-                    break
-
-            if not model_selected:
-                for mode in modes:
-                    if ("-" + mode["shortcut"] == argv[1]) or ("--" + mode["name"] == argv[1]):
-                        mode_selected = True
-                        chat["mode"] = mode["name"]
-                        add_message_to_chat("system", mode["description"])
-                        break
-
-            if not mode_selected:
-                add_message_to_chat("system", defaults["mode"]["description"])
-
-            add_message_to_chat("user", argv[2])
-            return 0  # Success code
-
-    elif len(argv) == 4:
-        model_selected = False
-        mode_selected = False
-
+    # --model
+    if args.model:
+        # try matching by name first, then shortcut
         for model in models:
-            if ("-" + model["shortcut"]) == argv[1] or ("--" + model["name"]) == argv[1]:
+            if args.model == model['name'] or args.model == model['shortcut']:
                 change_model(model, providers)
-                model_selected = True
                 break
 
+    # --persona
+    if args.persona:
         for mode in modes:
-            if ("-" + mode["shortcut"] == argv[2]) or ("--" + mode["name"] == argv[2]):
-                chat["mode"] = mode["name"]
+            if args.persona == mode['name'] or args.persona == mode['shortcut']:
                 add_message_to_chat("system", mode["description"])
-                mode_selected = True
+                chat["mode"] = mode["name"]
                 break
+        else:
+            chat['mode'] = 'custom'
+            add_message_to_chat('system', args.persona)
+            alert("\nCustom persona added")
 
-        if not mode_selected:
-            add_message_to_chat("system", defaults["mode"]["description"])
+    # prompt provided
+    if args.prompt:
+        # ensure a system message exists if not using persona override
+        if not args.persona:
+            add_message_to_chat('system', defaults['mode']['description'])
+        add_message_to_chat('user', args.prompt)
+        return 0
 
-        add_message_to_chat("user", argv[3])
-        return 0  # Success code
-
+    # no args => interactive mode
+    return 1
 
 def choose_mode():
     global chat
