@@ -51,8 +51,6 @@ def main():
         last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
         if last_id:
             load_chat(cur, last_id)
-            load_images(cur, last_id)
-            load_files(cur, last_id)
             print_chat()
         else:
             alert("No previous chats found.")
@@ -472,8 +470,6 @@ def choose_chat(cur):
         option_input = input("\nWhich chat do you want to continue? ")
         if option_input.isnumeric() and (choice := int(option_input)) in option_ids:
             load_chat(cur, choice)
-            load_images(cur, choice)
-            load_files(cur, choice)
             print_chat()
             break
 
