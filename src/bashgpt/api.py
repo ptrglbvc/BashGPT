@@ -53,7 +53,7 @@ def attach_images_anthropic_openai(all_messages):
                 ]}
                 messages_with_images[curr_idx] = newValue
             else:
-                messages_with_images[curr_idx]["content"].append(newValue.append(newValue)) # type: ignore
+                messages_with_images[curr_idx]["content"].append(image_data) # type: ignore
 
     return messages_with_images
 
@@ -277,7 +277,7 @@ def get_response(messages=None):
 
 def get_and_print_response():
     text = get_response()
-    
+
     stop = threading.Event()
     bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
     bar_thread.start()

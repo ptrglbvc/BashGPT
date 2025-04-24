@@ -24,20 +24,23 @@ endblock %} {% block content %}
                         {{message["content"]|safe}}
                     </div>
 
-                    {% for image in images %} {% if image.message_idx ==
-                    message.message_id %}
-                    <div
-                        class="message-image message-image-wrapper"
-                        data-image-src="data:image/{{ image.extension }};base64,{{ image.content }}"
-                        data-image-name="{{ image.name }}"
-                    >
-                        <img
-                            src="data:image/{{ image.extension }};base64,{{ image.content }}"
-                            alt="{{ image.name }}"
-                        />
+                    <div class="message-image-wrapper">
+                        {% for image in images %} {% if image.message_idx ==
+                        message.message_id %}
+                        <div
+                            class="message-image"
+                            data-image-src="data:image/{{ image.extension }};base64,{{ image.content }}"
+                            data-image-name="{{ image.name }}"
+                        >
+                            <img
+                                src="data:image/{{ image.extension }};base64,{{ image.content }}"
+                                alt="{{ image.name }}"
+                            />
+                        </div>
+                        {% endif %} {% endfor %}
                     </div>
-                    {% endif %} {% endfor %} {% for file in files %} {% if
-                    file.message_idx == message.message_id %}
+                    {% for file in files %} {% if file.message_idx ==
+                    message.message_id %}
                     <div class="message-file">
                         <i class="fa-solid fa-file"></i>
                         <span>{{ file.name }}</span>
@@ -169,7 +172,7 @@ endblock %} {% block content %}
             regenerateBtn.title = "Regenerate";
             regenerateBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
             regenerateBtn.addEventListener("click", () =>
-                regenerateMessage(messageWrapper)
+                regenerateMessage(messageWrapper),
             );
 
             const continueBtn = document.createElement("button");
@@ -177,7 +180,7 @@ endblock %} {% block content %}
             continueBtn.title = "Continue";
             continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i>';
             continueBtn.addEventListener("click", () =>
-                continueMessage(messageWrapper)
+                continueMessage(messageWrapper),
             );
 
             messageActions.appendChild(regenerateBtn);
@@ -198,7 +201,7 @@ endblock %} {% block content %}
         deleteBtn.title = "Delete message";
         deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
         deleteBtn.addEventListener("click", () =>
-            deleteMessage(messageWrapper)
+            deleteMessage(messageWrapper),
         );
 
         messageActions.appendChild(deleteBtn);
@@ -233,7 +236,7 @@ endblock %} {% block content %}
                 const imageName = this.getAttribute("data-image-name");
                 const imageModal = document.querySelector(".image-modal");
                 const modalImage = document.querySelector(
-                    ".image-modal-content"
+                    ".image-modal-content",
                 );
 
                 // Check if the browser supports View Transitions API
@@ -265,7 +268,7 @@ endblock %} {% block content %}
             .then(() => {
                 const copyBtn =
                     messageElement.nextElementSibling.querySelector(
-                        ".copy-message"
+                        ".copy-message",
                     );
                 const originalIcon = copyBtn.innerHTML;
                 copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
@@ -287,20 +290,20 @@ endblock %} {% block content %}
             function () {
                 regenerateBtn.classList.remove("rotate-animation");
             },
-            { once: true }
+            { once: true },
         );
     }
 
     async function regenerateMessage(messageWrapper) {
         // Find the index of this message among all message wrappers
         const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper")
+            document.querySelectorAll(".message-wrapper"),
         );
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
         // this is for the animation
         const regenerateBtn = messageWrapper.querySelector(
-            ".regenerate-message"
+            ".regenerate-message",
         );
         animateRegenerateBtn(regenerateBtn);
 
@@ -350,20 +353,20 @@ endblock %} {% block content %}
 
             // Render the markdown
             text_contents.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
             );
 
             // Set language attribute on code blocks
             text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
                 const classes = codeBlock.className.split(" ");
                 const languageClass = classes.find((cls) =>
-                    cls.startsWith("language-")
+                    cls.startsWith("language-"),
                 );
                 if (languageClass) {
                     const language = languageClass.replace("language-", "");
                     codeBlock.parentElement.setAttribute(
                         "data-language",
-                        language
+                        language,
                     );
                 }
             });
@@ -385,7 +388,7 @@ endblock %} {% block content %}
     async function continueMessage(messageWrapper) {
         // Find the index of this message among all message wrappers
         const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper")
+            document.querySelectorAll(".message-wrapper"),
         );
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
@@ -435,20 +438,20 @@ endblock %} {% block content %}
 
             // Render the markdown
             text_contents.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
             );
 
             // Set language attribute on code blocks
             text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
                 const classes = codeBlock.className.split(" ");
                 const languageClass = classes.find((cls) =>
-                    cls.startsWith("language-")
+                    cls.startsWith("language-"),
                 );
                 if (languageClass) {
                     const language = languageClass.replace("language-", "");
                     codeBlock.parentElement.setAttribute(
                         "data-language",
-                        language
+                        language,
                     );
                 }
             });
@@ -531,7 +534,7 @@ endblock %} {% block content %}
 
             // Find the index of this message among all message wrappers
             const allMessageWrappers = Array.from(
-                document.querySelectorAll(".message-wrapper")
+                document.querySelectorAll(".message-wrapper"),
             );
             const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
@@ -550,7 +553,7 @@ endblock %} {% block content %}
                     // Update the messageText with new content
                     messageText.setAttribute("data-raw-text", newContent);
                     messageText.innerHTML = marked.parse(
-                        newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                        newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
                     );
 
                     // Set language attribute on code blocks
@@ -559,16 +562,16 @@ endblock %} {% block content %}
                         .forEach((codeBlock) => {
                             const classes = codeBlock.className.split(" ");
                             const languageClass = classes.find((cls) =>
-                                cls.startsWith("language-")
+                                cls.startsWith("language-"),
                             );
                             if (languageClass) {
                                 const language = languageClass.replace(
                                     "language-",
-                                    ""
+                                    "",
                                 );
                                 codeBlock.parentElement.setAttribute(
                                     "data-language",
-                                    language
+                                    language,
                                 );
                             }
                         });
@@ -615,7 +618,7 @@ endblock %} {% block content %}
 
         // Find the index of this message among all message wrappers
         const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper")
+            document.querySelectorAll(".message-wrapper"),
         );
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
@@ -653,7 +656,7 @@ endblock %} {% block content %}
                 const imageName = this.getAttribute("data-image-name");
                 const imageModal = document.querySelector(".image-modal");
                 const modalImage = document.querySelector(
-                    ".image-modal-content"
+                    ".image-modal-content",
                 );
 
                 // Check if the browser supports View Transitions API
@@ -700,7 +703,7 @@ endblock %} {% block content %}
         // Only add these event listeners for assistant messages
         if (messageWrapper.classList.contains("assistant")) {
             const regenerateBtn = messageContent.querySelector(
-                ".regenerate-message"
+                ".regenerate-message",
             );
             if (regenerateBtn) {
                 regenerateBtn.addEventListener("click", function () {
@@ -802,7 +805,7 @@ endblock %} {% block content %}
 
             // Render the markdown
             assistant_message_text.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
             );
 
             // Set language attribute on code blocks
@@ -811,13 +814,13 @@ endblock %} {% block content %}
                 .forEach((codeBlock) => {
                     const classes = codeBlock.className.split(" ");
                     const languageClass = classes.find((cls) =>
-                        cls.startsWith("language-")
+                        cls.startsWith("language-"),
                     );
                     if (languageClass) {
                         const language = languageClass.replace("language-", "");
                         codeBlock.parentElement.setAttribute(
                             "data-language",
-                            language
+                            language,
                         );
                     }
                 });
@@ -872,7 +875,7 @@ endblock %} {% block content %}
                 // Only add these event listeners for assistant messages
                 if (messageWrapper.classList.contains("assistant")) {
                     const regenerateBtn = messageContent.querySelector(
-                        ".regenerate-message"
+                        ".regenerate-message",
                     );
                     if (regenerateBtn) {
                         regenerateBtn.addEventListener("click", function () {
@@ -995,7 +998,7 @@ endblock %} {% block content %}
                 let user_message = createMessageElement("user", message);
 
                 let messages_container = document.querySelector(
-                    ".messages-container"
+                    ".messages-container",
                 );
 
                 messages_container.appendChild(user_message, message);
