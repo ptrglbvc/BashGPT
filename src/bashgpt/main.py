@@ -18,7 +18,7 @@ import vlc
 from bashgpt.autonomous import parse_auto_message
 from bashgpt.bash import bash
 from bashgpt.chat import add_message_to_chat, chat, load_chat,  change_model, save_chat, delete_chat, apply_defaults, change_defaults, defaults
-from bashgpt.dalle import dalle_mode
+from bashgpt.dalle import generate_openai_image
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
 from bashgpt.data_loader import data_loader
@@ -103,7 +103,7 @@ def main():
             save_chat(con, cur)
 
         if chat["dalle"]:
-            threading.Thread(target=dalle_mode, args=[client]).start()
+            threading.Thread(target=generate_openai_image, args=[client]).start()
 
         if chat["auto_turns"] > 0:
             chat["auto_message"] = parse_auto_message(chat["all_messages"][-1]["content"])
@@ -699,6 +699,8 @@ def parse_args():
     parser.add_argument("-b", "--bash", action="store_true",
                         help="enable Bash execution mode")
 
+    parser.add_argument("-d", "--dalle", action="store_true",
+                        help="enable image generation")
     # user prompt
     parser.add_argument('prompt', nargs='?', default=None,
                         help='the prompt to send to the AI')
@@ -742,6 +744,9 @@ def input_with_args():
 
     if args.bash:
         chat["bash"] = True
+
+    if args.dalle:
+        chat["dalle"] = True
 
     # --model
     if args.model:
