@@ -5,7 +5,7 @@ from bashgpt.chat import chat
 import httpx
 import os
 
-def get_file(file_url):
+def get_file(file_url, idx=None):
     clean_file_url = file_url.replace("\\ ", " ")
     file_name = clean_file_url.split("/")[-1]
 
@@ -23,7 +23,7 @@ def get_file(file_url):
             chat["files"].append({
                 "content" : extract_text_from_html(response.text),
                 "name": file_name,
-                "message_idx": len(chat["all_messages"]),
+                "message_idx": len(chat["all_messages"]) if not idx else idx,
                 "extension": "html"
                 })
             alert(f"File attached: \033[3m{file_name}\033[0m")
@@ -33,7 +33,7 @@ def get_file(file_url):
             chat["files"].append({
                 "content": extract_text_from_pdf(response.content, is_stream=True),
                 "name": file_name,
-                "message_idx": len(chat["all_messages"]),
+                "message_idx": len(chat["all_messages"]) if not idx else idx,
                 "extension": "pdf"
             })
             alert(f"File attached: \033[3m{file_name}\033[0m")
@@ -47,7 +47,7 @@ def get_file(file_url):
                 chat["files"].append({
                     "content" : file_contents,
                     "name": file_name,
-                    "message_idx" : len(chat["all_messages"]),
+                    "message_idx": len(chat["all_messages"]) if not idx else idx,
                     "extension": file_name.split(".")[-1]
                     })
                 alert(f"File attached: \033[3m{file_name}\033[0m")
@@ -56,7 +56,7 @@ def get_file(file_url):
                 chat["files"].append({
                     "content": extract_text_from_pdf(clean_file_url),
                     "name": file_name,
-                    "message_idx": len(chat["all_messages"]),
+                    "message_idx": len(chat["all_messages"]) if not idx else idx,
                     "extension": "pdf"
                 })
                 alert(f"Pdf file attached: \033[3m{file_name}\033[0m")
@@ -64,7 +64,7 @@ def get_file(file_url):
                 chat["files"].append({
                     "content": extract_text_from_docx(clean_file_url),
                     "name": file_name,
-                    "message_idx": len(chat["all_messages"]),
+                    "message_idx": len(chat["all_messages"]) if not idx else idx,
                     "extension": "docx"
                 })
                 alert(f"Docx file attached: \033[3m{file_name}\033[0m")

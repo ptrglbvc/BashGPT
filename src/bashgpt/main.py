@@ -369,7 +369,7 @@ def image_to_base64_and_info(img: Image.Image, default_name="pasted image") -> d
     }
 
 
-def get_image(image_url):
+def get_image(image_url, idx=None):
     global chat
 
     if image_url == "paste":
@@ -382,7 +382,7 @@ def get_image(image_url):
                 "content" : image_data["base64"],
                 "name": image_data["name"],
                 "extension": image_data["extension"],
-                "message_idx": len(chat["all_messages"])
+                "message_idx": len(chat["all_messages"]) if not idx else idx
                 })
             alert(f"Image attached: \033[3m{image_data['name']}\033[0m")
             return
@@ -417,7 +417,7 @@ def get_image(image_url):
             "content" : image,
             "name": image_name,
             "extension": image_extension,
-            "message_idx": len(chat["all_messages"])
+            "message_idx": len(chat["all_messages"]) if not idx else idx
             })
         alert(f"Image attached: \033[3m{image_name}\033[0m")
 
@@ -428,7 +428,7 @@ def get_image(image_url):
                 "content" : image,
                 "name": image_name,
                 "extension": image_extension,
-                "message_idx" : len(chat["all_messages"]),
+                "message_idx" : len(chat["all_messages"]) if not idx else idx,
                 })
             alert(f"Image attached: \033[3m{image_name}\033[0m")
 
@@ -693,8 +693,11 @@ def parse_args():
     parser.add_argument('-p', '--persona', metavar='DESCRIPTION',
                         help='create and use a custom persona with DESCRIPTION')
 
-    parser.add_argument('-i', '--image', metavar='LINK',
+    parser.add_argument('-i', '--image', metavar='LINK', action="append",
                         help='attach an image to the prompt with LINK')
+
+    parser.add_argument('-f', '--file', metavar='LINK', action="append",
+                        help='attach a file to the prompt with LINK')
 
     parser.add_argument("-b", "--bash", action="store_true",
                         help="enable Bash execution mode")
@@ -740,7 +743,12 @@ def input_with_args():
         return 1
 
     if args.image:
-        get_image(args.image)
+        for image in args.image:
+            get_image(image, idx=1)
+
+    if args.file:
+        for file in args.file:
+            get_file(file, idx=1)
 
     if args.bash:
         chat["bash"] = True
