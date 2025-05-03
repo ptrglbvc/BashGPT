@@ -704,10 +704,20 @@ def parse_args():
 
     parser.add_argument("-d", "--dalle", action="store_true",
                         help="enable image generation")
-    # user prompt
+
+
+    parser.add_argument('--models', action='store_true',
+                        help='open models.json for editing')
+    parser.add_argument('--modes', action='store_true',
+                        help='open modes.json for editing')
+    parser.add_argument('--defaults', action='store_true',
+                        help='open defaults.json for editing')
+
     parser.add_argument('prompt', nargs='?', default=None,
                         help='the prompt to send to the AI')
 
+
+    # user prompt
     return parser.parse_args()
 
 
@@ -740,6 +750,16 @@ def input_with_args():
                 sleep(1)
         except KeyboardInterrupt:
             print("\nShutting down server...")
+        return 1
+
+    if args.models:
+        edit_file("/models.json")
+        return 1
+    if args.modes:
+        edit_file("/modes.json")
+        return 1
+    if args.defaults:
+        edit_file("/defaults.json")
         return 1
 
     if args.image:
