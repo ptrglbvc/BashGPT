@@ -1736,11 +1736,17 @@ input[type="number"]:focus {
 
 .message-image-wrapper {
     view-transition-name: thumbnail-image;
+      font-size: 0;
+line-height: 0;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     gap: 10px;
-    padding-bottom: 10px;
+    padding-bottom: 0px;
+}
+
+.message-image-wrapper:not(:empty) {
+	padding-bottom: 10px;
 }
 
 .message-text h3 {

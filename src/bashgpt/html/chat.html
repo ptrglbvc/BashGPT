@@ -24,9 +24,12 @@ endblock %} {% block content %}
                         {{message["content"]|safe}}
                     </div>
 
-                    <div class="message-image-wrapper">
-                        {% for image in images %} {% if image.message_idx ==
-                        message.message_id %}
+                    {% set imgs = images
+                        | selectattr('message_idx', 'equalto', message.message_id)
+                        | list %}
+                    {% if imgs %}
+                    <div class="message-image-wrapper" style="padding-bottom:10px;">
+                        {% for image in imgs %}
                         <div
                             class="message-image"
                             data-image-src="data:image/{{ image.extension }};base64,{{ image.content }}"
@@ -37,8 +40,9 @@ endblock %} {% block content %}
                                 alt="{{ image.name }}"
                             />
                         </div>
-                        {% endif %} {% endfor %}
+                        {% endfor %}
                     </div>
+                    {% endif %}
                     {% for file in files %} {% if file.message_idx ==
                     message.message_id %}
                     <div class="message-file">
