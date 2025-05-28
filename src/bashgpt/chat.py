@@ -111,7 +111,7 @@ def load_chat(cur, id):
     if not settings_query:
         raise ValueError(f"No chat found with ID {id}")
     
-    [description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave] = settings_query[0]
+    [description, model_name, provider_name, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave] = settings_query[0]
 
     chat["id"] = id
     chat["is_loaded"] = True
@@ -123,7 +123,21 @@ def load_chat(cur, id):
     chat["bash"] = bool(bash)
     chat["autosave"] = bool(autosave)
 
-    change_model({"name": model, "provider": provider, "vision_enabled": bool(vision_enabled)}, providers)
+    # Reload models, modes, providers to get the latest configurations
+    modes, models, providers = data_loader()
+
+    # Find the complete model object from the reloaded models list
+    selected_model = None
+    for m in models:
+        if m["name"] == model_name and m["provider"] == provider_name:
+            selected_model = m
+            break
+
+    if selected_model:
+        change_model(selected_model, providers)
+    else:
+        # Fallback if model not found in current models.json (e.g., deleted or renamed)
+        change_model({"name": model_name, "provider": provider_name, "vision_enabled": bool(vision_enabled)}, providers)
 
     for row in message_data:
         add_message_to_chat(row[0], row[1])

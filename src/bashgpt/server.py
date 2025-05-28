@@ -6,6 +6,7 @@ import base64
 from bashgpt.chat import chat, load_chat, add_message_to_chat, save_chat, reset_chat, defaults, change_model, update_chat_ids
 from bashgpt.api import get_response
 from bashgpt.data_loader import data_loader
+from bashgpt.load_defaults import load_defaults # Import load_defaults
 from openai import OpenAI
 from functools import wraps
 
@@ -123,7 +124,6 @@ def map_message_idx_to_id(images, messages):
     return mapped_images
 
 def server():
-    (modes, models, providers) = data_loader()
     app = Flask(__name__,
                 template_folder=os.path.join(path, "html"),
                 static_folder=os.path.join(path, "static"))
@@ -133,6 +133,9 @@ def server():
     @with_db
     def get_chat(con, cur, chat_id):
         try:
+            # Reload models, modes, providers, defaults on every request
+            modes, models, providers = data_loader()
+            defaults_data = load_defaults(path) # Use load_defaults function
             load_chat(cur, chat_id)
             # Prepare messages by adding message_id
             prepared_messages = prepare_messages_for_template(chat["all_messages"])
@@ -146,7 +149,11 @@ def server():
                                 chat_info=chat,
                                 messages=prepared_messages,
                                 images=mapped_images,
-                                files=chat["files"])
+                                files=chat["files"],
+                                models=models,
+                                modes=modes,
+                                providers=providers,
+                                defaults=defaults_data)
         except Exception as e:
             return f"Error: {str(e)}", 500
 
@@ -154,6 +161,9 @@ def server():
     @app.route("/", methods=["GET"])
     @with_db
     def list_chats(con, cur):
+        # Reload models, modes, providers, defaults on every request
+        modes, models, providers = data_loader()
+        defaults_data = load_defaults(path) # Use load_defaults function
         reset_chat()
         cur.execute("SELECT * FROM chats ORDER BY chat_id DESC LIMIT 3")
         chats = [dict(row) for row in cur.fetchall()]
@@ -169,7 +179,11 @@ def server():
                                messages=prepared_messages,
                                images=mapped_images,
                                files=chat["files"],
-                               chats=chats)
+                               chats=chats,
+                               models=models,
+                               modes=modes,
+                               providers=providers,
+                               defaults=defaults_data)
 
 
     @app.route("/api/answer", methods=["GET","POST"])
@@ -317,6 +331,9 @@ def server():
     @app.route("/api/create-new-chat", methods=["POST"])
     @with_db
     def make_new_chat(con, cur):
+        # Reload modes on every request
+        modes, models, providers = data_loader()
+        defaults_data = load_defaults(path) # Use load_defaults function
         reset_chat()
         print(chat["all_messages"])
         
@@ -377,6 +394,9 @@ def server():
     @app.route("/api/change_settings", methods=["POST"])
     @with_db
     def change_settings(con, cur):
+        # Reload models and providers on every request
+        modes, models, providers = data_loader()
+        defaults_data = load_defaults(path) # Use load_defaults function
         data = request.get_json()
         
         # Handle model changes
@@ -423,6 +443,8 @@ def server():
 
     @app.route("/api/get_models", methods=["GET"])
     def get_models():
+        # Reload models on every request
+        modes, models, providers = data_loader()
         return jsonify(models)
 
     @app.route("/api/get_chats", methods=["GET"])

@@ -101,6 +101,12 @@
                         >
                         {% if chat_info.vision_enabled %}
                         <span class="feature-badge">Vision</span>
+                        {% endif %} {% if chat_info.extra_body %}
+                        <span
+                            class="feature-badge"
+                            title="{{ chat_info.extra_body | tojson }}"
+                            >Extra</span
+                        >
                         {% endif %} {% if chat_info.bash %}
                         <span class="feature-badge">Bash</span>
                         {% endif %}
@@ -198,6 +204,12 @@
                         <div class="sidebar-model-features">
                             {% if chat_info.vision_enabled %}
                             <span class="feature-badge">Vision</span>
+                            {% endif %} {% if chat_info.extra_body %}
+                            <span
+                                class="feature-badge"
+                                title="{{ chat_info.extra_body | tojson }}"
+                                >Extra</span
+                            >
                             {% endif %} {% if chat_info.bash %}
                             <span class="feature-badge">Bash</span>
                             {% endif %}
@@ -458,6 +470,14 @@
                                 ${
                                     model.vision_enabled
                                         ? '<span class="feature-badge">Vision</span>'
+                                        : ""
+                                }
+                                ${
+                                    model.extra_body &&
+                                    Object.keys(model.extra_body).length > 0
+                                        ? `<span class="feature-badge" title='${JSON.stringify(
+                                              model.extra_body
+                                          )}'>Extra</span>`
                                         : ""
                                 }
                             </div>

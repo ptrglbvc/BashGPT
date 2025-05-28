@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from os.path import exists
 
 def load_defaults(path):
