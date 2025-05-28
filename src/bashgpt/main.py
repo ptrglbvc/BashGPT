@@ -344,6 +344,14 @@ def command(message, con, cur):
             alert(f"max_tokens: {chat["max_tokens"]}\ntemperature: {chat["temperature"]}\nfrequency_penalty: {chat["frequency_penalty"]}\nautosave: {chat["autosave"]}\nmodel: {chat["model"]} ({chat["provider"]})")
             return 1
 
+        case "smooth_streaming" | "ss":
+            if len(command) == 2 and command[1].lower() in ["true", "false"]:
+                chat["smooth_streaming"] = command[1].lower() == "true"
+                alert(f"Smooth streaming set to {chat['smooth_streaming']}")
+            else:
+                alert("Usage: /smooth_streaming true|false")
+            return 1
+
         case _:
             alert("Invalid command")
             return 1

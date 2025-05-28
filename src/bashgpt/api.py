@@ -70,7 +70,8 @@ def get_openai_response(all_messages):
                 stream=True,
                 max_tokens=chat["max_tokens"],
                 temperature=chat["temperature"],
-                frequency_penalty=chat["frequency_penalty"]
+                frequency_penalty=chat["frequency_penalty"],
+                extra_body=chat["extra_body"]
                 )
 
     return stream
@@ -240,10 +241,20 @@ def get_response(messages=None):
 
             # Calculate a delay per character so that the whole chunk prints over about avg_delay seconds.
             if text:
-                char_delay = avg_delay / len(text) # type: ignore
-                for char in text:
-                    yield char
-                    time.sleep(char_delay)
+                if chat.get("smooth_streaming", True):
+                    min_delay = 0.001  # minimum delay per character (1ms)
+                    max_delay = 0.03   # maximum delay per character (30ms)
+                    max_chunk_time = 0.5  # maximum time to spend printing a chunk (in seconds)
+                    char_delay = avg_delay / len(text) if len(text) > 0 else min_delay
+                    char_delay = max(min(char_delay, max_delay), min_delay)
+                    total_time = char_delay * len(text)
+                    if total_time > max_chunk_time:
+                        char_delay = max_chunk_time / len(text)
+                    for char in text:
+                        yield char
+                        time.sleep(char_delay)
+                else:
+                    yield text
 
 
     except (

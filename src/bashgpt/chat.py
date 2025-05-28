@@ -38,6 +38,8 @@ class Chat(TypedDict):
     temperature: float
     frequency_penalty: float
     max_tokens: int
+    extra_body: dict
+    smooth_streaming: bool  # Add this line
 
 chat: Chat = {
     "all_messages": [],
@@ -61,8 +63,14 @@ chat: Chat = {
     "autosave": False,
     "temperature": 0.7,
     "frequency_penalty": 1,
-    "max_tokens": 4048
+    "max_tokens": 4048,
+    "extra_body": {},
+    "smooth_streaming": True
 }
+
+# Add a default for smooth_streaming
+if "smooth_streaming" not in chat:
+    chat["smooth_streaming"] = True
 
 def reset_chat():
     global chat
@@ -132,6 +140,11 @@ def change_model(new_model, providers):
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
     chat["vision_enabled"] = new_model["vision_enabled"]
+    
+    if "extra_body" in new_model:
+        chat["extra_body"] = new_model["extra_body"]
+    else: 
+        chat["extra_body"] = {}
 
     # this updates the base url and the api key variable name
     # we don't need that for non-openai-sdk models
@@ -254,13 +267,14 @@ def update_chat_ids(con, cur):
 
 def apply_defaults():
     global chat
-    if defaults["color"]:
+    if defaults.get("color"):
         chat["color"] = defaults["color"]
-    if defaults["model"]:
+    if defaults.get("model"):
         change_model(defaults["model"], providers)
-    if defaults["mode"]:
+    if defaults.get("mode"):
         chat["mode"] = defaults["mode"]["name"]
-
+    if "smooth_streaming" in defaults:
+        chat["smooth_streaming"] = defaults["smooth_streaming"]
 
 def change_defaults(target, newValue):
     match target:
@@ -290,6 +304,20 @@ def change_defaults(target, newValue):
                     break
             if not valid_mode:
                 alert("Invalid mode")
+        case "smooth_streaming":
+            try:
+                val = newValue.lower() if isinstance(newValue, str) else newValue
+                if val in ["true", "false", True, False]:
+                    defaults["smooth_streaming"] = val == "true" or val is True
+                    alert(f"Changed default smooth_streaming to {defaults['smooth_streaming']}")
+                else:
+                    alert("Value must be 'true' or 'false'")
+            except Exception as e:
+                alert(f"Invalid value for smooth_streaming: {e}")
+            # Save to file
+            with open(path + "defaults.json", "w") as def_file:
+                def_file.write(json.dumps(defaults, indent=4))
+            return
         case _:
             alert("Invalid default property")
 

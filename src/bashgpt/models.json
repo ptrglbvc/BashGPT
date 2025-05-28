@@ -7,7 +7,7 @@
     },
     {
         "name": "openai/gpt-4.5-preview",
-        "shortcut": "4.1",
+        "shortcut": "4.5",
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -36,7 +36,7 @@
         "vision_enabled": true
     },
     {
-        "name": "gemini-2.5-flash-preview-04-17",
+        "name": "gemini-2.5-flash-preview-05-20",
         "shortcut": "flash",
         "provider": "google",
         "vision_enabled": true
@@ -54,8 +54,14 @@
         "vision_enabled": false
     },
     {
-        "name": "anthropic/claude-3.7-sonnet",
+        "name": "anthropic/claude-sonnet-4",
         "shortcut": "sonnet",
+        "provider": "openrouter",
+        "vision_enabled": true
+    },
+    {
+        "name": "anthropic/claude-opus-4",
+        "shortcut": "opus",
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -73,6 +79,12 @@
     },
     {
         "name": "x-ai/grok-3-mini-beta",
+        "shortcut": "grok-mini",
+        "provider": "openrouter",
+        "vision_enabled": false
+    },
+    {
+        "name": "x-ai/grok-3-beta",
         "shortcut": "grok",
         "provider": "openrouter",
         "vision_enabled": false
@@ -81,8 +93,14 @@
         "name": "meta-llama/llama-4-maverick",
         "shortcut": "llama",
         "provider": "openrouter",
-        "vision_enabled": true 
-    },
+        "vision_enabled": true,
+	"extra_body": {
+	    "provider": {
+		"order": [
+			"groq"
+      ],
+      "allow_fallbacks": false
+    }}},
     {
         "name": "hf.co/bartowski/google_gemma-3-4b-it-qat-GGUF:IQ3_XXS",
         "shortcut": "gemma",
