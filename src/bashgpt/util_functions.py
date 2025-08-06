@@ -18,14 +18,14 @@ def loading_bar(chat, stop_event):
 
     # Makes the spinner disappear.
     print("\033[?25l" + terminal[chat["color"]], end="", flush=True)
-    while not stop_event.is_set():
-        print("\b" + phases[i], end="", flush=True)
-        sleep(0.14)
-        i = (i + 1) % len(phases)
-
-    # oblitierates the spinner
-    print("\b \b", end="", flush=True)
-    print("\033[?25h", end="", flush=True)
+    try:
+        while not stop_event.is_set():
+            print("\b" + phases[i], end="", flush=True)
+            sleep(0.14)
+            i = (i + 1) % len(phases)
+    finally:
+        print("\b \b", end="", flush=True)
+        print("\033[?25h", end="", flush=True)
 
 def parse_md(text):
     bold_text = sub(r'\*\*(.*?)\*\*|__(.*?)__', r'\033[1m\1\2\033[22m', text)

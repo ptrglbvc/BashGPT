@@ -70,7 +70,7 @@ def get_openai_response(all_messages):
                 stream=True,
                 max_tokens=chat["max_tokens"],
                 temperature=chat["temperature"],
-                frequency_penalty=chat["frequency_penalty"],
+                #frequency_penalty=chat["frequency_penalty"],
                 extra_body=chat["extra_body"]
                 )
 

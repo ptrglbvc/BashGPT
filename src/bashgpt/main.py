@@ -131,6 +131,28 @@ def command(message, con, cur):
                 alert("Too many arguments")
                 return 1
 
+        case "wnew":
+            if not chat["is_loaded"]:
+                (con, cur) = setup_db(path)
+            print("Saving chat. Hold on a minute...")
+            save_chat(con, cur)
+            from bashgpt.chat import reset_chat, apply_defaults
+            reset_chat()
+            apply_defaults()
+            add_message_to_chat("system", defaults["mode"]["description"])
+            chat["mode"] = defaults["mode"]["name"]
+            print_chat()
+            return 1
+
+        case "new":
+            from bashgpt.chat import reset_chat, apply_defaults
+            reset_chat()
+            apply_defaults()
+            add_message_to_chat("system", defaults["mode"]["description"])
+            chat["mode"] = defaults["mode"]["name"]
+            print_chat()
+            return 1
+
         case "q!":
             print("\033[1A", end="")
             exit()
@@ -452,13 +474,23 @@ def voice_input():
     print("You: ", end=" ")
     stop = threading.Event()
     bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])
-
-    transcription = whisper(audio_location)
-    os.remove(audio_location)
-
-    if stop.is_set() == False:
+    bar_thread.daemon = True
+    try:
+        bar_thread.start()
+        transcription = whisper(audio_location)
+    except KeyboardInterrupt:
         stop.set()
-        bar_thread.join()
+        try:
+            bar_thread.join(timeout=0.5)
+        finally:
+            print("\033[?25h", end="", flush=True)
+        raise
+    finally:
+        os.remove(audio_location)
+        if not stop.is_set():
+            stop.set()
+        if bar_thread.is_alive():
+            bar_thread.join(timeout=0.5)
 
     print(transcription + "\n")
     return transcription

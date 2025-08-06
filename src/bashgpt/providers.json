@@ -15,7 +15,11 @@
     "api_key_name": "HYPERBOLIC_API_KEY",
     "base_url": "https://api.hyperbolic.xyz/v1/"
   },
-  "xAI": {
+  "deepinfra": {
+    "api_key_name": "DEEPINFRA_API_KEY",
+    "base_url": "https://api.deepinfra.com/v1/openai"
+  },
+  "xai": {
     "api_key_name": "XAI_API_KEY",
     "base_url": "https://api.x.ai/v1/"
   },
@@ -23,8 +27,12 @@
 	"api_key_name": "ZHIPU_API_KEY",
   	"base_url": "https://open.bigmodel.cn/api/paas/v4/"
   },
+  "nanogpt": {
+	"api_key_name": "NANOGPT_API_KEY",
+  	"base_url": "https://nano-gpt.com/api/v1"
+  },
   "ollama": {
-	"api_key_name": "OLLAMA_API_KEY",
+	"api_key_name": "ollama_api_key",
   	"base_url": "http://127.0.0.1:11434/v1/"
   }
 }
