@@ -17,7 +17,22 @@ import vlc
 
 from bashgpt.autonomous import parse_auto_message
 from bashgpt.bash import bash
-from bashgpt.chat import add_message_to_chat, chat, load_chat,  change_model, save_chat, delete_chat, apply_defaults, change_defaults, defaults
+from bashgpt.chat import (
+    add_message_to_chat,
+    chat,
+    load_chat,
+    change_model,
+    save_chat,
+    delete_chat,
+    apply_defaults,
+    change_defaults,
+    defaults,
+    export_all_chats,
+    export_chat_by_id,
+    import_chat_data,
+    export_current_chat_dict,
+    overwrite_current_chat_from_import,
+)
 from bashgpt.dalle import generate_openai_image
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
@@ -114,6 +129,85 @@ def command(message, con, cur):
     command = shlex.split(message[1:])
 
     match command[0]:
+        case "export":
+            # Export current chat to stdout as JSON or to a file if provided
+            try:
+                data = export_current_chat_dict()
+                import json, os, re
+                # Determine output path
+                if len(command) == 2:
+                    out_file = command[1]
+                else:
+                    # Default to user's Downloads folder
+                    downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+                    if not os.path.isdir(downloads_dir):
+                        downloads_dir = os.getcwd()
+                    # Build filename: bashgpt-chat-<id or new>-<slug>.json
+                    chat_id = chat.get("id") or "new"
+                    desc = chat.get("description") or "chat"
+                    # slugify description lightly
+                    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", desc).strip("-").lower()
+                    if not slug:
+                        slug = "chat"
+                    out_file = os.path.join(downloads_dir, f"bashgpt-chat-{chat_id}-{slug}.json")
+
+                # If target exists, create a non-conflicting filename like "name (1).json"
+                def unique_path(path: str) -> str:
+                    directory, filename = os.path.split(path)
+                    name, ext = os.path.splitext(filename)
+                    if not os.path.exists(path):
+                        return path
+                    counter = 1
+                    while True:
+                        candidate = os.path.join(directory, f"{name} ({counter}){ext}")
+                        if not os.path.exists(candidate):
+                            return candidate
+                        counter += 1
+
+                out_file = unique_path(out_file)
+
+                with open(out_file, 'w') as f:
+                    json.dump(data, f, indent=2)
+                alert(f"Exported current chat to: {out_file}")
+            except Exception as e:
+                alert(f"Export failed: {e}")
+            return 1
+
+        case "import":
+            # Import from file into current in-memory chat, then save over current if loaded
+            if len(command) != 2:
+                alert("Usage: /import <path-to-json>")
+                return 1
+            try:
+                import json, os
+                file_path = command[1].replace(r"\ ", " ")
+                if not os.path.isfile(file_path):
+                    alert("File not found")
+                    return 1
+                with open(file_path, 'r') as f:
+                    payload = json.load(f)
+                # Accept single-chat or multi; take first if multi
+                single = payload
+                if isinstance(payload, dict) and 'chats' in payload and isinstance(payload['chats'], list) and payload['chats']:
+                    single = payload['chats'][0]
+                overwrite_current_chat_from_import(single)
+                # Ensure DB connections
+                if not chat["is_loaded"]:
+                    # if not already tied to an id, assign by saving once
+                    if not con or not cur:
+                        (con, cur) = setup_db(path)
+                    save_chat(con, cur)
+                    alert("Imported and saved as a new chat")
+                else:
+                    # overwrite existing id in DB by saving
+                    if not con or not cur:
+                        (con, cur) = setup_db(path)
+                    save_chat(con, cur)
+                    alert("Imported and overwrote current chat")
+                print_chat()
+            except Exception as e:
+                alert(f"Import failed: {e}")
+            return 1
         case "q":
             if len(command) == 1:
                 if not chat["is_loaded"]:
@@ -753,6 +847,14 @@ def parse_args():
     parser.add_argument('--defaults', action='store_true',
                         help='open defaults.json for editing')
 
+    # import/export
+    parser.add_argument('--export-all', metavar='FILE',
+                        help='export all chats to FILE (JSON)')
+    parser.add_argument('--export-chat', metavar=('CHAT_ID','FILE'), nargs=2,
+                        help='export a single chat by CHAT_ID to FILE (JSON)')
+    parser.add_argument('--import', dest='import_file', metavar='FILE',
+                        help='import chats from FILE (JSON). Supports single or multi-chat exports')
+
     parser.add_argument('prompt', nargs='?', default=None,
                         help='the prompt to send to the AI')
 
@@ -790,6 +892,39 @@ def input_with_args():
                 sleep(1)
         except KeyboardInterrupt:
             print("\nShutting down server...")
+        return 1
+
+    # --export / --import
+    if args.export_all:
+        (con, cur) = setup_db(path)
+        data = export_all_chats(cur)
+        import json
+        with open(args.export_all, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Exported all chats to {args.export_all}")
+        return 1
+
+    if args.export_chat:
+        chat_id_str, out_file = args.export_chat
+        if not chat_id_str.isdigit():
+            alert("CHAT_ID must be an integer")
+            return 1
+        chat_id = int(chat_id_str)
+        (con, cur) = setup_db(path)
+        data = export_chat_by_id(cur, chat_id)
+        import json
+        with open(out_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Exported chat {chat_id} to {out_file}")
+        return 1
+
+    if args.import_file:
+        import json
+        (con, cur) = setup_db(path)
+        with open(args.import_file, 'r') as f:
+            payload = json.load(f)
+        new_ids = import_chat_data(con, cur, payload)
+        print(f"Imported chats. New IDs: {', '.join(map(str, new_ids))}")
         return 1
 
     if args.models:

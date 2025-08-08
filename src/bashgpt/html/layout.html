@@ -613,6 +613,9 @@
                         chatItem.innerHTML = `
                             <div class="chat-item-title" title="${chatTitle}">${chatTitle}</div>
                             <div class="chat-item-actions">
+                                <button class="chat-action-btn chat-export-btn" title="Export chat">
+                                    <i class="fa-solid fa-download"></i>
+                                </button>
                                 <button class="chat-action-btn chat-rename-btn" title="Rename chat">
                                     <i class="fa-solid fa-edit"></i>
                                 </button>
@@ -631,10 +634,17 @@
                         });
 
                         // Add event listeners for action buttons
+                        const exportBtn =
+                            chatItem.querySelector(".chat-export-btn");
                         const renameBtn =
                             chatItem.querySelector(".chat-rename-btn");
                         const deleteBtn =
                             chatItem.querySelector(".chat-delete-btn");
+
+                        exportBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            window.location.href = `/api/export_chat/${chat.chat_id}`;
+                        });
 
                         renameBtn.addEventListener("click", (e) => {
                             e.stopPropagation(); // Prevent navigation

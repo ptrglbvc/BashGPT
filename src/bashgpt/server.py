@@ -3,7 +3,19 @@ from bashgpt.main import path
 import os
 import sqlite3
 import base64
-from bashgpt.chat import chat, load_chat, add_message_to_chat, save_chat, reset_chat, defaults, change_model, update_chat_ids
+from bashgpt.chat import (
+    chat,
+    load_chat,
+    add_message_to_chat,
+    save_chat,
+    reset_chat,
+    defaults,
+    change_model,
+    update_chat_ids,
+    export_chat_by_id,
+    export_all_chats,
+    import_chat_data,
+)
 from bashgpt.api import get_response
 from bashgpt.data_loader import data_loader
 from bashgpt.load_defaults import load_defaults # Import load_defaults
@@ -231,6 +243,51 @@ def server():
             con.close()
             
         return response
+
+    @app.route("/api/export_chat/<int:chat_id>", methods=["GET"])
+    @with_db
+    def export_chat_route(con, cur, chat_id):
+        try:
+            data = export_chat_by_id(cur, chat_id)
+            import json
+            payload = json.dumps(data, indent=2)
+            resp = Response(payload, mimetype="application/json")
+            resp.headers["Content-Disposition"] = f"attachment; filename=chat-{chat_id}.json"
+            return resp
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/export_all", methods=["GET"])
+    @with_db
+    def export_all_route(con, cur):
+        try:
+            data = export_all_chats(cur)
+            import json
+            payload = json.dumps(data, indent=2)
+            resp = Response(payload, mimetype="application/json")
+            resp.headers["Content-Disposition"] = "attachment; filename=chats-export.json"
+            return resp
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/import", methods=["POST"])  # accepts multipart or json
+    @with_db
+    def import_route(con, cur):
+        try:
+            import json
+            # Prefer file upload if present
+            if "file" in request.files:
+                file = request.files["file"]
+                text = file.read().decode("utf-8")
+                data = json.loads(text)
+            else:
+                # JSON body
+                data = request.get_json(force=True, silent=False)
+
+            new_ids = import_chat_data(con, cur, data)
+            return jsonify({"success": True, "chat_ids": new_ids})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 400
 
     @app.route("/api/regenerate", methods=["GET","POST"])
     def regenerate():

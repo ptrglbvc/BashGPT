@@ -5,11 +5,53 @@ content %}
         <i class="fa-solid fa-message"></i>
         <h3>How can I help you today?</h3>
         <p>Ask me anything, or resume a previous chat.</p>
+        <div class="welcome-import" style="margin-top: 12px">
+            <label class="save-btn" for="welcome-import-file"
+                >Import chats</label
+            >
+            <input
+                id="welcome-import-file"
+                type="file"
+                accept="application/json"
+                style="display: none"
+            />
+        </div>
     </div>
     {% if not chats %}
     <div class="empty-chats">
         <i class="fa-solid fa-comments"></i>
-        <p>No chats yet. Start a new conversation!</p>
+        <h3>Start a new conversation</h3>
+        <p>
+            Try one of the example prompts below, or import your previous chats.
+        </p>
+
+        <div
+            class="example-prompts"
+            style="
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin: 12px 0;
+            "
+        >
+            <button class="example-bubble">Summarize this document</button>
+            <button class="example-bubble">Draft an email reply</button>
+            <button class="example-bubble">Explain a concept</button>
+        </div>
+
+        <div class="import-container" style="margin-top: 12px">
+            <label class="import-btn" for="newchat-import-file"
+                >Import chats</label
+            >
+            <input
+                id="newchat-import-file"
+                type="file"
+                accept="application/json"
+                style="display: none"
+            />
+        </div>
+
         <a href="#" class="new-chat-button">New Chat</a>
     </div>
     {% else %}
@@ -50,5 +92,64 @@ content %}
             };
             create_new_chat();
         });
+
+    // Empty state import handler
+    (function () {
+        const input = document.getElementById("newchat-import-file");
+        if (!input) return;
+        input.addEventListener("change", async (e) => {
+            const target = e.target;
+            if (!target || !target.files || target.files.length === 0) return;
+            const file = target.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const res = await fetch("/api/import", {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Import failed: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Import error");
+            } finally {
+                input.value = "";
+            }
+        });
+    })();
+
+    // No export/import toolbar here anymore
+    // Welcome import handler (shows on new chat screen)
+    (function () {
+        const input = document.getElementById("welcome-import-file");
+        if (!input) return;
+        input.addEventListener("change", async (e) => {
+            const target = e.target;
+            if (!target || !target.files || target.files.length === 0) return;
+            const file = target.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const res = await fetch("/api/import", {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Import failed: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Import error");
+            } finally {
+                input.value = "";
+            }
+        });
+    })();
 </script>
 {% endblock %}

@@ -279,6 +279,237 @@ def update_chat_ids(con, cur):
 
 
 
+def export_chat_by_id(cur, chat_id: int) -> dict:
+    """Serialize a single chat with messages, images, and files to a dict."""
+    # Chat metadata
+    chat_row = cur.execute(
+        "SELECT chat_id, description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave FROM chats WHERE chat_id=?",
+        (chat_id,),
+    ).fetchone()
+
+    if not chat_row:
+        raise ValueError(f"Chat id {chat_id} not found")
+
+    # Messages
+    messages = [
+        {"role": row[0], "content": row[1]}
+        for row in cur.execute(
+            "SELECT role, message FROM chat_messages WHERE chat_id=? ORDER BY message_id ASC",
+            (chat_id,),
+        ).fetchall()
+    ]
+
+    # Images
+    images = [
+        {
+            "content": row[0],
+            "name": row[1],
+            "extension": row[2],
+            "message_idx": int(row[4]) if row[4] is not None else -1,
+        }
+        for row in cur.execute(
+            "SELECT content, name, extension, chat_id, message_idx FROM images WHERE chat_id=?",
+            (chat_id,),
+        ).fetchall()
+    ]
+
+    # Files
+    files = [
+        {
+            "content": row[0],
+            "name": row[1],
+            "extension": row[2],
+            "message_idx": int(row[4]) if row[4] is not None else -1,
+        }
+        for row in cur.execute(
+            "SELECT content, name, extension, chat_id, message_idx FROM files WHERE chat_id=?",
+            (chat_id,),
+        ).fetchall()
+    ]
+
+    exported = {
+        "version": 1,
+        "chat": {
+            "chat_id": chat_row[0],
+            "description": chat_row[1],
+            "model": chat_row[2],
+            "provider": chat_row[3],
+            "vision_enabled": bool(chat_row[4]),
+            "temperature": float(chat_row[5]),
+            "max_tokens": int(chat_row[6]),
+            "frequency_penalty": float(chat_row[7]),
+            "dalle": bool(chat_row[8]),
+            "bash": bool(chat_row[9]),
+            "autosave": bool(chat_row[10]),
+        },
+        "messages": messages,
+        "images": images,
+        "files": files,
+    }
+    return exported
+
+
+def export_all_chats(cur) -> dict:
+    """Serialize all chats to a dict with a list of chat exports."""
+    chat_ids = [row[0] for row in cur.execute("SELECT chat_id FROM chats ORDER BY chat_id ASC").fetchall()]
+    exports = [export_chat_by_id(cur, cid) for cid in chat_ids]
+    return {"version": 1, "chats": exports}
+
+
+def import_chat_data(con, cur, data: dict) -> list[int]:
+    """Import chats from a JSON-serializable dict. Returns list of new chat_ids.
+
+    Accepts either a single-chat export (keys: chat, messages, images, files)
+    or a multi-chat export with key 'chats' being a list of single-chat exports.
+    """
+    def _insert_single(single: dict) -> int:
+        chat_meta = single.get("chat", {})
+        messages = single.get("messages", [])
+        images = single.get("images", [])
+        files = single.get("files", [])
+
+        # Determine next chat_id (append)
+        max_chat_id = cur.execute("SELECT MAX(chat_id) FROM chats").fetchone()[0]
+        new_chat_id = (max_chat_id or 0) + 1
+
+        # Insert chat row
+        cur.execute(
+            "INSERT INTO chats (chat_id, description, model, provider, vision_enabled, dalle, bash, temperature, frequency_penalty, max_tokens, autosave) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                new_chat_id,
+                chat_meta.get("description", f"Imported #{new_chat_id}"),
+                chat_meta.get("model", chat["model"]),
+                chat_meta.get("provider", chat["provider"]),
+                1 if chat_meta.get("vision_enabled", chat.get("vision_enabled", False)) else 0,
+                1 if chat_meta.get("dalle", False) else 0,
+                1 if chat_meta.get("bash", False) else 0,
+                float(chat_meta.get("temperature", chat.get("temperature", 0.7))),
+                float(chat_meta.get("frequency_penalty", chat.get("frequency_penalty", 1))),
+                int(chat_meta.get("max_tokens", chat.get("max_tokens", 4048))),
+                1 if chat_meta.get("autosave", False) else 0,
+            ),
+        )
+        con.commit()
+
+        # Insert messages
+        for m in messages:
+            cur.execute(
+                "INSERT INTO chat_messages (chat_id, role, message) VALUES (?, ?, ?)",
+                (new_chat_id, m.get("role", "user"), m.get("content", "")),
+            )
+        con.commit()
+
+        # Insert images
+        for img in images:
+            cur.execute(
+                "INSERT INTO images (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (
+                    img.get("content", ""),
+                    img.get("name", "image"),
+                    img.get("extension", "png"),
+                    new_chat_id,
+                    int(img.get("message_idx", -1)),
+                ),
+            )
+        con.commit()
+
+        # Insert files
+        for f in files:
+            cur.execute(
+                "INSERT INTO files (content, name, extension, chat_id, message_idx) VALUES (?, ?, ?, ?, ?)",
+                (
+                    f.get("content", ""),
+                    f.get("name", "file"),
+                    f.get("extension", "txt"),
+                    new_chat_id,
+                    int(f.get("message_idx", -1)),
+                ),
+            )
+        con.commit()
+
+        return new_chat_id
+
+    new_ids: list[int] = []
+    if "chats" in data and isinstance(data["chats"], list):
+        for single in data["chats"]:
+            new_ids.append(_insert_single(single))
+        update_chat_ids(con, cur)
+        return new_ids
+    else:
+        new_id = _insert_single(data)
+        update_chat_ids(con, cur)
+        return [new_id]
+
+def export_current_chat_dict() -> dict:
+    """Export the in-memory current chat state to a JSON-serializable dict."""
+    meta = {
+        "chat_id": chat.get("id"),
+        "description": chat.get("description", ""),
+        "model": chat.get("model"),
+        "provider": chat.get("provider"),
+        "vision_enabled": bool(chat.get("vision_enabled", False)),
+        "temperature": float(chat.get("temperature", 0.7)),
+        "max_tokens": int(chat.get("max_tokens", 4048)),
+        "frequency_penalty": float(chat.get("frequency_penalty", 1)),
+        "dalle": bool(chat.get("dalle", False)),
+        "bash": bool(chat.get("bash", False)),
+        "autosave": bool(chat.get("autosave", False)),
+    }
+    return {
+        "version": 1,
+        "chat": meta,
+        "messages": list(chat["all_messages"]),
+        "images": list(chat["images"]),
+        "files": list(chat["files"]),
+    }
+
+def overwrite_current_chat_from_import(single: dict) -> None:
+    """Overwrite in-memory current chat with contents from a single-chat export dict."""
+    global chat
+    chat_meta = single.get("chat", {})
+    messages = single.get("messages", [])
+    images = single.get("images", [])
+    files = single.get("files", [])
+
+    # Preserve existing id if present to allow in-place save to DB
+    current_id = chat.get("id")
+
+    # Clear current content
+    chat["all_messages"] = []
+    chat["images"] = []
+    chat["files"] = []
+
+    # Apply settings
+    description = chat_meta.get("description", chat.get("description", ""))
+    model_name = chat_meta.get("model", chat.get("model"))
+    provider_name = chat_meta.get("provider", chat.get("provider"))
+    vision_enabled = bool(chat_meta.get("vision_enabled", chat.get("vision_enabled", False)))
+
+    # Rebuild model via change_model for consistency
+    selected_model = {"name": model_name, "provider": provider_name, "vision_enabled": vision_enabled}
+    change_model(selected_model, providers)
+
+    chat["description"] = description
+    chat["temperature"] = float(chat_meta.get("temperature", chat.get("temperature", 0.7)))
+    chat["max_tokens"] = int(chat_meta.get("max_tokens", chat.get("max_tokens", 4048)))
+    chat["frequency_penalty"] = float(chat_meta.get("frequency_penalty", chat.get("frequency_penalty", 1)))
+    chat["dalle"] = bool(chat_meta.get("dalle", False))
+    chat["bash"] = bool(chat_meta.get("bash", False))
+    chat["autosave"] = bool(chat_meta.get("autosave", False))
+
+    # Messages, images, files
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        add_message_to_chat(role, content)
+
+    chat["images"].extend(images)
+    chat["files"].extend(files)
+
+    # Restore ID and mark as loaded
+    chat["id"] = current_id
+    chat["is_loaded"] = bool(current_id)
+
 def apply_defaults():
     global chat
     if defaults.get("color"):
