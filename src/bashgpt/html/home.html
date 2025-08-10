@@ -110,7 +110,13 @@ content %}
                 });
                 const data = await res.json();
                 if (data.success) {
-                    window.location.reload();
+                    // Redirect to the first imported chat
+                    if (data.chat_ids && data.chat_ids.length > 0) {
+                        const firstChatId = data.chat_ids[0];
+                        window.location.href = "/chat/" + firstChatId;
+                    } else {
+                        window.location.reload();
+                    }
                 } else {
                     alert("Import failed: " + (data.error || "Unknown error"));
                 }
@@ -140,7 +146,13 @@ content %}
                 });
                 const data = await res.json();
                 if (data.success) {
-                    window.location.reload();
+                    // Redirect to the first imported chat
+                    if (data.chat_ids && data.chat_ids.length > 0) {
+                        const firstChatId = data.chat_ids[0];
+                        window.location.href = "/chat/" + firstChatId;
+                    } else {
+                        window.location.reload();
+                    }
                 } else {
                     alert("Import failed: " + (data.error || "Unknown error"));
                 }
