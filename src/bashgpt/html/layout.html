@@ -460,28 +460,30 @@
 
                         // Create model content
                         modelItem.innerHTML = `
-                            <div class="model-info">
-                                <div class="model-name">${model.name}</div>
-                                <div class="model-provider">${
-                                    model.provider
-                                }</div>
-                            </div>
-                            <div class="model-features">
-                                ${
-                                    model.vision_enabled
-                                        ? '<span class="feature-badge">Vision</span>'
-                                        : ""
-                                }
-                                ${
-                                    model.extra_body &&
-                                    Object.keys(model.extra_body).length > 0
-                                        ? `<span class="feature-badge" title='${JSON.stringify(
-                                              model.extra_body
-                                          )}'>Extra</span>`
-                                        : ""
-                                }
-                            </div>
-                        `;
+                                <div class="model-info">
+                                    <div class="model-name" title="${
+                                        model.name
+                                    }">${model.name}</div>
+                                    <div class="model-provider" title="${
+                                        model.provider
+                                    }">${model.provider}</div>
+                                </div>
+                                <div class="model-features">
+                                    ${
+                                        model.vision_enabled
+                                            ? '<span class="feature-badge">Vision</span>'
+                                            : ""
+                                    }
+                                    ${
+                                        model.extra_body &&
+                                        Object.keys(model.extra_body).length > 0
+                                            ? `<span class="feature-badge" title='${JSON.stringify(
+                                                  model.extra_body
+                                              )}'>Extra</span>`
+                                            : ""
+                                    }
+                                </div>
+                            `;
 
                         // Add click event to select this model
                         modelItem.addEventListener("click", () => {
@@ -983,7 +985,7 @@
             closeChatHistoryBtn.addEventListener("click", closeChatHistory);
             leftSidebarOverlay.addEventListener("click", closeChatHistory);
         </script>
-        
+
         <!-- Shared command functions -->
         <script>
             // Function to handle model change command
@@ -1004,7 +1006,8 @@
                     const result = await response.json();
                     if (result.success) {
                         // Update UI to reflect the change
-                        const modelBadge = document.getElementById("model-badge");
+                        const modelBadge =
+                            document.getElementById("model-badge");
                         if (modelBadge) {
                             modelBadge.textContent = modelName;
                         }
@@ -1019,32 +1022,44 @@
 
                         // Show notification with full model name
                         let notificationText = `Model changed to: <span style="color: var(--primary-color);">${modelName}</span>`;
-                        
+
                         // If we have access to the full model list, try to find the full name
                         try {
-                            const modelsResponse = await fetch("/api/get_models");
+                            const modelsResponse = await fetch(
+                                "/api/get_models"
+                            );
                             if (modelsResponse.ok) {
                                 const models = await modelsResponse.json();
-                                const matchedModel = models.find(model => 
-                                    model.name === modelName || model.shortcut === modelName
+                                const matchedModel = models.find(
+                                    (model) =>
+                                        model.name === modelName ||
+                                        model.shortcut === modelName
                                 );
-                                
+
                                 if (matchedModel) {
                                     notificationText = `Model changed to: <span style="color: var(--primary-color);">${matchedModel.name}</span>`;
                                 }
                             }
                         } catch (e) {
                             // If we can't fetch models, use the provided name
-                            console.log("Could not fetch model list for notification");
+                            console.log(
+                                "Could not fetch model list for notification"
+                            );
                         }
-                        
+
                         showNotification(notificationText, 2000);
                     } else {
-                        showNotification(`Error changing model: ${result.error}`, 2000);
+                        showNotification(
+                            `Error changing model: ${result.error}`,
+                            2000
+                        );
                     }
                 } catch (error) {
                     console.error("Error changing model:", error);
-                    showNotification(`Error changing model: ${error.message}`, 2000);
+                    showNotification(
+                        `Error changing model: ${error.message}`,
+                        2000
+                    );
                 }
             }
 
@@ -1065,13 +1080,22 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        showNotification(`Temperature set to: <span style="color: var(--primary-color);">${tempValue}</span>`, 2000);
+                        showNotification(
+                            `Temperature set to: <span style="color: var(--primary-color);">${tempValue}</span>`,
+                            2000
+                        );
                     } else {
-                        showNotification(`Error changing temperature: ${result.error}`, 2000);
+                        showNotification(
+                            `Error changing temperature: ${result.error}`,
+                            2000
+                        );
                     }
                 } catch (error) {
                     console.error("Error changing temperature:", error);
-                    showNotification(`Error changing temperature: ${error.message}`, 2000);
+                    showNotification(
+                        `Error changing temperature: ${error.message}`,
+                        2000
+                    );
                 }
             }
 
@@ -1079,26 +1103,33 @@
             async function regenerateLastMessage() {
                 // Check if we're on the home page (no messages to regenerate)
                 if (window.location.pathname === "/") {
-                    showNotification("Cannot regenerate message in new chat screen.", 2000);
+                    showNotification(
+                        "Cannot regenerate message in new chat screen.",
+                        2000
+                    );
                     return;
                 }
-                
+
                 // Find the last assistant message
-                const messageWrappers = document.querySelectorAll(".message-wrapper");
-                
+                const messageWrappers =
+                    document.querySelectorAll(".message-wrapper");
+
                 // Check if there are any messages
                 if (messageWrappers.length === 0) {
                     showNotification("No messages found to regenerate", 2000);
                     return;
                 }
-                
+
                 // Check if the last message is a user message
                 const lastMessage = messageWrappers[messageWrappers.length - 1];
                 if (lastMessage.classList.contains("user")) {
-                    showNotification("The last message was from you. Cannot regenerate user messages.", 2000);
+                    showNotification(
+                        "The last message was from you. Cannot regenerate user messages.",
+                        2000
+                    );
                     return;
                 }
-                
+
                 // Find the last assistant message
                 let lastAssistantIndex = -1;
                 for (let i = messageWrappers.length - 1; i >= 0; i--) {
@@ -1107,14 +1138,18 @@
                         break;
                     }
                 }
-                
+
                 if (lastAssistantIndex === -1) {
-                    showNotification("No assistant message found to regenerate", 2000);
+                    showNotification(
+                        "No assistant message found to regenerate",
+                        2000
+                    );
                     return;
                 }
-                
+
                 // Call the existing regenerate function
-                const lastAssistantMessage = messageWrappers[lastAssistantIndex];
+                const lastAssistantMessage =
+                    messageWrappers[lastAssistantIndex];
                 regenerateMessage(lastAssistantMessage);
             }
 
@@ -1124,15 +1159,15 @@
                 const notification = document.createElement("div");
                 notification.className = "notification";
                 notification.innerHTML = text;
-                
+
                 // Add to document
                 document.body.appendChild(notification);
-                
+
                 // Trigger animation
                 setTimeout(() => {
                     notification.classList.add("show");
                 }, 10);
-                
+
                 // Remove after specified time
                 setTimeout(() => {
                     notification.classList.remove("show");
