@@ -185,8 +185,6 @@ def get_response(messages=None):
     messages = attach_system_messages(messages)
 
 
-    errorMessage = ""
-
     try:
         match chat["provider"]:
             case "anthropic":
@@ -273,21 +271,25 @@ def get_response(messages=None):
         UnprocessableEntityError,
         APIResponseValidationError,
     ) as e:
-        print(terminal["reset"] + "\n")
-
-        errorMessage += f"Error: {e}"
-        alert(errorMessage)
-        if chat["all_messages"][-1]["role"] == "assistant":
-            chat["all_messages"][-1]["content"] += errorMessage
-        else:
-            add_message_to_chat("assistant", errorMessage)
-        return
+        # Propagate provider errors to callers (server/CLI) to handle appropriately
+        raise
 
     finally:
         print(terminal["reset"] + "\n")
 
 def get_and_print_response():
-    text = get_response()
+    try:
+        text = get_response()
+    except Exception as e:
+        # CLI fallback: show error as a notification and append to last assistant message
+        errorMessage = f"Error: {e}"
+        alert(errorMessage)
+        if chat["all_messages"] and chat["all_messages"][-1]["role"] == "assistant":
+            chat["all_messages"][-1]["content"] += errorMessage
+        else:
+            add_message_to_chat("assistant", errorMessage)
+        print(terminal["reset"] + "\n")
+        return
 
     stop = threading.Event()
     bar_thread = threading.Thread(target=loading_bar, args=[chat, stop])

@@ -222,10 +222,16 @@ def server():
                 # Mark response as complete before saving
                 response_complete[0] = True
             except Exception as e:
-                # Mark response as complete on error
-                response_complete[0] = True
-                yield f"Error: {str(e)}"
-                raise
+                # On error, if the last assistant message is empty, remove it; otherwise keep partial content
+                try:
+                    if chat["all_messages"] and chat["all_messages"][-1]["role"] == "assistant":
+                        if not chat["all_messages"][-1]["content"]:
+                            chat["all_messages"].pop()
+                except Exception:
+                    pass
+                # Mark response as incomplete and emit error marker
+                response_complete[0] = False
+                yield f"__ERROR__:{str(e)}"
 
         # Create the response object
         response = Response(generate(), mimetype="text/plain") # type: ignore
@@ -303,6 +309,7 @@ def server():
         
         def generate():
             try:
+                old_content = chat["all_messages"][idx]["content"]
                 chat["all_messages"][idx]["content"] = ""
                 text_stream = get_response(messages=chat["all_messages"][:idx])
 
@@ -313,10 +320,14 @@ def server():
                 # Mark response as complete before saving
                 response_complete[0] = True
             except Exception as e:
-                # Mark response as complete on error
-                response_complete[0] = True
-                yield f"Error: {str(e)}"
-                raise
+                # Restore previous content on error
+                try:
+                    chat["all_messages"][idx]["content"] = old_content
+                except Exception:
+                    pass
+                # Mark response as incomplete and emit error marker
+                response_complete[0] = False
+                yield f"__ERROR__:{str(e)}"
 
         # Create the response object
         response = Response(generate(), mimetype="text/plain") # type: ignore
@@ -362,10 +373,14 @@ def server():
                 # Mark response as complete before saving
                 response_complete[0] = True
             except Exception as e:
-                # Mark response as complete on error
-                response_complete[0] = True
-                yield f"Error: {str(e)}"
-                raise
+                # Restore original content on error
+                try:
+                    chat["all_messages"][idx]["content"] = current_content
+                except Exception:
+                    pass
+                # Mark response as incomplete and emit error marker
+                response_complete[0] = False
+                yield f"__ERROR__:{str(e)}"
 
         # Create the response object
         response = Response(generate(), mimetype="text/plain") # type: ignore
@@ -463,7 +478,7 @@ def server():
             # Find the model in available models
             selected_model = None
             for model in models:
-                if model["name"] == model_name:
+                if model["name"] == model_name or model["shortcut"] == model_name:
                     selected_model = model
                     break
             

@@ -312,6 +312,8 @@ endblock %} {% block content %}
         animateRegenerateBtn(regenerateBtn);
 
         const text_contents = messageWrapper.querySelector(".message-text");
+        const previousRaw = text_contents.getAttribute("data-raw-text") || "";
+        const previousHTML = text_contents.innerHTML;
         text_contents.childList = [];
 
         const res = await regenerate_message(messageIndex);
@@ -351,6 +353,25 @@ endblock %} {% block content %}
             }
 
             const decodedValue = new TextDecoder().decode(value);
+            // If server signaled an error, notify and restore previous content
+            if (decodedValue.startsWith("__ERROR__:")) {
+                const errText = decodedValue.replace("__ERROR__:", "").trim();
+                showNotification(`Error: ${errText}`, 5000);
+                // Restore original message content
+                text_contents.setAttribute("data-raw-text", previousRaw);
+                text_contents.innerHTML = previousHTML;
+                // Re-attach copy buttons and highlight code
+                text_contents.querySelectorAll("pre").forEach((pre) => {
+                    if (!pre.querySelector(".code-copy-button")) {
+                        attach_copy_button_to_code_block(pre);
+                    }
+                });
+                if (typeof Prism !== "undefined") {
+                    Prism.highlightAllUnder(text_contents);
+                }
+                observer.disconnect();
+                return;
+            }
             output += decodedValue;
             // Update the raw text attribute
             text_contents.setAttribute("data-raw-text", output);
@@ -436,6 +457,15 @@ endblock %} {% block content %}
             }
 
             const decodedValue = new TextDecoder().decode(value);
+            if (decodedValue.startsWith("__ERROR__:")) {
+                const errText = decodedValue.replace("__ERROR__:", "").trim();
+                showNotification(`Error: ${errText}`, 5000);
+                try {
+                    assistant_message.remove();
+                } catch (_) {}
+                observer.disconnect();
+                return;
+            }
             output += decodedValue;
             // Update the raw text attribute
             text_contents.setAttribute("data-raw-text", output);
@@ -803,6 +833,16 @@ endblock %} {% block content %}
             }
 
             const decodedValue = new TextDecoder().decode(value);
+            if (decodedValue.startsWith("__ERROR__:")) {
+                const errText = decodedValue.replace("__ERROR__:", "").trim();
+                showNotification(`Error: ${errText}`, 5000);
+                // Remove the placeholder assistant message element on failure
+                try {
+                    assistant_message.remove();
+                } catch (_) {}
+                observer.disconnect();
+                return;
+            }
             output += decodedValue;
             // Update the raw text attribute
             assistant_message_text.setAttribute("data-raw-text", output);
@@ -996,6 +1036,58 @@ endblock %} {% block content %}
                 if (!message) return;
                 console.log(message);
 
+                // Check if the message is a command
+                if (message.startsWith("/")) {
+                    const commandParts = message.substring(1).trim().split(" ");
+                    const command = commandParts[0].toLowerCase();
+
+                    if (command === "model" && commandParts.length >= 2) {
+                        const modelName = commandParts[1];
+                        changeModelCommand(modelName);
+                        textarea.value = "";
+                        textarea.style.height = "auto";
+                        return;
+                    } else if (
+                        command === "temp" ||
+                        command === "temperature"
+                    ) {
+                        if (commandParts.length >= 2) {
+                            const tempValue = parseFloat(commandParts[1]);
+                            if (
+                                !isNaN(tempValue) &&
+                                tempValue >= 0 &&
+                                tempValue <= 2
+                            ) {
+                                changeTemperatureCommand(tempValue);
+                                textarea.value = "";
+                                textarea.style.height = "auto";
+                                return;
+                            } else {
+                                showNotification(
+                                    "Invalid temperature value. Please enter a number between 0 and 2.",
+                                    2000
+                                );
+                                textarea.value = "";
+                                textarea.style.height = "auto";
+                                return;
+                            }
+                        } else {
+                            showNotification(
+                                "Usage: /temp <value> (0-2)",
+                                2000
+                            );
+                            textarea.value = "";
+                            textarea.style.height = "auto";
+                            return;
+                        }
+                    } else if (command === "rg") {
+                        regenerateLastMessage();
+                        textarea.value = "";
+                        textarea.style.height = "auto";
+                        return;
+                    }
+                }
+
                 const wasAtBottom = isUserAtBottom();
 
                 textarea.value = "";
@@ -1023,5 +1115,4 @@ endblock %} {% block content %}
 
     let shoudlAutoScroll = false;
 </script>
-
 {% endblock %}

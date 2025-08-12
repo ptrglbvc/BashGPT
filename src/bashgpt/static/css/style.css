@@ -1751,3 +1751,33 @@ input[type="number"]:focus {
 .message-text ul li {
     margin-top: -0.7em; /* Negative margin to pull items closer together */
 }
+
+/* Notification System */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: -350px;
+    z-index: 9999;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 12px 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    max-width: 350px;
+    transition: right 0.2s ease-in-out;
+}
+
+.notification.show {
+    right: 20px;
+}
+
+/* Allow HTML content in notifications */
+.notification span {
+    color: inherit;
+}
+
+.message-text ul li {
+    margin-top: -0.7em; /* Negative margin to pull items closer together */
+}
