@@ -99,16 +99,33 @@ async function changeModelCommand(modelName) {
 
         const result = await response.json();
         if (result.success) {
-            // Update UI to reflect the change
+            // Try to get the full model name from the models list
+            let fullModelName = modelName;
+            try {
+                const modelsResponse = await fetch("/api/get_models");
+                if (modelsResponse.ok) {
+                    const models = await modelsResponse.json();
+                    const matchedModel = models.find(
+                        (model) => model.name === modelName || model.shortcut === modelName
+                    );
+                    if (matchedModel) {
+                        fullModelName = matchedModel.name;
+                    }
+                }
+            } catch (e) {
+                console.log("Could not fetch model list for UI update");
+            }
+
+            // Update UI to reflect the change with full model name
             const modelBadge = document.getElementById("model-badge");
             if (modelBadge) {
-                modelBadge.textContent = modelName;
+                modelBadge.textContent = fullModelName;
             }
 
             // Update sidebar model display if it exists
             const sidebarCurrentModel = document.getElementById("sidebar-current-model");
             if (sidebarCurrentModel) {
-                sidebarCurrentModel.textContent = modelName;
+                sidebarCurrentModel.textContent = fullModelName;
             }
 
             // Show notification with full model name
