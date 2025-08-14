@@ -1839,7 +1839,29 @@ input[type="number"]:focus {
 }
 /* Reduce spacing between list items in message text */
 .message-text ul li {
-    margin-top: -0.7em; /* Negative margin to pull items closer together */
+    margin-top: -1.3em; /* Negative margin to pull items closer together */
+}
+
+.message-text ol li {
+    margin-top: -1.3em; /* Negative margin to pull items closer together */
+}
+
+.message-text ol:is(:last-child) {
+    margin-bottom: -1.3em; /* Negative margin to pull items closer together */
+}
+
+.message-text ul:is(:last-child) {
+    margin-bottom: -1.3em; /* Negative margin to pull items closer together */
+}
+
+/* Reduce spacing between consecutive lists */
+
+.message-text ul ul,
+.message-text ol ol,
+.message-text ul ol,
+.message-text ol ul {
+    margin-bottom: -1.7em;
+    margin-top: -1em;
 }
 
 /* Notification System */
@@ -1868,6 +1890,3 @@ input[type="number"]:focus {
     color: inherit;
 }
 
-.message-text ul li {
-    margin-top: -0.7em; /* Negative margin to pull items closer together */
-}

@@ -86,10 +86,22 @@ Short overview of the error-to-notification flow implemented for model/provider 
     -   If you change the error marker string, update both `server.py` (generator error branches) and `chat.html` (stream readers) accordingly.
     -   Ensure `response_complete` stays False on error so failed generations don’t get saved.
 
+## Command System
+
+-   **Unified command handling**: `src/bashgpt/static/js/commands.js` - Centralized JavaScript file containing all web interface slash commands
+-   **Command structure**: Commands are defined in a `COMMANDS` object with descriptions and handler functions
+-   **Current commands**:
+    -   `/help` - Display all available commands with descriptions (10s notification)
+    -   `/model [model_name]` - Change the current AI model
+    -   `/temp [value]` - Set temperature parameter (0.0 to 2.0)
+    -   `/rg` - Regenerate the last assistant message (chat view only)
+-   **Error handling**: Invalid commands show helpful error notifications with suggestion to use `/help`
+-   **Extensibility**: New commands can be easily added to the `COMMANDS` object
+
 ## File Locations
 
--   **Command implementations**: `src/bashgpt/html/layout.html` (shared functions)
--   **Command parsing**: Individual page templates (`chat.html`, `home.html`)
+-   **Command implementations**: `src/bashgpt/static/js/commands.js` (centralized), previously in `src/bashgpt/html/layout.html` (shared functions)
+-   **Command parsing**: Individual page templates (`chat.html`, `home.html`) via `handleCommand()` function
 -   **CSS styling**: `src/bashgpt/static/css/style.css`
 -   **Backend endpoints**: `src/bashgpt/server.py`
 
