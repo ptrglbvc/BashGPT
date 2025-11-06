@@ -847,6 +847,7 @@ def parse_args():
     parser.add_argument('--defaults', action='store_true',
                         help='open defaults.json for editing')
 
+<<<<<<< HEAD
     # import/export
     parser.add_argument('--export-all', metavar='FILE',
                         help='export all chats to FILE (JSON)')
@@ -855,6 +856,8 @@ def parse_args():
     parser.add_argument('--import', dest='import_file', metavar='FILE',
                         help='import chats from FILE (JSON). Supports single or multi-chat exports')
 
+=======
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
     parser.add_argument('prompt', nargs='?', default=None,
                         help='the prompt to send to the AI')
 
@@ -894,6 +897,7 @@ def input_with_args():
             print("\nShutting down server...")
         return 1
 
+<<<<<<< HEAD
     # --export / --import
     if args.export_all:
         (con, cur) = setup_db(path)
@@ -927,6 +931,8 @@ def input_with_args():
         print(f"Imported chats. New IDs: {', '.join(map(str, new_ids))}")
         return 1
 
+=======
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
     if args.models:
         edit_file("/models.json")
         return 1

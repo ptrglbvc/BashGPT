@@ -6,6 +6,7 @@
         "vision_enabled": true
     },
     {
+<<<<<<< HEAD
         "name": "openai/gpt-oss-20b",
         "shortcut": "oss",
         "provider": "openrouter",
@@ -22,6 +23,16 @@
     {
         "name": "openai/gpt-5-mini",
         "shortcut": "5-mini",
+=======
+        "name": "openai/gpt-4.5-preview",
+        "shortcut": "4.1",
+        "provider": "openrouter",
+        "vision_enabled": true
+    },
+    {
+        "name": "o3",
+        "shortcut": "openai/o3",
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -71,7 +82,11 @@
         "vision_enabled": true
     },
     {
+<<<<<<< HEAD
         "name": "qwen/qwen3-235b-a22b-07-25",
+=======
+        "name": "qwen/qwen3-235b-a22b-04-28",
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
         "shortcut": "qwen",
         "provider": "openrouter",
         "vision_enabled": false,

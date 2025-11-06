@@ -1821,8 +1821,13 @@ input[type="number"]:focus {
 
 .message-image-wrapper {
     view-transition-name: thumbnail-image;
+<<<<<<< HEAD
     font-size: 0;
     line-height: 0;
+=======
+      font-size: 0;
+line-height: 0;
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -1831,7 +1836,11 @@ input[type="number"]:focus {
 }
 
 .message-image-wrapper:not(:empty) {
+<<<<<<< HEAD
     padding-bottom: 10px;
+=======
+	padding-bottom: 10px;
+>>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
 }
 
 .message-text h3 {
