@@ -19,7 +19,7 @@
         <script src="/static/js/prism/prism-autoloader.min.js"></script>
         <script src="/static/js/commands.js"></script>
     </head>
-    <body>
+    <body class="theme-{{ defaults.web.theme | default('chatgpt') }}">
         <div class="app-container">
             <!-- Left sidebar toggle -->
             <div id="chat-history-toggle" class="sidebar-toggle left-toggle">
@@ -187,6 +187,13 @@
                 </button>
             </div>
             <div class="settings-body">
+                <div class="settings-section">
+                    <h3>Theme</h3>
+                    <select id="theme-select" style="margin-top:6px; max-width:160px;">
+                        <option value="chatgpt" {% if defaults.web.theme == 'chatgpt' %}selected{% endif %}>ChatGPT</option>
+                        <option value="erp" {% if defaults.web.theme == 'erp' %}selected{% endif %}>ERP</option>
+                    </select>
+                </div>
                 <div class="settings-section">
                     <h3>Model Selection</h3>
                     <div class="sidebar-model-selector">
@@ -985,6 +992,29 @@
 
             closeChatHistoryBtn.addEventListener("click", closeChatHistory);
             leftSidebarOverlay.addEventListener("click", closeChatHistory);
+            // Theme change handler
+            const themeSelect = document.getElementById("theme-select");
+            if (themeSelect) {
+                themeSelect.addEventListener("change", async () => {
+                    const newTheme = themeSelect.value;
+                    try {
+                        const res = await fetch("/api/change_settings", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ theme: newTheme }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showNotification(`Theme changed to <span style='color: var(--primary-color)'>${newTheme}</span>`, 2500);
+                            setTimeout(()=>window.location.reload(),400);
+                        } else {
+                            showNotification("Failed to change theme", 3000);
+                        }
+                    } catch (e) {
+                        showNotification("Error updating theme", 3000);
+                    }
+                });
+            }
         </script>
 
         <!-- Notification system -->

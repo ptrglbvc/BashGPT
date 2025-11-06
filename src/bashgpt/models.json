@@ -6,11 +6,10 @@
         "vision_enabled": true
     },
     {
-<<<<<<< HEAD
         "name": "openai/gpt-oss-20b",
         "shortcut": "oss",
         "provider": "openrouter",
-        "vision_enabled": false 
+        "vision_enabled": false
     },
     {
         "name": "openai/gpt-5-chat",
@@ -18,21 +17,12 @@
         "provider": "openrouter",
         "vision_enabled": true,
         "extra_body": {
-		"reasoning": {"effort": "high"}}	
+            "reasoning": { "effort": "high" }
+        }
     },
     {
         "name": "openai/gpt-5-mini",
         "shortcut": "5-mini",
-=======
-        "name": "openai/gpt-4.5-preview",
-        "shortcut": "4.1",
-        "provider": "openrouter",
-        "vision_enabled": true
-    },
-    {
-        "name": "o3",
-        "shortcut": "openai/o3",
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
         "provider": "openrouter",
         "vision_enabled": true
     },
@@ -42,7 +32,8 @@
         "provider": "openrouter",
         "vision_enabled": true,
         "extra_body": {
-		"reasoning": {"reasoning_effort": "medium"}}	
+            "reasoning": { "reasoning_effort": "medium" }
+        }
     },
     {
         "name": "doubao-seed-1-6-thinking-250615",
@@ -73,7 +64,7 @@
         "shortcut": "openai/o3",
         "provider": "openrouter",
         "vision_enabled": true,
-	"extra_body": {"reasoning": {"effort": "medium"}}
+        "extra_body": { "reasoning": { "effort": "medium" } }
     },
     {
         "name": "openai/o4-mini",
@@ -82,11 +73,7 @@
         "vision_enabled": true
     },
     {
-<<<<<<< HEAD
         "name": "qwen/qwen3-235b-a22b-07-25",
-=======
-        "name": "qwen/qwen3-235b-a22b-04-28",
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
         "shortcut": "qwen",
         "provider": "openrouter",
         "vision_enabled": false,
@@ -110,7 +97,7 @@
         "vision_enabled": false
     },
     {
-        "name":"z-ai/glm-4.5",
+        "name": "z-ai/glm-4.5",
         "shortcut": "glm",
         "provider": "openrouter",
         "vision_enabled": false,
@@ -173,19 +160,19 @@
         "name": "mistralai/mistral-small-3.2-24b-instruct",
         "shortcut": "mistral-small",
         "provider": "openrouter",
-        "vision_enabled": true 
+        "vision_enabled": true
     },
     {
         "name": "mistralai/mistral-medium-3.1",
         "shortcut": "mistral-medium",
         "provider": "openrouter",
-        "vision_enabled": true 
+        "vision_enabled": true
     },
     {
         "name": "mistralai/mistral-large-2411",
         "shortcut": "mistral-large",
         "provider": "openrouter",
-        "vision_enabled": false 
+        "vision_enabled": false
     },
     {
         "name": "gemini-2.5-pro",
@@ -204,18 +191,36 @@
         "shortcut": "flash-lite",
         "provider": "openrouter",
         "vision_enabled": true,
-	"extra_body": 
-	{"google": {"safety_settings": [
-		{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-		{"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-		{"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-		{"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
-		{"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-	    ]},
-	    "reasoning": {
-    "max_tokens": 2000
-	}
-    }},
+        "extra_body": {
+            "google": {
+                "safety_settings": [
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HATE_SPEECH",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_CIVIC_INTEGRITY",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    }
+                ]
+            },
+            "reasoning": {
+                "max_tokens": 2000
+            }
+        }
+    },
     {
         "name": "x-ai/grok-3-mini-beta",
         "shortcut": "grok-mini",
@@ -247,4 +252,3 @@
         "vision_enabled": true
     }
 ]
-

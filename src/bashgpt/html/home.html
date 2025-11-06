@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block title %}BashGPT{% endblock %} {% block
 content %}
-<main class="chats-container">
+<main class="chats-container" data-theme="{{ defaults.web.theme | default('chatgpt') }}">
     <div class="welcome-text">
         <i class="fa-solid fa-message"></i>
         <h3>How can I help you today?</h3>

@@ -35,6 +35,36 @@ const COMMANDS = {
             await changeModelCommand(modelName);
         }
     },
+    "theme": {
+        description: "Change UI theme (chatgpt|erp) - Usage: /theme erp",
+        handler: async (args) => {
+            if (args.length < 1) {
+                showNotification("Usage: /theme <chatgpt|erp>", 3000);
+                return;
+            }
+            const themeName = args[0].toLowerCase();
+            if (!["chatgpt", "erp"].includes(themeName)) {
+                showNotification("Invalid theme. Options: chatgpt, erp", 3000);
+                return;
+            }
+            try {
+                const res = await fetch("/api/change_settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ theme: themeName }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(`Theme changed to <span style='color: var(--primary-color)'>${themeName}</span>`, 2500);
+                    setTimeout(()=>window.location.reload(),400);
+                } else {
+                    showNotification("Failed to change theme", 3000);
+                }
+            } catch (e) {
+                showNotification("Error updating theme", 3000);
+            }
+        }
+    },
     "temp": {
         description: "Change temperature (0-2) - Usage: /temp 0.7",
         handler: async (args) => {

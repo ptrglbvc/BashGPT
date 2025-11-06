@@ -1,55 +1,55 @@
 #!/Users/petar/Projects/Python/BashGPT/env/bin/python
+import argparse
 import base64
+import curses
 import os
 import shlex
-import curses
 import threading
-import argparse
 from io import BytesIO
-from time import sleep
-from sys import argv
-from typing import cast, Literal
 from subprocess import run
+from sys import argv
+from time import sleep
+from typing import Literal, cast
 
 import httpx
-from PIL import ImageGrab, Image
 import vlc
+from PIL import Image, ImageGrab
 
+from bashgpt.api import client, get_and_print_response, googleai
 from bashgpt.autonomous import parse_auto_message
 from bashgpt.bash import bash
 from bashgpt.chat import (
     add_message_to_chat,
-    chat,
-    load_chat,
-    change_model,
-    save_chat,
-    delete_chat,
     apply_defaults,
     change_defaults,
+    change_model,
+    chat,
     defaults,
+    delete_chat,
     export_all_chats,
     export_chat_by_id,
-    import_chat_data,
     export_current_chat_dict,
+    import_chat_data,
+    load_chat,
     overwrite_current_chat_from_import,
+    save_chat,
 )
 from bashgpt.dalle import generate_openai_image
+from bashgpt.data_loader import data_loader
 from bashgpt.db_and_key import setup_db
 from bashgpt.get_file import get_file
-from bashgpt.data_loader import data_loader
-from bashgpt.terminal_codes import terminal
-from bashgpt.util_functions import (alert, loading_bar, parse_md, use_temp_file)
-from bashgpt.whisper import record, whisper
-from bashgpt.api import client, googleai, get_and_print_response
 from bashgpt.path import get_path
-
+from bashgpt.terminal_codes import terminal
+from bashgpt.util_functions import alert, loading_bar, parse_md, use_temp_file
+from bashgpt.whisper import record, whisper
 
 all_messages = chat["all_messages"]
 (modes, models, providers) = data_loader()
 
-#this has honestly been one of the hardest part of this project. Without the library, I had to resort to really big workarounds
+# this has honestly been one of the hardest part of this project. Without the library, I had to resort to really big workarounds
 path = get_path()
 audio_location = path + "audio.wav"
+
 
 def main():
     apply_defaults()
@@ -61,7 +61,7 @@ def main():
         if status != 0:
             exit()  # Exit if there was an error
 
-    if chat.get('load_last'):
+    if chat.get("load_last"):
         (con, cur) = setup_db(path)
         last_id = cur.execute("SELECT MAX(chat_id) FROM chat_messages").fetchone()[0]
         if last_id:
@@ -72,17 +72,22 @@ def main():
     else:
         if not all_messages:
             (con, cur) = setup_db(path)
-            history_exists = cur.execute("SELECT MAX(message_id) AS max FROM chat_messages").fetchone()[0]
+            history_exists = cur.execute(
+                "SELECT MAX(message_id) AS max FROM chat_messages"
+            ).fetchone()[0]
 
             if history_exists:
-                history_input = input("\nWould you like to resume a previous conversation? (y/n) ").lower().strip()
+                history_input = (
+                    input("\nWould you like to resume a previous conversation? (y/n) ")
+                    .lower()
+                    .strip()
+                )
                 if history_input and history_input[0] == "y":
                     choose_chat(cur)
                     chat["mode"] = remember_mode()
 
             if not chat["all_messages"]:
                 choose_mode()
-
 
     while True:
         if chat["auto_turns"] == 0:
@@ -91,7 +96,11 @@ def main():
             if not len(all_messages) == 2:
                 message = input("You: ").strip()
         else:
-            message = chat["auto_message"] if chat["auto_message"] else f"You have freedom for {chat['auto_turns']} more turns"
+            message = (
+                chat["auto_message"]
+                if chat["auto_message"]
+                else f"You have freedom for {chat['auto_turns']} more turns"
+            )
             chat["auto_message"] = ""
             print(f"You: {message}")
 
@@ -99,11 +108,14 @@ def main():
 
         if message and message[0] == "/" and len(message) > 1:
             output = command(message, con, cur)
-            if output == 1: continue
-            elif output == 2: message = ""
-            elif output: message = output
+            if output == 1:
+                continue
+            elif output == 2:
+                message = ""
+            elif output:
+                message = output
 
-        if (message):
+        if message:
             add_message_to_chat("user", message)
 
         get_and_print_response()
@@ -121,7 +133,9 @@ def main():
             threading.Thread(target=generate_openai_image, args=[client]).start()
 
         if chat["auto_turns"] > 0:
-            chat["auto_message"] = parse_auto_message(chat["all_messages"][-1]["content"])
+            chat["auto_message"] = parse_auto_message(
+                chat["all_messages"][-1]["content"]
+            )
             chat["auto_turns"] -= 1
 
 
@@ -133,7 +147,10 @@ def command(message, con, cur):
             # Export current chat to stdout as JSON or to a file if provided
             try:
                 data = export_current_chat_dict()
-                import json, os, re
+                import json
+                import os
+                import re
+
                 # Determine output path
                 if len(command) == 2:
                     out_file = command[1]
@@ -149,7 +166,9 @@ def command(message, con, cur):
                     slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", desc).strip("-").lower()
                     if not slug:
                         slug = "chat"
-                    out_file = os.path.join(downloads_dir, f"bashgpt-chat-{chat_id}-{slug}.json")
+                    out_file = os.path.join(
+                        downloads_dir, f"bashgpt-chat-{chat_id}-{slug}.json"
+                    )
 
                 # If target exists, create a non-conflicting filename like "name (1).json"
                 def unique_path(path: str) -> str:
@@ -166,7 +185,7 @@ def command(message, con, cur):
 
                 out_file = unique_path(out_file)
 
-                with open(out_file, 'w') as f:
+                with open(out_file, "w") as f:
                     json.dump(data, f, indent=2)
                 alert(f"Exported current chat to: {out_file}")
             except Exception as e:
@@ -179,17 +198,24 @@ def command(message, con, cur):
                 alert("Usage: /import <path-to-json>")
                 return 1
             try:
-                import json, os
+                import json
+                import os
+
                 file_path = command[1].replace(r"\ ", " ")
                 if not os.path.isfile(file_path):
                     alert("File not found")
                     return 1
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     payload = json.load(f)
                 # Accept single-chat or multi; take first if multi
                 single = payload
-                if isinstance(payload, dict) and 'chats' in payload and isinstance(payload['chats'], list) and payload['chats']:
-                    single = payload['chats'][0]
+                if (
+                    isinstance(payload, dict)
+                    and "chats" in payload
+                    and isinstance(payload["chats"], list)
+                    and payload["chats"]
+                ):
+                    single = payload["chats"][0]
                 overwrite_current_chat_from_import(single)
                 # Ensure DB connections
                 if not chat["is_loaded"]:
@@ -230,7 +256,8 @@ def command(message, con, cur):
                 (con, cur) = setup_db(path)
             print("Saving chat. Hold on a minute...")
             save_chat(con, cur)
-            from bashgpt.chat import reset_chat, apply_defaults
+            from bashgpt.chat import apply_defaults, reset_chat
+
             reset_chat()
             apply_defaults()
             add_message_to_chat("system", defaults["mode"]["description"])
@@ -239,7 +266,8 @@ def command(message, con, cur):
             return 1
 
         case "new":
-            from bashgpt.chat import reset_chat, apply_defaults
+            from bashgpt.chat import apply_defaults, reset_chat
+
             reset_chat()
             apply_defaults()
             add_message_to_chat("system", defaults["mode"]["description"])
@@ -280,7 +308,7 @@ def command(message, con, cur):
             if len(command) == 1:
                 delete_messages()
 
-            elif (command[1] and command[1].isnumeric()):
+            elif command[1] and command[1].isnumeric():
                 no_of_messages = int(command[1])
                 delete_messages(no_of_messages)
 
@@ -289,9 +317,9 @@ def command(message, con, cur):
             return 1
 
         case "model":
-            if (len(command) == 1):
+            if len(command) == 1:
                 curses.wrapper(get_models)
-            elif (len(command) == 2):
+            elif len(command) == 2:
                 is_a_model = False
                 for model in models:
                     if model["name"] == command[1] or model["shortcut"] == command[1]:
@@ -363,20 +391,21 @@ def command(message, con, cur):
             get_and_print_response()
             return 1
 
-
-
-
         case "speak":
             if len(command) == 2:
                 voice = command[1]
                 validated_voice = cast(VoicesLiteral, voice)
                 alert("Speech will begin shortly")
-                threading.Thread(target=speak, args=[all_messages[-1]["content"], validated_voice]).start()
+                threading.Thread(
+                    target=speak, args=[all_messages[-1]["content"], validated_voice]
+                ).start()
                 alert("Invalid voice")
                 return 1
             elif len(command) == 1:
                 alert("Speech will begin shortly")
-                threading.Thread(target=speak, args=[all_messages[-1]["content"]]).start()
+                threading.Thread(
+                    target=speak, args=[all_messages[-1]["content"]]
+                ).start()
                 return 1
             alert("Invalid voice")
 
@@ -400,7 +429,6 @@ def command(message, con, cur):
                 except:
                     alert("Invalid number of turns")
 
-
             else:
                 alert("Invalid number of turns. Proper usage: /auto 5")
             return 1
@@ -411,7 +439,9 @@ def command(message, con, cur):
             return 1
 
         case "dalle":
-            alert(f"Image generation has been turned {'off' if chat['dalle'] else 'on'}.")
+            alert(
+                f"Image generation has been turned {'off' if chat['dalle'] else 'on'}."
+            )
             chat["dalle"] = not chat["dalle"]
             return 1
 
@@ -457,7 +487,9 @@ def command(message, con, cur):
             return 1
 
         case "info":
-            alert(f"max_tokens: {chat["max_tokens"]}\ntemperature: {chat["temperature"]}\nfrequency_penalty: {chat["frequency_penalty"]}\nautosave: {chat["autosave"]}\nmodel: {chat["model"]} ({chat["provider"]})")
+            alert(
+                f"max_tokens: {chat['max_tokens']}\ntemperature: {chat['temperature']}\nfrequency_penalty: {chat['frequency_penalty']}\nautosave: {chat['autosave']}\nmodel: {chat['model']} ({chat['provider']})"
+            )
             return 1
 
         case "smooth_streaming" | "ss":
@@ -502,12 +534,14 @@ def get_image(image_url, idx=None):
         if isinstance(image, Image.Image):
             image_data = image_to_base64_and_info(image)
 
-            chat["images"].append({
-                "content" : image_data["base64"],
-                "name": image_data["name"],
-                "extension": image_data["extension"],
-                "message_idx": len(chat["all_messages"]) if not idx else idx
-                })
+            chat["images"].append(
+                {
+                    "content": image_data["base64"],
+                    "name": image_data["name"],
+                    "extension": image_data["extension"],
+                    "message_idx": len(chat["all_messages"]) if not idx else idx,
+                }
+            )
             alert(f"Image attached: \033[3m{image_data['name']}\033[0m")
             return
 
@@ -515,12 +549,11 @@ def get_image(image_url, idx=None):
             alert("Could not get image from clipboard")
             return
 
-
     clean_image_url = image_url.replace(r"\ ", " ")
     image_name = clean_image_url.split("/")[-1]
 
-    #images from links can oftentimes have those variables like ?v=somethingblabla&
-    #this will be a problem when trying to parse the image extension, well need to handle that
+    # images from links can oftentimes have those variables like ?v=somethingblabla&
+    # this will be a problem when trying to parse the image extension, well need to handle that
     try:
         question_idx = image_name.index("?")
         dot_idx = image_name.index(".")
@@ -529,37 +562,39 @@ def get_image(image_url, idx=None):
         pass
 
     image_extension = image_name.split(".")[-1]
-    if image_extension == "jpg": image_extension = "jpeg"
+    if image_extension == "jpg":
+        image_extension = "jpeg"
     if image_extension not in ["jpeg", "png", "webp"]:
         alert("Invalid image format")
         return
 
-
     if clean_image_url[0:4] == "http":
         image = base64.b64encode(httpx.get(clean_image_url).content).decode("utf-8")
-        chat["images"].append({
-            "content" : image,
-            "name": image_name,
-            "extension": image_extension,
-            "message_idx": len(chat["all_messages"]) if not idx else idx
-            })
+        chat["images"].append(
+            {
+                "content": image,
+                "name": image_name,
+                "extension": image_extension,
+                "message_idx": len(chat["all_messages"]) if not idx else idx,
+            }
+        )
         alert(f"Image attached: \033[3m{image_name}\033[0m")
 
     elif os.path.isfile(clean_image_url):
         with open(clean_image_url, "rb") as image_file:
-            image = base64.b64encode(image_file.read()).decode('utf-8')
-            chat["images"].append({
-                "content" : image,
-                "name": image_name,
-                "extension": image_extension,
-                "message_idx" : len(chat["all_messages"]) if not idx else idx,
-                })
+            image = base64.b64encode(image_file.read()).decode("utf-8")
+            chat["images"].append(
+                {
+                    "content": image,
+                    "name": image_name,
+                    "extension": image_extension,
+                    "message_idx": len(chat["all_messages"]) if not idx else idx,
+                }
+            )
             alert(f"Image attached: \033[3m{image_name}\033[0m")
 
     else:
         alert("Invalid url")
-
-
 
 
 def voice_input():
@@ -590,10 +625,8 @@ def voice_input():
     return transcription
 
 
-
 def choose_chat(cur):
-    options = cur.execute(
-        "SELECT chat_id, description FROM chats").fetchall()
+    options = cur.execute("SELECT chat_id, description FROM chats").fetchall()
     print()
     option_ids = []
     for option in options:
@@ -607,39 +640,50 @@ def choose_chat(cur):
             print_chat()
             break
 
-VoicesLiteral = Literal['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+
+VoicesLiteral = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
 
 def is_valid_voice(value: str) -> bool:
-    allowed_values = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+    allowed_values = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
     return value in allowed_values
+
 
 def speak(message, voice="nova"):
     try:
         speech_file_path = path + "speech.mp3"
         if not is_valid_voice(voice):
-            voice="nova"
+            voice = "nova"
         with client.audio.speech.with_streaming_response.create(
             model="tts-1",
-            voice=voice, # type: ignore
+            voice=voice,  # type: ignore
             input=message,
         ) as response:
             response.stream_to_file(speech_file_path)
             player = vlc.MediaPlayer(speech_file_path)
-            player.play() # type: ignore
+            player.play()  # type: ignore
     except Exception as e:
         alert(f"Error: {e}")
 
 
-
-def print_chat(newline_in_the_end = True):
+def print_chat(newline_in_the_end=True):
     global chat
     global terminal
 
     print("\x1b\x5b\x48\x1b\x5b\x32\x4a")
 
     for idx, message in enumerate(chat["all_messages"]):
-        if newline_in_the_end == False and idx == len(chat["all_messages"]) - 1 and message["role"] == "assistant":
-            print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"]), end="")
+        if (
+            newline_in_the_end == False
+            and idx == len(chat["all_messages"]) - 1
+            and message["role"] == "assistant"
+        ):
+            print(
+                parse_md(
+                    terminal[chat["color"]] + message["content"] + terminal["reset"]
+                ),
+                end="",
+            )
             return
         if message["role"] == "user":
             print("You: " + message["content"] + "\n")
@@ -650,7 +694,14 @@ def print_chat(newline_in_the_end = True):
                 if idx == file["message_idx"]:
                     alert(f"Attached file: \033[3m{file['name']}\033[0m")
         if message["role"] == "assistant":
-            print(parse_md(terminal[chat["color"]] + message["content"] + terminal["reset"] + "\n"))
+            print(
+                parse_md(
+                    terminal[chat["color"]]
+                    + message["content"]
+                    + terminal["reset"]
+                    + "\n"
+                )
+            )
 
 
 def remember_mode():
@@ -662,145 +713,144 @@ def remember_mode():
 
 
 def get_models(stdscr):
+    stdscr.clear()
+    menu = [key for key in providers.keys()]
+    menu.append("google")
+    menu.append("anthropic")
+    menu.append("exit")
+    current_row = 0
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    provider_choice = ""
+    model_choice = ""
+
+    # Configure screen
+    curses.curs_set(0)  # Hide cursor
+    stdscr.keypad(1)  # Enable keypad
+
+    # Window dimensions
+    height, width = stdscr.getmaxyx()
+    menu_window_height = height - 4  # Leave room for header and border
+
+    def draw_menu(items, title, selected_idx, offset=0):
         stdscr.clear()
-        menu = [key for key in providers.keys()]
-        menu.append("google")
-        menu.append("anthropic")
-        menu.append("exit")
-        current_row = 0
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        provider_choice = ""
-        model_choice = ""
+        # Draw title
+        stdscr.attron(curses.color_pair(1))
+        stdscr.addstr(0, 0, title, curses.A_BOLD)
+        stdscr.attroff(curses.color_pair(1))
 
-        # Configure screen
-        curses.curs_set(0)  # Hide cursor
-        stdscr.keypad(1)    # Enable keypad
+        # Draw items
+        visible_items = min(menu_window_height, len(items))
+        for idx in range(visible_items):
+            list_idx = idx + offset
+            if list_idx >= len(items):
+                break
 
-        # Window dimensions
-        height, width = stdscr.getmaxyx()
-        menu_window_height = height - 4  # Leave room for header and border
+            x = 0
+            y = idx + 2
 
-        def draw_menu(items, title, selected_idx, offset=0):
-            stdscr.clear()
-            # Draw title
-            stdscr.attron(curses.color_pair(1))
-            stdscr.addstr(0, 0, title, curses.A_BOLD)
-            stdscr.attroff(curses.color_pair(1))
+            if list_idx == selected_idx:
+                stdscr.attron(curses.A_REVERSE)
+                stdscr.addstr(y, x, str(items[list_idx])[: width - 1])
+                stdscr.attroff(curses.A_REVERSE)
+            else:
+                stdscr.addstr(y, x, str(items[list_idx])[: width - 1])
 
-            # Draw items
-            visible_items = min(menu_window_height, len(items))
-            for idx in range(visible_items):
-                list_idx = idx + offset
-                if list_idx >= len(items):
-                    break
+        # Draw scroll indicators if necessary
+        if offset > 0:
+            stdscr.addstr(1, width - 3, "↑")
+        if offset + visible_items < len(items):
+            stdscr.addstr(min(height - 1, visible_items + 2), width - 3, "↓")
 
-                x = 0
-                y = idx + 2
+        stdscr.refresh()
 
-                if list_idx == selected_idx:
-                    stdscr.attron(curses.A_REVERSE)
-                    stdscr.addstr(y, x, str(items[list_idx])[:width-1])
-                    stdscr.attroff(curses.A_REVERSE)
-                else:
-                    stdscr.addstr(y, x, str(items[list_idx])[:width-1])
+    # Provider selection loop
+    offset = 0
+    while True:
+        draw_menu(menu, "Select the provider:", current_row, offset)
 
-            # Draw scroll indicators if necessary
-            if offset > 0:
-                stdscr.addstr(1, width-3, "↑")
-            if offset + visible_items < len(items):
-                stdscr.addstr(min(height-1, visible_items+2), width-3, "↓")
-
-            stdscr.refresh()
-
-        # Provider selection loop
-        offset = 0
-        while True:
-            draw_menu(menu, "Select the provider:", current_row, offset)
-
-            key = stdscr.getch()
-            if key == curses.KEY_UP and current_row > 0:
-                current_row -= 1
-                if current_row < offset:
-                    offset = current_row
-            elif key == curses.KEY_DOWN and current_row < len(menu) - 1:
-                current_row += 1
-                if current_row >= offset + menu_window_height:
-                    offset = current_row - menu_window_height + 1
-            elif key == curses.KEY_ENTER or key in [10, 13]:
-                if current_row == len(menu) - 1:  # Exit
-                    return False
-                else:
-                    provider_choice = menu[current_row]
-                    break
-
-        # Reset for model selection
-        current_row = 0
-        offset = 0
-        model_list = []
-
-        if provider_choice == "google":
-            try:
-                model_list = [model.name for model in googleai.list_models()]
-            except Exception as e:
-                stdscr.addstr(0, 0, f"Error loading models: {str(e)}")
-                stdscr.refresh()
-                sleep(2)
+        key = stdscr.getch()
+        if key == curses.KEY_UP and current_row > 0:
+            current_row -= 1
+            if current_row < offset:
+                offset = current_row
+        elif key == curses.KEY_DOWN and current_row < len(menu) - 1:
+            current_row += 1
+            if current_row >= offset + menu_window_height:
+                offset = current_row - menu_window_height + 1
+        elif key == curses.KEY_ENTER or key in [10, 13]:
+            if current_row == len(menu) - 1:  # Exit
                 return False
+            else:
+                provider_choice = menu[current_row]
+                break
 
-        elif provider_choice == "anthropic":
-            model_list = [
-                'claude-3-5-sonnet-20241022',  # Fixed missing comma
-                'claude-3-5-sonnet-20240620',
-                'claude-3-opus-20240229',
-                'claude-3-sonnet-20240229',
-                'claude-3-haiku-20240307',
-                'claude-2.1',
-                'claude-2.0',
-                'claude-instant-1.2'
-            ]
+    # Reset for model selection
+    current_row = 0
+    offset = 0
+    model_list = []
 
-        else:
-            api_key_name = providers[provider_choice]["api_key_name"]
-            base_url = providers[provider_choice]["base_url"]
-            raw_list = client.with_options(
-                    base_url=base_url,
-                    api_key=os.getenv(api_key_name)
-                    ).models.list()
-            model_list = [str(model.id) for model in raw_list]
+    if provider_choice == "google":
+        try:
+            model_list = [model.name for model in googleai.list_models()]
+        except Exception as e:
+            stdscr.addstr(0, 0, f"Error loading models: {str(e)}")
+            stdscr.refresh()
+            sleep(2)
+            return False
 
-        model_list.append("exit")
+    elif provider_choice == "anthropic":
+        model_list = [
+            "claude-3-5-sonnet-20241022",  # Fixed missing comma
+            "claude-3-5-sonnet-20240620",
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+            "claude-2.1",
+            "claude-2.0",
+            "claude-instant-1.2",
+        ]
 
-        # Model selection loop
-        while True:
-            draw_menu(model_list, f"Select {provider_choice} model:", current_row, offset)
+    else:
+        api_key_name = providers[provider_choice]["api_key_name"]
+        base_url = providers[provider_choice]["base_url"]
+        raw_list = client.with_options(
+            base_url=base_url, api_key=os.getenv(api_key_name)
+        ).models.list()
+        model_list = [str(model.id) for model in raw_list]
 
-            key = stdscr.getch()
-            if key == curses.KEY_UP and current_row > 0:
-                current_row -= 1
-                if current_row < offset:
-                    offset = current_row
-            elif key == curses.KEY_DOWN and current_row < len(model_list) - 1:
-                current_row += 1
-                if current_row >= offset + menu_window_height:
-                    offset = current_row - menu_window_height + 1
-            elif key == curses.KEY_ENTER or key in [10, 13]:
-                if model_list[current_row] == "exit":
-                    return False
-                else:
-                    model_choice = model_list[current_row]
-                    chat["provider"] = provider_choice
-                    chat["model"] = model_choice
-                    if chat["provider"] not in ["google", "anthropic"]:
-                        chat.update(providers[provider_choice])
-                    return True
+    model_list.append("exit")
 
-        curses.flushinp()
-        return False
+    # Model selection loop
+    while True:
+        draw_menu(model_list, f"Select {provider_choice} model:", current_row, offset)
+
+        key = stdscr.getch()
+        if key == curses.KEY_UP and current_row > 0:
+            current_row -= 1
+            if current_row < offset:
+                offset = current_row
+        elif key == curses.KEY_DOWN and current_row < len(model_list) - 1:
+            current_row += 1
+            if current_row >= offset + menu_window_height:
+                offset = current_row - menu_window_height + 1
+        elif key == curses.KEY_ENTER or key in [10, 13]:
+            if model_list[current_row] == "exit":
+                return False
+            else:
+                model_choice = model_list[current_row]
+                chat["provider"] = provider_choice
+                chat["model"] = model_choice
+                if chat["provider"] not in ["google", "anthropic"]:
+                    chat.update(providers[provider_choice])
+                return True
+
+    curses.flushinp()
+    return False
 
 
 def edit_file(file_path):
-    editor = os.environ.get('EDITOR', 'nvim')
+    editor = os.environ.get("EDITOR", "nvim")
     try:
         run([editor, path + file_path], check=True)
     except:
@@ -808,59 +858,93 @@ def edit_file(file_path):
     finally:
         return 1
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog='dp',
-        description='BashGPT CLI – talk to your AI overlord from the terminal.'
+        prog="dp",
+        description="BashGPT CLI – talk to your AI overlord from the terminal.",
     )
 
-    parser.add_argument('-ll', '--load-last', action='store_true',
-                        help='load the last conversation from the DB')
-    parser.add_argument('--server', action='store_true',
-                        help='start the web server and open browser')
+    parser.add_argument(
+        "-ll",
+        "--load-last",
+        action="store_true",
+        help="load the last conversation from the DB",
+    )
+    parser.add_argument(
+        "--server", action="store_true", help="start the web server and open browser"
+    )
 
-    parser.add_argument('-m', '--model', metavar='MODEL',
-                        choices=[model['name'] for model in models] +
-                                [model['shortcut'] for model in models],
-                        help='select which model to use')
+    parser.add_argument(
+        "-m",
+        "--model",
+        metavar="MODEL",
+        choices=[model["name"] for model in models]
+        + [model["shortcut"] for model in models],
+        help="select which model to use",
+    )
 
-    parser.add_argument('-p', '--persona', metavar='DESCRIPTION',
-                        help='create and use a custom persona with DESCRIPTION')
+    parser.add_argument(
+        "-p",
+        "--persona",
+        metavar="DESCRIPTION",
+        help="create and use a custom persona with DESCRIPTION",
+    )
 
-    parser.add_argument('-i', '--image', metavar='LINK', action="append",
-                        help='attach an image to the prompt with LINK')
+    parser.add_argument(
+        "-i",
+        "--image",
+        metavar="LINK",
+        action="append",
+        help="attach an image to the prompt with LINK",
+    )
 
-    parser.add_argument('-f', '--file', metavar='LINK', action="append",
-                        help='attach a file to the prompt with LINK')
+    parser.add_argument(
+        "-f",
+        "--file",
+        metavar="LINK",
+        action="append",
+        help="attach a file to the prompt with LINK",
+    )
 
-    parser.add_argument("-b", "--bash", action="store_true",
-                        help="enable Bash execution mode")
+    parser.add_argument(
+        "-b", "--bash", action="store_true", help="enable Bash execution mode"
+    )
 
-    parser.add_argument("-d", "--dalle", action="store_true",
-                        help="enable image generation")
+    parser.add_argument(
+        "-d", "--dalle", action="store_true", help="enable image generation"
+    )
 
+    parser.add_argument(
+        "--models", action="store_true", help="open models.json for editing"
+    )
+    parser.add_argument(
+        "--modes", action="store_true", help="open modes.json for editing"
+    )
+    parser.add_argument(
+        "--defaults", action="store_true", help="open defaults.json for editing"
+    )
 
-    parser.add_argument('--models', action='store_true',
-                        help='open models.json for editing')
-    parser.add_argument('--modes', action='store_true',
-                        help='open modes.json for editing')
-    parser.add_argument('--defaults', action='store_true',
-                        help='open defaults.json for editing')
-
-<<<<<<< HEAD
     # import/export
-    parser.add_argument('--export-all', metavar='FILE',
-                        help='export all chats to FILE (JSON)')
-    parser.add_argument('--export-chat', metavar=('CHAT_ID','FILE'), nargs=2,
-                        help='export a single chat by CHAT_ID to FILE (JSON)')
-    parser.add_argument('--import', dest='import_file', metavar='FILE',
-                        help='import chats from FILE (JSON). Supports single or multi-chat exports')
+    parser.add_argument(
+        "--export-all", metavar="FILE", help="export all chats to FILE (JSON)"
+    )
+    parser.add_argument(
+        "--export-chat",
+        metavar=("CHAT_ID", "FILE"),
+        nargs=2,
+        help="export a single chat by CHAT_ID to FILE (JSON)",
+    )
+    parser.add_argument(
+        "--import",
+        dest="import_file",
+        metavar="FILE",
+        help="import chats from FILE (JSON). Supports single or multi-chat exports",
+    )
 
-=======
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
-    parser.add_argument('prompt', nargs='?', default=None,
-                        help='the prompt to send to the AI')
-
+    parser.add_argument(
+        "prompt", nargs="?", default=None, help="the prompt to send to the AI"
+    )
 
     # user prompt
     return parser.parse_args()
@@ -873,14 +957,15 @@ def input_with_args():
 
     # --load-last
     if args.load_last:
-        chat['load_last'] = True
+        chat["load_last"] = True
         return 0
 
     # --server
     if args.server:
-        from bashgpt.server import server
-        import webbrowser
         import threading
+        import webbrowser
+
+        from bashgpt.server import server
 
         threading.Thread(target=server, daemon=True).start()
 
@@ -897,13 +982,13 @@ def input_with_args():
             print("\nShutting down server...")
         return 1
 
-<<<<<<< HEAD
     # --export / --import
     if args.export_all:
         (con, cur) = setup_db(path)
         data = export_all_chats(cur)
         import json
-        with open(args.export_all, 'w') as f:
+
+        with open(args.export_all, "w") as f:
             json.dump(data, f, indent=2)
         print(f"Exported all chats to {args.export_all}")
         return 1
@@ -917,22 +1002,22 @@ def input_with_args():
         (con, cur) = setup_db(path)
         data = export_chat_by_id(cur, chat_id)
         import json
-        with open(out_file, 'w') as f:
+
+        with open(out_file, "w") as f:
             json.dump(data, f, indent=2)
         print(f"Exported chat {chat_id} to {out_file}")
         return 1
 
     if args.import_file:
         import json
+
         (con, cur) = setup_db(path)
-        with open(args.import_file, 'r') as f:
+        with open(args.import_file, "r") as f:
             payload = json.load(f)
         new_ids = import_chat_data(con, cur, payload)
         print(f"Imported chats. New IDs: {', '.join(map(str, new_ids))}")
         return 1
 
-=======
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
     if args.models:
         edit_file("/models.json")
         return 1
@@ -961,32 +1046,33 @@ def input_with_args():
     if args.model:
         # try matching by name first, then shortcut
         for model in models:
-            if args.model == model['name'] or args.model == model['shortcut']:
+            if args.model == model["name"] or args.model == model["shortcut"]:
                 change_model(model, providers)
                 break
 
     # --persona
     if args.persona:
         for mode in modes:
-            if args.persona == mode['name'] or args.persona == mode['shortcut']:
+            if args.persona == mode["name"] or args.persona == mode["shortcut"]:
                 add_message_to_chat("system", mode["description"])
                 chat["mode"] = mode["name"]
                 break
         else:
-            chat['mode'] = 'custom'
-            add_message_to_chat('system', args.persona)
+            chat["mode"] = "custom"
+            add_message_to_chat("system", args.persona)
             alert("\nCustom persona added")
 
     # prompt provided
     if args.prompt:
         # ensure a system message exists if not using persona override
         if not args.persona:
-            add_message_to_chat('system', defaults['mode']['description'])
-        add_message_to_chat('user', args.prompt)
+            add_message_to_chat("system", defaults["mode"]["description"])
+        add_message_to_chat("user", args.prompt)
         return 0
 
     # no args => interactive mode
     return 1
+
 
 def choose_mode():
     global chat
@@ -1003,7 +1089,7 @@ def choose_mode():
     chat["mode"] = current_mode["name"]
 
 
-def delete_messages(number = 2):
+def delete_messages(number=2):
     for _ in range(number):
         chat["all_messages"].pop()
         for idx, image in enumerate(chat["images"]):
@@ -1017,15 +1103,18 @@ def delete_messages(number = 2):
     alert(f"Deleted {number} messages")
     print_chat()
 
+
 def edit_message(id):
     global chat
     new_message = use_temp_file(chat["all_messages"][-id]["content"])
     chat["all_messages"][-id]["content"] = new_message
 
+
 def nuclear(con, cur):
     cur.execute("DELETE FROM chat_messages")
     con.commit()
     exit()
+
 
 if __name__ == "__main__":
     main()

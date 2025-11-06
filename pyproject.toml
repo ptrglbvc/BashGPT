@@ -40,4 +40,16 @@ bashgpt = ["models.json", "modes.json", "defaults.json"]
 [project.scripts]
 dp = "bashgpt.main:main"
 
-[tool.pyright]
+[tool.basedpyright]
+include = ["src/bashgpt"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/typestubs"
+]
+
+ignore = ["src/oldstuff"]
+defineConstant = { DEBUG = true }
+
+reportMissingImports = "error"
+reportMissingTypeStubs = false

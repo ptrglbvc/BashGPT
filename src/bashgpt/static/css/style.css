@@ -14,12 +14,39 @@
     --success-color: #10a37f;
     --warning-color: #fbbf24;
     --error-color: #ef4444;
-    --font-family: "Söhne", "Söhne Buch", -apple-system, BlinkMacSystemFont,
-        "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-family:
+        "Söhne", "Söhne Buch", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Helvetica, Arial, sans-serif;
     --border-radius: 6px;
     --message-border-radius: 0;
     --header-height: 73px;
 }
+
+/* ERP theme variable overrides */
+body.theme-erp {
+    --primary-color: #ff3d71;
+    --primary-hover: #e6005c;
+    --text-color: #f7ecff;
+    --text-light: #c9b5d6;
+    --background-color: #14131b;
+    --background-color-rgb: 20,19,27;
+    --sidebar-color: #1d1b24;
+    --user-message-color: #1f1e27;
+    --assistant-message-color: #18171f;
+    --border-color: #332b3d;
+    --success-color: #ff3d71;
+}
+body.theme-erp .app-header { background: linear-gradient(90deg,#1d1b24,#241f32,#1d1b24); }
+body.theme-erp .input-wrapper { box-shadow: 0 0 0 1px rgba(255,61,113,0.3), 0 4px 16px rgba(255,61,113,0.15); }
+body.theme-erp #send-btn { background: var(--primary-color); }
+body.theme-erp #send-btn:hover { background: var(--primary-hover); }
+body.theme-erp .model-badge { background-color: rgba(255,61,113,0.15); color: var(--primary-color); border-color: var(--primary-color); }
+body.theme-erp .notification { border-color: var(--primary-color); }
+body.theme-erp .chat-card:hover { background-color: rgba(255,61,113,0.12); }
+body.theme-erp .message-action-btn:hover { background-color: rgba(255,61,113,0.18); }
+body.theme-erp select#theme-select { background:#1f1e27; color: var(--text-color); border:1px solid var(--border-color); border-radius:4px; padding:4px 6px; font-size:0.7rem; box-shadow:0 1px 2px rgba(0,0,0,0.4); }
+body.theme-erp select#theme-select:hover { border-color: var(--primary-color); }
+body.theme-erp select#theme-select:focus { outline:1px solid var(--primary-color); box-shadow:0 0 0 2px rgba(255,61,113,0.35); }
 
 * {
     margin: 0;
@@ -58,7 +85,9 @@ body {
     right: 0;
     height: var(--header-height);
     z-index: 100;
-    transition: transform 0.4s ease, margin-left 0.3s ease; /* Remove width transition */
+    transition:
+        transform 0.4s ease,
+        margin-left 0.3s ease; /* Remove width transition */
 }
 
 .header-spacer {
@@ -491,8 +520,8 @@ pre code {
     padding-top: calc(32px - 1rem); /* Keep existing padding-top */
     overflow-x: auto; /* Keep existing overflow */
     color: #d6deeb; /* Night Owl base text color */
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
-        monospace; /* Keep existing font */
+    font-family:
+        "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; /* Keep existing font */
     line-height: 1.5; /* Keep existing line-height */
     font-size: 14px; /* Keep existing font-size */
     white-space: pre; /* From Night Owl, good practice */
@@ -675,7 +704,8 @@ pre:hover .code-copy-button {
 p code {
     color: #d6deeb; /* Night owl base */
     background: #011627; /* Night owl background */
-    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace; /* Consistent font */
+    font-family:
+        Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace; /* Consistent font */
     padding: 0.2em 0.4em;
     border-radius: 0.3em;
     font-size: 85%; /* Slightly smaller than surrounding text */
@@ -1816,18 +1846,15 @@ input[type="number"]:focus {
 }
 
 .image-modal.active .image-modal-content {
-    animation: fadeIn 0.3s ease, scaleUp 0.3s ease;
+    animation:
+        fadeIn 0.3s ease,
+        scaleUp 0.3s ease;
 }
 
 .message-image-wrapper {
     view-transition-name: thumbnail-image;
-<<<<<<< HEAD
     font-size: 0;
     line-height: 0;
-=======
-      font-size: 0;
-line-height: 0;
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -1836,11 +1863,7 @@ line-height: 0;
 }
 
 .message-image-wrapper:not(:empty) {
-<<<<<<< HEAD
     padding-bottom: 10px;
-=======
-	padding-bottom: 10px;
->>>>>>> d6f88a4f501e5ee1f687d9f212ad972355c8b249
 }
 
 .message-text h3 {
@@ -1898,4 +1921,3 @@ line-height: 0;
 .notification span {
     color: inherit;
 }
-

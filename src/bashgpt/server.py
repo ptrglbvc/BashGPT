@@ -322,7 +322,7 @@ def server():
             except Exception as e:
                 # Restore previous content on error
                 try:
-                    chat["all_messages"][idx]["content"] = old_content
+                    chat["all_messages"][idx]["content"] = old_content # type: ignore
                 except Exception:
                     pass
                 # Mark response as incomplete and emit error marker
@@ -375,7 +375,7 @@ def server():
             except Exception as e:
                 # Restore original content on error
                 try:
-                    chat["all_messages"][idx]["content"] = current_content
+                    chat["all_messages"][idx]["content"] = current_content # type: ignore
                 except Exception:
                     pass
                 # Mark response as incomplete and emit error marker
@@ -470,6 +470,18 @@ def server():
         modes, models, providers = data_loader()
         defaults_data = load_defaults(path) # Use load_defaults function
         data = request.get_json()
+        
+        # Handle theme changes
+        if "theme" in data:
+            theme = data["theme"].strip().lower()
+            if theme not in ["chatgpt", "erp"]:
+                return jsonify({"success": False, "error": "Invalid theme"}), 400
+            defaults_path = path + "/defaults.json"
+            defaults_data.setdefault("web", {})["theme"] = theme
+            import json
+            with open(defaults_path, "w") as f:
+                json.dump(defaults_data, f, indent=4)
+            return jsonify({"success": True})
         
         # Handle model changes
         if "model" in data:

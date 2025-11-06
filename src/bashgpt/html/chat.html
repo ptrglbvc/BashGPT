@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block title %}{{ chat_info.description }}{%
 endblock %} {% block content %}
-<main class="chat-container">
+<main class="chat-container" data-theme="{{ defaults.web.theme | default('chatgpt') }}">
     <div class="messages-container">
         {% for message in messages %}
         <div class="message-wrapper {{ message.role }}">
