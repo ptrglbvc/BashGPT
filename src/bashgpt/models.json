@@ -1,23 +1,35 @@
 [
     {
-        "name": "openai/gpt-4.1",
-        "shortcut": "4.1",
+        "name": "gemini-2.5-pro",
+        "shortcut": "pro",
+        "provider": "google",
+        "vision_enabled": true
+    },
+    {
+        "name": "gemini-2.5-flash",
+        "shortcut": "flash",
+        "provider": "google",
+        "vision_enabled": true
+    },
+    {
+        "name": "gemini-2.5-flash-lite",
+        "shortcut": "flash-lite",
+        "provider": "google",
+        "vision_enabled": true
+    },
+    {
+        "name": "openrouter/polaris-alpha",
+        "shortcut": "polaris",
         "provider": "openrouter",
         "vision_enabled": true
     },
     {
-        "name": "openai/gpt-oss-20b",
-        "shortcut": "oss",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "openai/gpt-5-chat",
+        "name": "openai/gpt-5",
         "shortcut": "5",
         "provider": "openrouter",
         "vision_enabled": true,
         "extra_body": {
-            "reasoning": { "effort": "high" }
+            "reasoning": { "effort": "medium" }
         }
     },
     {
@@ -36,14 +48,26 @@
         }
     },
     {
-        "name": "doubao-seed-1-6-thinking-250615",
-        "shortcut": "doubao",
-        "provider": "nanogpt",
-        "vision_enabled": true
+        "name": "openai/gpt-oss-20b",
+        "shortcut": "oss",
+        "provider": "openrouter",
+        "vision_enabled": false
+    },
+    {
+        "name": "moonshotai/kimi-k2-thinking",
+        "shortcut": "k2-thinking",
+        "provider": "openrouter",
+        "vision_enabled": false,
+        "extra_body": {
+            "provider": {
+                "order": ["moonshotai"],
+                "allow_fallbacks": false
+            }
+        }
     },
     {
         "name": "moonshotai/kimi-k2",
-        "shortcut": "kimi",
+        "shortcut": "k2",
         "provider": "openrouter",
         "vision_enabled": false,
         "extra_body": {
@@ -54,26 +78,7 @@
         }
     },
     {
-        "name": "gpt-4.5-preview",
-        "shortcut": "4.5",
-        "provider": "openai",
-        "vision_enabled": true
-    },
-    {
-        "name": "o3",
-        "shortcut": "openai/o3",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "extra_body": { "reasoning": { "effort": "medium" } }
-    },
-    {
-        "name": "openai/o4-mini",
-        "shortcut": "o4",
-        "provider": "openrouter",
-        "vision_enabled": true
-    },
-    {
-        "name": "qwen/qwen3-235b-a22b-07-25",
+        "name": "qwen/qwen3-vl-235b-a22b-instruct",
         "shortcut": "qwen",
         "provider": "openrouter",
         "vision_enabled": false,
@@ -85,43 +90,19 @@
         }
     },
     {
-        "name": "qwen/qwen3-235b-a22b-thinking-2507",
-        "shortcut": "qwen-thinking",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "baidu/ernie-4.5-300b-a47b",
-        "shortcut": "ernie",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "z-ai/glm-4.5",
-        "shortcut": "glm",
+        "name": "deepseek/deepseek-v3.2-exp",
+        "shortcut": "ds",
         "provider": "openrouter",
         "vision_enabled": false,
         "extra_body": {
             "provider": {
-                "order": ["deepinfra"],
+                "order": ["deepseek"],
                 "allow_fallbacks": false
             }
         }
     },
     {
-        "name": "google/gemini-2.0-flash-001",
-        "shortcut": "flash-2",
-        "provider": "openrouter",
-        "vision_enabled": true
-    },
-    {
-        "name": "microsoft/phi-4",
-        "shortcut": "phi",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "anthropic/claude-sonnet-4",
+        "name": "anthropic/claude-sonnet-4.5",
         "shortcut": "sonnet",
         "provider": "openrouter",
         "vision_enabled": true
@@ -133,122 +114,21 @@
         "vision_enabled": true
     },
     {
-        "name": "deepseek/deepseek-chat-v3-0324",
-        "shortcut": "ds",
-        "provider": "openrouter",
-        "vision_enabled": false,
-        "extra_body": {
-            "provider": {
-                "order": ["deepinfra"],
-                "allow_fallbacks": false
-            }
-        }
-    },
-    {
-        "name": "deepseek/deepseek-r1-0528:free",
-        "shortcut": "r1",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "deepseek/deepseek-r1-0528-qwen3-8b",
-        "shortcut": "r1-8b",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "mistralai/mistral-small-3.2-24b-instruct",
-        "shortcut": "mistral-small",
+        "name": "anthropic/claude-haiku-4.5",
+        "shortcut": "opus",
         "provider": "openrouter",
         "vision_enabled": true
     },
     {
-        "name": "mistralai/mistral-medium-3.1",
-        "shortcut": "mistral-medium",
-        "provider": "openrouter",
+        "name": "grok-4-fast-reasoning",
+        "shortcut": "grok-4-fast",
+        "provider": "xai",
         "vision_enabled": true
-    },
-    {
-        "name": "mistralai/mistral-large-2411",
-        "shortcut": "mistral-large",
-        "provider": "openrouter",
-        "vision_enabled": false
-    },
-    {
-        "name": "gemini-2.5-pro",
-        "shortcut": "pro",
-        "provider": "google",
-        "vision_enabled": true
-    },
-    {
-        "name": "gemini-2.5-flash",
-        "shortcut": "flash",
-        "provider": "google",
-        "vision_enabled": true
-    },
-    {
-        "name": "google/gemini-2.5-flash-lite-preview-06-17",
-        "shortcut": "flash-lite",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "extra_body": {
-            "google": {
-                "safety_settings": [
-                    {
-                        "category": "HARM_CATEGORY_HARASSMENT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_HATE_SPEECH",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_CIVIC_INTEGRITY",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                        "threshold": "BLOCK_NONE"
-                    }
-                ]
-            },
-            "reasoning": {
-                "max_tokens": 2000
-            }
-        }
-    },
-    {
-        "name": "x-ai/grok-3-mini-beta",
-        "shortcut": "grok-mini",
-        "provider": "openrouter",
-        "vision_enabled": false
     },
     {
         "name": "grok-4-0709",
         "shortcut": "grok",
         "provider": "xai",
         "vision_enabled": false
-    },
-    {
-        "name": "meta-llama/llama-4-maverick",
-        "shortcut": "llama",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "extra_body": {
-            "provider": {
-                "order": ["groq"],
-                "allow_fallbacks": false
-            }
-        }
-    },
-    {
-        "name": "hf.co/bartowski/google_gemma-3-4b-it-qat-GGUF:IQ3_XXS",
-        "shortcut": "gemma",
-        "provider": "ollama",
-        "vision_enabled": true
     }
 ]

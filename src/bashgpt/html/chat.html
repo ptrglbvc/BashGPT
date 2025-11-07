@@ -312,6 +312,15 @@ endblock %} {% block content %}
         animateRegenerateBtn(regenerateBtn);
 
         const text_contents = messageWrapper.querySelector(".message-text");
+        // ERP typing effects
+        const isErp = document.body.classList.contains("theme-erp");
+        let caretEl = null;
+        if (isErp) {
+            messageWrapper.classList.add("erp-typing");
+            caretEl = document.createElement("span");
+            caretEl.className = "erp-caret";
+            text_contents.appendChild(caretEl);
+        }
         const previousRaw = text_contents.getAttribute("data-raw-text") || "";
         const previousHTML = text_contents.innerHTML;
         text_contents.childList = [];
@@ -369,6 +378,10 @@ endblock %} {% block content %}
                 if (typeof Prism !== "undefined") {
                     Prism.highlightAllUnder(text_contents);
                 }
+                if (isErp) {
+                    messageWrapper.classList.remove("erp-typing");
+                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                }
                 observer.disconnect();
                 return;
             }
@@ -419,6 +432,16 @@ endblock %} {% block content %}
 
         const text_contents = messageWrapper.querySelector(".message-text");
 
+        // ERP typing effects
+        const isErp = document.body.classList.contains("theme-erp");
+        let caretEl = null;
+        if (isErp) {
+            messageWrapper.classList.add("erp-typing");
+            caretEl = document.createElement("span");
+            caretEl.className = "erp-caret";
+            text_contents.appendChild(caretEl);
+        }
+
         const res = await continue_message(messageIndex);
 
         const observer = new MutationObserver((mutations) => {
@@ -453,6 +476,10 @@ endblock %} {% block content %}
                         attach_copy_button_to_code_block(pre);
                     }
                 });
+                if (isErp) {
+                    messageWrapper.classList.remove("erp-typing");
+                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                }
                 return;
             }
 
@@ -463,6 +490,10 @@ endblock %} {% block content %}
                 try {
                     assistant_message.remove();
                 } catch (_) {}
+                if (isErp) {
+                    messageWrapper.classList.remove("erp-typing");
+                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                }
                 observer.disconnect();
                 return;
             }
@@ -788,6 +819,16 @@ endblock %} {% block content %}
         let messages_container = document.querySelector(".messages-container");
         messages_container.appendChild(assistant_message);
 
+        // ERP theme: add sexy typing effects
+        const isErp = document.body.classList.contains("theme-erp");
+        let caretEl = null;
+        if (isErp) {
+            assistant_message.classList.add("erp-typing");
+            caretEl = document.createElement("span");
+            caretEl.className = "erp-caret";
+            assistant_message_text.appendChild(caretEl);
+        }
+
         const res = await send_message(message);
         const reader = res.body.getReader();
         let output = "";
@@ -829,6 +870,12 @@ endblock %} {% block content %}
                     Prism.highlightAllUnder(assistant_message_text);
                 }
 
+                // ERP theme cleanup
+                if (isErp) {
+                    assistant_message.classList.remove("erp-typing");
+                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                }
+
                 return;
             }
 
@@ -851,6 +898,10 @@ endblock %} {% block content %}
             assistant_message_text.innerHTML = marked.parse(
                 output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
             );
+            // Re-append ERP caret at the end during typing
+            if (isErp && caretEl) {
+                assistant_message_text.appendChild(caretEl);
+            }
 
             // Set language attribute on code blocks
             assistant_message_text
@@ -888,6 +939,17 @@ endblock %} {% block content %}
         const textarea = document.getElementById("message-input");
 
         // No export/import UI here; export is in sidebar, import on new chat screen
+        // ERP: hide typing effects as soon as user types
+        if (document.body.classList.contains('theme-erp') && textarea) {
+            const clearErpTypingEffects = () => {
+                document.querySelectorAll('.message-wrapper.assistant.erp-typing').forEach(w => {
+                    w.classList.remove('erp-typing');
+                    const caret = w.querySelector('.erp-caret');
+                    if (caret && caret.parentNode) caret.parentNode.removeChild(caret);
+                });
+            };
+            textarea.addEventListener('input', clearErpTypingEffects);
+        }
 
         document
             .querySelectorAll(".message-wrapper")

@@ -29,24 +29,126 @@ body.theme-erp {
     --text-color: #f7ecff;
     --text-light: #c9b5d6;
     --background-color: #14131b;
-    --background-color-rgb: 20,19,27;
+    --background-color-rgb: 20, 19, 27;
     --sidebar-color: #1d1b24;
     --user-message-color: #1f1e27;
     --assistant-message-color: #18171f;
     --border-color: #332b3d;
     --success-color: #ff3d71;
 }
-body.theme-erp .app-header { background: linear-gradient(90deg,#1d1b24,#241f32,#1d1b24); }
-body.theme-erp .input-wrapper { box-shadow: 0 0 0 1px rgba(255,61,113,0.3), 0 4px 16px rgba(255,61,113,0.15); }
-body.theme-erp #send-btn { background: var(--primary-color); }
-body.theme-erp #send-btn:hover { background: var(--primary-hover); }
-body.theme-erp .model-badge { background-color: rgba(255,61,113,0.15); color: var(--primary-color); border-color: var(--primary-color); }
-body.theme-erp .notification { border-color: var(--primary-color); }
-body.theme-erp .chat-card:hover { background-color: rgba(255,61,113,0.12); }
-body.theme-erp .message-action-btn:hover { background-color: rgba(255,61,113,0.18); }
-body.theme-erp select#theme-select { background:#1f1e27; color: var(--text-color); border:1px solid var(--border-color); border-radius:4px; padding:4px 6px; font-size:0.7rem; box-shadow:0 1px 2px rgba(0,0,0,0.4); }
-body.theme-erp select#theme-select:hover { border-color: var(--primary-color); }
-body.theme-erp select#theme-select:focus { outline:1px solid var(--primary-color); box-shadow:0 0 0 2px rgba(255,61,113,0.35); }
+body.theme-erp .app-header {
+    background: linear-gradient(90deg, #1d1b24, #241f32, #1d1b24);
+}
+body.theme-erp .input-wrapper {
+    box-shadow:
+        0 0 0 1px rgba(255, 61, 113, 0.3),
+        0 4px 16px rgba(255, 61, 113, 0.15);
+}
+body.theme-erp #send-btn {
+    background: var(--primary-color);
+}
+body.theme-erp #send-btn:hover {
+    background: var(--primary-hover);
+}
+body.theme-erp .model-badge {
+    background-color: rgba(255, 61, 113, 0.15);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+body.theme-erp .notification {
+    border-color: var(--primary-color);
+}
+body.theme-erp .chat-card:hover {
+    background-color: rgba(255, 61, 113, 0.12);
+}
+body.theme-erp .message-action-btn:hover {
+    background-color: rgba(255, 61, 113, 0.18);
+}
+body.theme-erp select#theme-select {
+    background: #1f1e27;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+body.theme-erp select#theme-select:hover {
+    border-color: var(--primary-color);
+}
+body.theme-erp select#theme-select:focus {
+    outline: 1px solid var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 61, 113, 0.35);
+}
+
+/* ERP typing effects */
+@keyframes erpBlink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+@keyframes erpGlowPulse {
+    0% {
+        box-shadow:
+            0 0 0 rgba(255, 61, 113, 0),
+            0 0 0 rgba(173, 37, 79, 0);
+    }
+    50% {
+        box-shadow:
+            0 0 18px rgba(255, 61, 113, 0.45),
+            0 0 48px rgba(173, 37, 79, 0.25);
+    }
+    100% {
+        box-shadow:
+            0 0 0 rgba(255, 61, 113, 0),
+            0 0 0 rgba(173, 37, 79, 0);
+    }
+}
+@keyframes erpUnderline {
+    0% {
+        background-position: 0% 100%;
+    }
+    100% {
+        background-position: 200% 100%;
+    }
+}
+body.theme-erp .message-wrapper.assistant.erp-typing .message {
+    border-radius: 10px;
+    background: rgba(255, 61, 113, 0.04);
+}
+body.theme-erp .message-wrapper.assistant.erp-typing .message-text {
+    position: relative;
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 61, 113, 0),
+        rgba(255, 61, 113, 0.7),
+        rgba(255, 61, 113, 0)
+    );
+    background-repeat: no-repeat;
+    background-size: 200% 2px;
+    background-position: 0 100%;
+    animation: erpUnderline 2.4s linear infinite;
+    padding-bottom: 2px;
+}
+body.theme-erp .erp-caret {
+    display: inline-block;
+    width: 10px;
+    height: 1.05em;
+    margin-left: 2px;
+    border-right: 2px solid var(--primary-color);
+    filter: drop-shadow(0 0 6px rgba(255, 61, 113, 0.8));
+    animation: erpBlink 1s steps(1, end) infinite;
+    vertical-align: text-bottom;
+}
+body.theme-erp .message-wrapper.assistant.erp-typing .message-role-icon i {
+    text-shadow: 0 0 10px rgba(255, 61, 113, 0.6);
+    animation: erpGlowPulse 2.2s ease-in-out infinite;
+}
 
 * {
     margin: 0;
