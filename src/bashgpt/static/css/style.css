@@ -22,133 +22,172 @@
     --header-height: 73px;
 }
 
-/* ERP theme variable overrides */
+/* =========================================
+   ERP THEME REDESIGN
+   Vibe: Midnight Luxury, Neon Bloom, Intimate
+   ========================================= */
 body.theme-erp {
-    --primary-color: #ff3d71;
-    --primary-hover: #e6005c;
-    --text-color: #f7ecff;
-    --text-light: #c9b5d6;
-    --background-color: #14131b;
-    --background-color-rgb: 20, 19, 27;
-    --sidebar-color: #1d1b24;
-    --user-message-color: #1f1e27;
-    --assistant-message-color: #18171f;
-    --border-color: #332b3d;
-    --success-color: #ff3d71;
+    /* Palette: Deep Violet, Hot Pink, Soft White */
+    --primary-color: #d946ef; /* Fuchsia/Neon Pink */
+    --primary-hover: #c026d3;
+    --text-color: #ede9fe; /* Very soft lilac-white */
+    --text-light: #a78bfa; /* Muted purple */
+
+    /* Backgrounds */
+    --background-color: #09090b; /* Almost black */
+    --background-color-rgb: 9, 9, 11;
+    --sidebar-color: #18181b;
+
+    /* Message Bubbles - subtle gradients */
+    --user-message-color: #18181b;
+    --assistant-message-color: transparent; /* Let the gradient shine */
+
+    --border-color: #27272a;
+    --success-color: #d946ef;
+
+    /* Font overrides for a cleaner look */
+    --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
+
+/* Background Gradient for the whole page */
+body.theme-erp .app-container {
+    background: radial-gradient(circle at 50% 0%, #2e1065 0%, #09090b 60%);
+    background-attachment: fixed;
+}
+
+/* Glassmorphism Header */
 body.theme-erp .app-header {
-    background: linear-gradient(90deg, #1d1b24, #241f32, #1d1b24);
+    background: rgba(9, 9, 11, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(217, 70, 239, 0.1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
+
+/* Input Area - Floating Glass Pill */
+body.theme-erp .input-container {
+    padding-bottom: 2rem;
+}
+
 body.theme-erp .input-wrapper {
+    background: rgba(24, 24, 27, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
-        0 0 0 1px rgba(255, 61, 113, 0.3),
-        0 4px 16px rgba(255, 61, 113, 0.15);
+        0 0 0 1px rgba(0,0,0,0), /* Reset default */
+        0 10px 25px -5px rgba(0, 0, 0, 0.5),
+        0 0 15px rgba(217, 70, 239, 0.05); /* Subtle pink glow */
+    border-radius: 16px; /* Softer corners */
+    transition: all 0.3s ease;
 }
+
+body.theme-erp .input-wrapper:focus-within {
+    border-color: var(--primary-color);
+    box-shadow:
+        0 10px 30px -5px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(217, 70, 239, 0.2);
+}
+
+body.theme-erp #message-input {
+    color: #fff;
+    font-size: 1.05rem;
+}
+
+/* Send Button */
 body.theme-erp #send-btn {
     background: var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color);
+    border-radius: 8px;
+    transition: all 0.2s ease;
 }
 body.theme-erp #send-btn:hover {
     background: var(--primary-hover);
-}
-body.theme-erp .model-badge {
-    background-color: rgba(255, 61, 113, 0.15);
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-body.theme-erp .notification {
-    border-color: var(--primary-color);
-}
-body.theme-erp .chat-card:hover {
-    background-color: rgba(255, 61, 113, 0.12);
-}
-body.theme-erp .message-action-btn:hover {
-    background-color: rgba(255, 61, 113, 0.18);
-}
-body.theme-erp select#theme-select {
-    background: #1f1e27;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 0.7rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-body.theme-erp select#theme-select:hover {
-    border-color: var(--primary-color);
-}
-body.theme-erp select#theme-select:focus {
-    outline: 1px solid var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(255, 61, 113, 0.35);
+    box-shadow: 0 0 15px var(--primary-hover);
+    transform: scale(1.05);
 }
 
-/* ERP typing effects */
-@keyframes erpBlink {
-    0%,
-    49% {
-        opacity: 1;
-    }
-    50%,
-    100% {
-        opacity: 0;
-    }
+/* Badges */
+body.theme-erp .model-badge {
+    background-color: rgba(217, 70, 239, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(217, 70, 239, 0.3);
+    box-shadow: 0 0 10px rgba(217, 70, 239, 0.1);
 }
-@keyframes erpGlowPulse {
-    0% {
-        box-shadow:
-            0 0 0 rgba(255, 61, 113, 0),
-            0 0 0 rgba(173, 37, 79, 0);
-    }
-    50% {
-        box-shadow:
-            0 0 18px rgba(255, 61, 113, 0.45),
-            0 0 48px rgba(173, 37, 79, 0.25);
-    }
-    100% {
-        box-shadow:
-            0 0 0 rgba(255, 61, 113, 0),
-            0 0 0 rgba(173, 37, 79, 0);
-    }
+
+/* Messages */
+body.theme-erp .message-wrapper {
+    border-bottom: 1px solid rgba(255,255,255,0.02);
 }
-@keyframes erpUnderline {
-    0% {
-        background-position: 0% 100%;
-    }
-    100% {
-        background-position: 200% 100%;
-    }
+
+body.theme-erp .message-wrapper.user {
+    background: rgba(255, 255, 255, 0.02);
 }
-body.theme-erp .message-wrapper.assistant.erp-typing .message {
-    border-radius: 10px;
-    background: rgba(255, 61, 113, 0.04);
+
+body.theme-erp .message-wrapper.assistant .message {
+    border-radius: 12px;
+    /* Subtle left accent line for assistant */
+    border-left: 2px solid rgba(217, 70, 239, 0.5);
+    padding-left: 15px;
 }
-body.theme-erp .message-wrapper.assistant.erp-typing .message-text {
-    position: relative;
-    background-image: linear-gradient(
-        90deg,
-        rgba(255, 61, 113, 0),
-        rgba(255, 61, 113, 0.7),
-        rgba(255, 61, 113, 0)
-    );
-    background-repeat: no-repeat;
-    background-size: 200% 2px;
-    background-position: 0 100%;
-    animation: erpUnderline 2.4s linear infinite;
-    padding-bottom: 2px;
+
+body.theme-erp .message-role-icon i {
+    text-shadow: 0 0 8px rgba(217, 70, 239, 0.6);
 }
+
+/* Theme Select Dropdown */
+body.theme-erp select#theme-select {
+    background: #18181b;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* =========================================
+   ERP ANIMATIONS (Redesigned)
+   ========================================= */
+
+/* 1. The Caret (Heartbeat Pulse) */
+@keyframes erpHeartbeat {
+    0% { opacity: 1; transform: scaleY(1); box-shadow: 0 0 5px var(--primary-color); }
+    50% { opacity: 0.4; transform: scaleY(0.85); box-shadow: 0 0 2px var(--primary-color); }
+    100% { opacity: 1; transform: scaleY(1); box-shadow: 0 0 5px var(--primary-color); }
+}
+
+/* 2. The Container Glow (Breathing effect while typing) */
+@keyframes erpBreathingGlow {
+    0% { box-shadow: inset 5px 0 10px -5px rgba(217, 70, 239, 0.0); }
+    50% { box-shadow: inset 5px 0 15px -5px rgba(217, 70, 239, 0.3); }
+    100% { box-shadow: inset 5px 0 10px -5px rgba(217, 70, 239, 0.0); }
+}
+
+/* 3. Text Bloom (Subtle glow on the text itself) */
+body.theme-erp .message-text {
+    text-shadow: 0 0 1px rgba(237, 233, 254, 0.1); /* Very subtle bloom for readability */
+}
+
+/* Styles applied when the assistant is actively typing */
+body.theme-erp .message-wrapper.assistant.erp-typing {
+    background: linear-gradient(90deg, rgba(217, 70, 239, 0.03) 0%, transparent 100%);
+    animation: erpBreathingGlow 2s ease-in-out infinite;
+}
+
 body.theme-erp .erp-caret {
     display: inline-block;
-    width: 10px;
-    height: 1.05em;
+    width: 8px; /* Slightly thicker */
+    height: 1em;
     margin-left: 2px;
-    border-right: 2px solid var(--primary-color);
-    filter: drop-shadow(0 0 6px rgba(255, 61, 113, 0.8));
-    animation: erpBlink 1s steps(1, end) infinite;
+    background-color: var(--primary-color);
+    border-radius: 1px;
     vertical-align: text-bottom;
+    animation: erpHeartbeat 0.8s ease-in-out infinite; /* Faster, more organic pulse */
+    box-shadow: 0 0 8px var(--primary-color);
 }
-body.theme-erp .message-wrapper.assistant.erp-typing .message-role-icon i {
-    text-shadow: 0 0 10px rgba(255, 61, 113, 0.6);
-    animation: erpGlowPulse 2.2s ease-in-out infinite;
-}
+
+/* --- End ERP Theme --- */
+
 
 * {
     margin: 0;

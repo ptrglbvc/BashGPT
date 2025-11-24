@@ -73,6 +73,12 @@ endblock %} {% block content %}
                         </button>
                         {% endif %}
                         <button
+                            class="message-action-btn branch-message"
+                            title="Branch chat"
+                        >
+                            <i class="fa-solid fa-code-branch"></i>
+                        </button>
+                        <button
                             class="message-action-btn edit-message"
                             title="Edit message"
                         >
@@ -91,7 +97,6 @@ endblock %} {% block content %}
         {% endfor %}
     </div>
 
-    <!-- Image Modal -->
     <div class="image-modal">
         <div class="image-modal-close">
             <i class="fa-solid fa-times"></i>
@@ -190,6 +195,14 @@ endblock %} {% block content %}
             messageActions.appendChild(regenerateBtn);
             messageActions.appendChild(continueBtn);
         }
+
+        const branchBtn = document.createElement("button");
+        branchBtn.className = "message-action-btn branch-message";
+        branchBtn.title = "Branch chat";
+        branchBtn.innerHTML = '<i class="fa-solid fa-code-branch"></i>';
+        branchBtn.addEventListener("click", () => branchMessage(messageWrapper));
+
+        messageActions.appendChild(branchBtn);
 
         const editBtn = document.createElement("button");
         editBtn.className = "message-action-btn edit-message";
@@ -710,6 +723,40 @@ endblock %} {% block content %}
         }
     }
 
+    async function branchMessage(messageWrapper) {
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+
+        const pathParts = window.location.pathname.split('/');
+        const chatId = pathParts[pathParts.length - 1];
+
+        if (!chatId || isNaN(chatId)) {
+             console.error("Could not determine chat ID");
+             return;
+        }
+
+        try {
+            const response = await fetch("/api/branch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: parseInt(chatId),
+                    index: messageIndex
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = "/chat/" + data.chat_id;
+            } else {
+                alert("Failed to branch chat: " + (data.error || "Unknown error"));
+            }
+        } catch (error) {
+            console.error("Error branching chat:", error);
+            alert("Error branching chat");
+        }
+    }
+
     function reattachImageListeners(messageWrapper) {
         // Find all images within this message
         const imageWrappers = messageWrapper.querySelectorAll(".message-image");
@@ -783,6 +830,14 @@ endblock %} {% block content %}
                     continueMessage(messageWrapper);
                 });
             }
+        }
+
+        // Branch button
+        const branchBtn = messageContent.querySelector(".branch-message");
+        if (branchBtn) {
+            branchBtn.addEventListener("click", function () {
+                branchMessage(messageWrapper);
+            });
         }
 
         // Edit button
@@ -998,6 +1053,14 @@ endblock %} {% block content %}
                             continueMessage(messageWrapper);
                         });
                     }
+                }
+
+                // Branch button listener
+                const branchBtn = messageContent.querySelector(".branch-message");
+                if (branchBtn) {
+                    branchBtn.addEventListener("click", function () {
+                        branchMessage(messageWrapper);
+                    });
                 }
 
                 // Add edit button listener
