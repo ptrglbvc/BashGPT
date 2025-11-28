@@ -110,7 +110,7 @@
       }
     },
     {
-        "name": "anthropic/claude-opus-4.1",
+        "name": "anthropic/claude-opus-4.5",
         "shortcut": "opus",
         "provider": "openrouter",
         "vision_enabled": true
