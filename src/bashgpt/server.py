@@ -9,7 +9,6 @@ from bashgpt.chat import (
     add_message_to_chat,
     save_chat,
     reset_chat,
-    defaults,
     change_model,
     update_chat_ids,
     export_chat_by_id,
@@ -19,9 +18,7 @@ from bashgpt.chat import (
 from bashgpt.api import get_response
 from bashgpt.data_loader import data_loader
 from bashgpt.load_defaults import load_defaults
-from openai import OpenAI
 from functools import wraps
-
 
 
 def get_db_connection():
@@ -45,7 +42,7 @@ def with_db(f):
 def sanitize_images(images):
     sanitized_images = []
 
-    for idx, image in enumerate(images):
+    for _, image in enumerate(images):
         sanitized_image = image.copy()
 
         if 'message_idx' not in sanitized_image:
@@ -63,7 +60,7 @@ def sanitize_images(images):
 
             base64.b64decode(content)
             sanitized_image['content'] = content
-        except Exception as e:
+        except Exception as _:
             try:
                 if isinstance(content, bytes):
                     sanitized_image['content'] = base64.b64encode(content).decode('utf-8')
@@ -84,6 +81,9 @@ def prepare_messages_for_template(messages):
     for idx, message in enumerate(messages):
         prepared_message = message.copy()
         prepared_message["message_id"] = idx
+        # Ensure cache_control is present for template
+        if "cache_control" not in prepared_message:
+            prepared_message["cache_control"] = False
         prepared_messages.append(prepared_message)
     return prepared_messages
 
@@ -368,6 +368,29 @@ def server():
         save_chat(con, cur)
 
         return jsonify({"success": True})
+        
+    @app.route("/api/toggle_cache", methods=["POST"])
+    @with_db
+    def toggle_cache(con, cur):
+        data = request.get_json()
+        idx = data["index"]
+        
+        if 'chat_id' in data:
+            load_chat(cur, data['chat_id'])
+            
+        if idx < len(chat["all_messages"]):
+            # Toggle the boolean
+            current_val = chat["all_messages"][idx].get("cache_control", False)
+            chat["all_messages"][idx]["cache_control"] = not current_val
+            
+            save_chat(con, cur)
+            
+            return jsonify({
+                "success": True, 
+                "new_value": chat["all_messages"][idx]["cache_control"]
+            })
+        else:
+            return jsonify({"success": False, "error": "Index out of range"}), 400
 
     @app.route("/api/delete_message", methods=["POST"])
     @with_db
@@ -503,19 +526,23 @@ def server():
             return jsonify({"message": "", "success": True})
 
         system_message = ""
+        cache_status = False
         for message in chat["all_messages"]:
             if message["role"] == "system":
                 system_message = message["content"]
+                cache_status = message.get("cache_control", False)
                 break
 
-        return jsonify({"message": system_message, "success": True})
+        return jsonify({"message": system_message, "cache_control": cache_status, "success": True})
 
     @app.route("/api/update_system_message", methods=["POST"])
     @with_db
     def update_system_message(con, cur):
         data = request.get_json()
         new_content = data["content"]
-
+        # System message cache is usually handled separately in UI logic if needed,
+        # but here we preserve existing unless explicit flag sent
+        
         if not chat["is_loaded"]:
             return jsonify({"success": False, "error": "No active chat"}), 400
 
@@ -527,7 +554,7 @@ def server():
                 break
 
         if not system_found:
-            chat["all_messages"].insert(0, {"role": "system", "content": new_content})
+            chat["all_messages"].insert(0, {"role": "system", "content": new_content, "cache_control": False})
 
         save_chat(con, cur)
 
@@ -573,3 +600,4 @@ def server():
 
 if __name__ == "__main__":
     server()
+

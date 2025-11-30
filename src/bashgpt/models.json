@@ -111,21 +111,34 @@
     },
     {
         "name": "anthropic/claude-opus-4.5",
+        "shortcut": "opus-thinking",
+        "provider": "openrouter",
+        "vision_enabled": true,
+        "anthropic_cache_control": true,
+        "extra_body": {
+            "reasoning": { "enabled": true, "max_tokens": 1024}
+        }
+    },
+    {
+        "name": "anthropic/claude-opus-4.5",
         "shortcut": "opus",
         "provider": "openrouter",
-        "vision_enabled": true
+        "vision_enabled": true,
+        "anthropic_cache_control": true
     },
     {
         "name": "anthropic/claude-sonnet-4.5",
         "shortcut": "sonnet",
         "provider": "openrouter",
-        "vision_enabled": true
+        "vision_enabled": true,
+        "anthropic_cache_control": true
     },
     {
         "name": "anthropic/claude-haiku-4.5",
         "shortcut": "haiku",
         "provider": "openrouter",
-        "vision_enabled": true
+        "vision_enabled": true,
+        "anthropic_cache_control": true
     },
     {
         "name": "x-ai/grok-4.1-fast",
@@ -138,5 +151,20 @@
         "shortcut": "grok",
         "provider": "xai",
         "vision_enabled": false
+    },
+    {
+        "name": "claude-3-5-sonnet-20241022",
+        "shortcut": "sonnet-3.5",
+        "provider": "anthropic",
+        "vision_enabled": true,
+        "anthropic_cache_control": true
+    },
+    {
+        "name": "claude-3-opus-20240229",
+        "shortcut": "opus-3",
+        "provider": "anthropic",
+        "vision_enabled": true,
+        "anthropic_cache_control": true
     }
 ]
+

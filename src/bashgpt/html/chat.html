@@ -1,9 +1,12 @@
 {% extends "layout.html" %} {% block title %}{{ chat_info.description }}{%
 endblock %} {% block content %}
 <main class="chat-container" data-theme="{{ defaults.web.theme | default('chatgpt') }}">
+    <!-- Pass backend model capability to JS -->
+    <div id="anthropic-cache-enabled" data-enabled="{{ chat_info.anthropic_cache_control | lower }}" style="display:none;"></div>
+    
     <div class="messages-container">
         {% for message in messages %}
-        <div class="message-wrapper {{ message.role }}">
+        <div class="message-wrapper {{ message.role }}" data-cache="{{ message.cache_control | lower }}">
             <div class="message">
                 <div class="message-content">
                     {% if message.role == "assistant" %}
@@ -52,6 +55,13 @@ endblock %} {% block content %}
                     {% endif %} {% endfor %}
 
                     <div class="message-actions">
+                        {% if chat_info.anthropic_cache_control %}
+                        <div class="cache-control-wrapper" title="Toggle Anthropic Cache (Ephemeral)">
+                            <input type="checkbox" class="cache-checkbox" id="cache-{{message.message_id}}" {% if message.cache_control %}checked{% endif %}>
+                            <label for="cache-{{message.message_id}}" class="cache-label"><i class="fa-solid fa-bolt"></i> Cache</label>
+                        </div>
+                        {% endif %}
+                        
                         <button
                             class="message-action-btn copy-message"
                             title="Copy message"
@@ -129,6 +139,36 @@ endblock %} {% block content %}
             body: JSON.stringify({ index: index }),
         });
     }
+    
+    async function toggleCache(messageWrapper) {
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+        
+        try {
+            const res = await fetch("/api/toggle_cache", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ index: messageIndex })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                // Update visual state if needed beyond the checkbox check
+                messageWrapper.setAttribute("data-cache", data.new_value);
+                if (data.new_value) {
+                    showNotification("Message cached (Ephemeral)", 1500);
+                }
+            } else {
+                showNotification("Failed to toggle cache", 3000);
+                // Revert checkbox state
+                const cb = messageWrapper.querySelector(".cache-checkbox");
+                if (cb) cb.checked = !cb.checked;
+            }
+        } catch (e) {
+            console.error(e);
+            showNotification("Error toggling cache", 3000);
+        }
+    }
 
     function createMessageElement(role, message = "") {
         const messageWrapper = document.createElement("div");
@@ -166,6 +206,33 @@ endblock %} {% block content %}
         // Create message actions
         const messageActions = document.createElement("div");
         messageActions.className = "message-actions";
+
+        // Cache control (check if enabled for current model)
+        const cacheEnabledDiv = document.getElementById("anthropic-cache-enabled");
+        if (cacheEnabledDiv && cacheEnabledDiv.getAttribute("data-enabled") === "true") {
+            const cacheWrapper = document.createElement("div");
+            cacheWrapper.className = "cache-control-wrapper";
+            cacheWrapper.title = "Toggle Anthropic Cache (Ephemeral)";
+            
+            // Generate a temp ID for the checkbox label
+            const tempId = "cache-new-" + Date.now();
+            
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "cache-checkbox";
+            checkbox.id = tempId;
+            
+            const label = document.createElement("label");
+            label.htmlFor = tempId;
+            label.className = "cache-label";
+            label.innerHTML = '<i class="fa-solid fa-bolt"></i> Cache';
+            
+            checkbox.addEventListener("change", () => toggleCache(messageWrapper));
+            
+            cacheWrapper.appendChild(checkbox);
+            cacheWrapper.appendChild(label);
+            messageActions.appendChild(cacheWrapper);
+        }
 
         const copyBtn = document.createElement("button");
         copyBtn.className = "message-action-btn copy-message";
@@ -791,6 +858,12 @@ endblock %} {% block content %}
     function reattachButtonListeners(messageWrapper) {
         const messageText = messageWrapper.querySelector(".message-text");
         const messageContent = messageWrapper.querySelector(".message-content");
+        
+        // Cache checkbox
+        const checkbox = messageWrapper.querySelector(".cache-checkbox");
+        if (checkbox) {
+            checkbox.addEventListener("change", () => toggleCache(messageWrapper));
+        }
 
         // Copy button
         const copyBtn = messageContent.querySelector(".copy-message");
@@ -919,6 +992,9 @@ endblock %} {% block content %}
 
                 // Attach image click listeners to the new message
                 reattachImageListeners(assistant_message);
+                
+                // Attach button listeners to new message
+                reattachButtonListeners(assistant_message);
 
                 // Highlight code blocks
                 if (typeof Prism !== "undefined") {
@@ -1009,78 +1085,7 @@ endblock %} {% block content %}
         document
             .querySelectorAll(".message-wrapper")
             .forEach((messageWrapper) => {
-                const messageText =
-                    messageWrapper.querySelector(".message-text");
-                const messageContent =
-                    messageWrapper.querySelector(".message-content");
-                const copyBtn = messageContent.querySelector(".copy-message");
-
-                if (copyBtn) {
-                    copyBtn.addEventListener("click", function () {
-                        const rawText =
-                            messageText.getAttribute("data-raw-text");
-                        navigator.clipboard
-                            .writeText(rawText)
-                            .then(() => {
-                                const originalIcon = this.innerHTML;
-                                this.innerHTML =
-                                    '<i class="fa-solid fa-check"></i>';
-                                setTimeout(() => {
-                                    this.innerHTML = originalIcon;
-                                }, 2000);
-                            })
-                            .catch((err) => {
-                                console.error("Failed to copy message:", err);
-                            });
-                    });
-                }
-
-                // Only add these event listeners for assistant messages
-                if (messageWrapper.classList.contains("assistant")) {
-                    const regenerateBtn = messageContent.querySelector(
-                        ".regenerate-message",
-                    );
-                    if (regenerateBtn) {
-                        regenerateBtn.addEventListener("click", function () {
-                            regenerateMessage(messageWrapper);
-                        });
-                    }
-
-                    const continueBtn =
-                        messageContent.querySelector(".continue-message");
-                    if (continueBtn) {
-                        continueBtn.addEventListener("click", function () {
-                            continueMessage(messageWrapper);
-                        });
-                    }
-                }
-
-                // Branch button listener
-                const branchBtn = messageContent.querySelector(".branch-message");
-                if (branchBtn) {
-                    branchBtn.addEventListener("click", function () {
-                        branchMessage(messageWrapper);
-                    });
-                }
-
-                // Add edit button listener
-                const editBtn = messageContent.querySelector(".edit-message");
-                if (editBtn) {
-                    editBtn.addEventListener("click", function () {
-                        editMessage(messageWrapper);
-                    });
-                }
-
-                // Add delete button listener
-                const deleteBtn =
-                    messageContent.querySelector(".delete-message");
-                if (deleteBtn) {
-                    deleteBtn.addEventListener("click", function () {
-                        deleteMessage(messageWrapper);
-                    });
-                }
-
-                // Attach image click listeners
+                reattachButtonListeners(messageWrapper);
                 reattachImageListeners(messageWrapper);
             });
 

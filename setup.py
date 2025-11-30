@@ -12,7 +12,7 @@ setup(
         "python-vlc>=3.0.20123",
         "google-generativeai>=0.6.0",
         "html2text>=2024.2.26",
-        "PyMuPDF>=1.24.5"
+        "PyMuPDF>=1.24.5",
         ],
     entry_points={"console_scripts": 
         ["dp=bashgpt.main:main"]

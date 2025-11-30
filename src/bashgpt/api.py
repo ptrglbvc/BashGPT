@@ -23,9 +23,43 @@ import httpx
 from os import getenv
 
 client = OpenAI(api_key=getenv("OPENAI_API_KEY"))
-anthropic_client = Anthropic(api_key=getenv("ANTHROPIC_API_KEY"))
+# anthropic_client = Anthropic(api_key=getenv("ANTHROPIC_API_KEY"))
 googleai.configure(api_key=getenv("GOOGLEAI_API_KEY"))
 
+def debug_print_payload(messages, provider):
+    """Helper to debug cache control issues by printing the payload."""
+    try:
+        # Check if debug mode is generally desired, or just print if caching is detected
+        # For now, we print if caching is detected to confirm it works
+        has_cache = False
+        for msg in messages:
+            if isinstance(msg.get("content"), list):
+                for block in msg["content"]:
+                    if "cache_control" in block:
+                        has_cache = True
+                        break
+        
+        if not has_cache: 
+            return
+
+        print(f"\n{terminal['yellow']}--- DEBUG: Outgoing {provider} Payload (Caching Active) ---{terminal['reset']}")
+        
+        # Only print the messages that actually have cache control for brevity
+        for i, msg in enumerate(messages):
+            is_cached = False
+            if isinstance(msg.get("content"), list):
+                for block in msg["content"]:
+                    if "cache_control" in block:
+                        is_cached = True
+            
+            if is_cached:
+                print(f"Message {i} ({msg['role']}): CACHE CONTROL PRESENT")
+                # Print specific content block with cache
+                print(json.dumps(msg['content'], indent=2))
+        
+        print(f"{terminal['yellow']}-----------------------------------------------------------{terminal['reset']}\n")
+    except Exception as e:
+        print(f"Debug print failed: {e}")
 
 def attach_images_anthropic_openai(all_messages):
     memo = {}
@@ -60,6 +94,50 @@ def attach_images_anthropic_openai(all_messages):
     return messages_with_images
 
 
+def apply_caching(all_messages):
+    # Only apply if the current model supports Anthropic cache control
+    if not chat.get("anthropic_cache_control"):
+        return all_messages
+    
+    # Check if any message actually has cache_control enabled
+    # We check the raw message dicts from the chat logic
+    has_cache = any(m.get("cache_control") for m in all_messages)
+    if not has_cache:
+        return all_messages
+
+    memo = {}
+    messages_with_cache = copy.deepcopy(all_messages, memo)
+    
+    for msg in messages_with_cache:
+        # Check if this specific message needs caching
+        if msg.get("cache_control"):
+            cache_payload = {
+                "type": "ephemeral"
+            }
+            # Default TTL as requested
+            cache_payload["ttl"] = "1h"
+            
+            # If content is a simple string, convert to list of blocks
+            if isinstance(msg["content"], str):
+                msg["content"] = [{
+                    "type": "text",
+                    "text": msg["content"],
+                    "cache_control": cache_payload
+                }]
+            
+            # If content is already a list (e.g. has images)
+            elif isinstance(msg["content"], list):
+                # Attach to the last block of content
+                if len(msg["content"]) > 0:
+                    msg["content"][-1]["cache_control"] = cache_payload
+        
+        # Clean up the internal key
+        if "cache_control" in msg:
+            del msg["cache_control"]
+
+    return messages_with_cache
+
+
 def attach_files(all_messages):
     global chat
     memo = {}
@@ -75,18 +153,50 @@ def attach_files(all_messages):
 def get_openai_response(all_messages):
     all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(
         all_messages)
+    
+    all_messages = apply_caching(all_messages)
+    debug_print_payload(all_messages, "OpenAI/OpenRouter")
+
+    # Detect if caching transformation occurred
+    has_cache_in_payload = False
+    for msg in all_messages:
+        if isinstance(msg.get("content"), list):
+            for block in msg["content"]:
+                if "cache_control" in block:
+                    has_cache_in_payload = True
+                    break
+        if has_cache_in_payload:
+            break
+
+    # Prepare parameters
+    params = {
+        "model": chat["model"],
+        "max_tokens": chat["max_tokens"],
+        "temperature": chat["temperature"],
+        "frequency_penalty": chat["frequency_penalty"],
+        "stream": True
+    }
+
+    # Handle extra_body
+    final_extra_body = chat["extra_body"].copy() if chat["extra_body"] else {}
+
+    # If caching is present, OpenAI Python SDK might strip 'cache_control' from content blocks.
+    # We bypass this by passing messages via extra_body.
+    if has_cache_in_payload:
+        final_extra_body["messages"] = all_messages
+        # We must still pass a required 'messages' arg to the SDK, but it will be ignored 
+        # in favor of extra_body by the API (standard overwrite behavior for extra_body).
+        messages_arg = [{"role": "user", "content": "dummy_for_sdk_validation"}] 
+    else:
+        messages_arg = all_messages
 
     stream = client.with_options(
         base_url=chat["base_url"],
         api_key=getenv(chat["api_key_name"])
     ).chat.completions.create(
-        model=chat["model"],
-        messages=all_messages,
-        stream=True,
-        max_tokens=chat["max_tokens"],
-        temperature=chat["temperature"],
-        frequency_penalty=chat["frequency_penalty"],
-        extra_body=chat["extra_body"]
+        messages=messages_arg,
+        extra_body=final_extra_body if final_extra_body else None,
+        **params
     )
 
     return stream
@@ -95,15 +205,34 @@ def get_openai_response(all_messages):
 def get_anthropic_response(all_messages):
     all_messages = all_messages if not chat["vision_enabled"] else attach_images_anthropic_openai(
         all_messages)
+    
+    all_messages = apply_caching(all_messages)
+    debug_print_payload(all_messages, "Anthropic")
+
+    # Anthropic SDK handles specific structure for System vs Messages
+    # If the first message is system, we extract it.
+    system_input = []
+    messages_payload = []
+    
+    # Check first message for system role
+    if all_messages and all_messages[0]["role"] == "system":
+        system_content = all_messages[0]["content"]
+        
+        # Anthropic 'system' param can be string or list of blocks
+        # apply_caching might have turned it into a list with cache_control
+        system_input = system_content
+        messages_payload = all_messages[1:]
+    else:
+        messages_payload = all_messages
 
     stream = anthropic_client.messages.create(
-        system=all_messages[0]["content"],  # type: ignore
+        system=system_input,  # type: ignore
         model=chat["model"],
-        messages=all_messages[1:],  # type: ignore
+        messages=messages_payload,  # type: ignore
         stream=True,
         max_tokens=chat["max_tokens"],
         temperature=chat["temperature"],
-        frequency_penalty=chat["frequency_penalty"]
+        # frequency_penalty is not supported natively by Anthropic SDK
     )
 
     return stream
@@ -164,9 +293,11 @@ def attach_glm_images(new_all_messages):
 
 
 def attach_system_messages(all_messages):
+    # We must preserve the cache_control flag if it exists on the system message
     new_system_message = {
         "role": "system",
-        "content": all_messages[0]["content"]
+        "content": all_messages[0]["content"],
+        "cache_control": all_messages[0].get("cache_control", False)
     }
 
     if chat["auto_turns"] > 0:
@@ -177,7 +308,8 @@ def attach_system_messages(all_messages):
     if chat["dalle"] is True:
         new_system_message["content"] += ("\n" + dalle_system_message)
 
-    if new_system_message["content"] == all_messages[0]["content"]:
+    # If nothing changed content-wise and no cache control, return original
+    if new_system_message["content"] == all_messages[0]["content"] and not new_system_message["cache_control"]:
         return all_messages
     else:
         new_all_messages = all_messages.copy()

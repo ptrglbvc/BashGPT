@@ -13,6 +13,7 @@ defaults = load_defaults(path)
 class Message(TypedDict):
     role: Literal['user', 'assistant', 'system']
     content: str
+    cache_control: bool
 
 
 class Chat(TypedDict):
@@ -39,7 +40,8 @@ class Chat(TypedDict):
     frequency_penalty: float
     max_tokens: int
     extra_body: dict
-    smooth_streaming: bool  # Add this line
+    smooth_streaming: bool
+    anthropic_cache_control: bool
 
 chat: Chat = {
     "all_messages": [],
@@ -65,12 +67,15 @@ chat: Chat = {
     "frequency_penalty": 1,
     "max_tokens": 4048,
     "extra_body": {},
-    "smooth_streaming": True
+    "smooth_streaming": True,
+    "anthropic_cache_control": False
 }
 
 # Add a default for smooth_streaming
 if "smooth_streaming" not in chat:
     chat["smooth_streaming"] = True
+if "anthropic_cache_control" not in chat:
+    chat["anthropic_cache_control"] = False
 
 def reset_chat():
     global chat
@@ -82,13 +87,14 @@ def reset_chat():
     chat["bash"] = False
     chat["dalle"] = False
 
-def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: str) -> None:
+def add_message_to_chat(role: Literal['user', 'assistant', 'system'], content: str, cache_control: bool = False) -> None:
     global chat
     if role not in ['user', 'assistant', 'system']:
         raise ValueError("Invalid role. Must be 'user', 'assistant', or 'system'.")
     message: Message = {
         "role": role,
         "content": content,
+        "cache_control": cache_control
     }
     chat["all_messages"].append(message)
 
@@ -100,7 +106,13 @@ def load_chat(cur, id):
     chat["images"] = []
     chat["files"] = []
     
-    message_data = cur.execute("SELECT role, message FROM chat_messages WHERE chat_id=?", (id,)).fetchall()
+    # Try to select with cache_control, fallback if column doesn't exist (though migration should happen)
+    try:
+        message_data = cur.execute("SELECT role, message, cache_control FROM chat_messages WHERE chat_id=?", (id,)).fetchall()
+        has_cache_col = True
+    except:
+        message_data = cur.execute("SELECT role, message FROM chat_messages WHERE chat_id=?", (id,)).fetchall()
+        has_cache_col = False
     
     settings_query = cur.execute(
         "SELECT description, model, provider, vision_enabled, temperature, max_tokens, frequency_penalty, dalle, bash, autosave " +
@@ -140,7 +152,10 @@ def load_chat(cur, id):
         change_model({"name": model_name, "provider": provider_name, "vision_enabled": bool(vision_enabled)}, providers)
 
     for row in message_data:
-        add_message_to_chat(row[0], row[1])
+        if has_cache_col:
+            add_message_to_chat(row[0], row[1], bool(row[2]))
+        else:
+            add_message_to_chat(row[0], row[1])
 
     load_images(cur, id)
     load_files(cur, id)
@@ -154,6 +169,7 @@ def change_model(new_model, providers):
     chat["provider"] = new_model["provider"]
     chat["model"] = new_model["name"]
     chat["vision_enabled"] = new_model["vision_enabled"]
+    chat["anthropic_cache_control"] = new_model.get("anthropic_cache_control", False)
     
     if "extra_body" in new_model:
         chat["extra_body"] = new_model["extra_body"]
@@ -224,8 +240,9 @@ def save_chat(con, cur):
 
 
     for message in chat["all_messages"]:
-        cur.execute("INSERT INTO chat_messages (chat_id, role, message) VALUES (?, ?, ?)",
-            (max_chat_id+1, message["role"], message["content"]))
+        cache_val = 1 if message.get("cache_control") else 0
+        cur.execute("INSERT INTO chat_messages (chat_id, role, message, cache_control) VALUES (?, ?, ?, ?)",
+            (max_chat_id+1, message["role"], message["content"], cache_val))
         con.commit()
 
     for image in chat["images"]:
@@ -290,14 +307,23 @@ def export_chat_by_id(cur, chat_id: int) -> dict:
     if not chat_row:
         raise ValueError(f"Chat id {chat_id} not found")
 
-    # Messages
-    messages = [
-        {"role": row[0], "content": row[1]}
-        for row in cur.execute(
-            "SELECT role, message FROM chat_messages WHERE chat_id=? ORDER BY message_id ASC",
-            (chat_id,),
-        ).fetchall()
-    ]
+    # Messages - try to get cache_control
+    try:
+        messages = [
+            {"role": row[0], "content": row[1], "cache_control": bool(row[2])}
+            for row in cur.execute(
+                "SELECT role, message, cache_control FROM chat_messages WHERE chat_id=? ORDER BY message_id ASC",
+                (chat_id,),
+            ).fetchall()
+        ]
+    except:
+        messages = [
+            {"role": row[0], "content": row[1]}
+            for row in cur.execute(
+                "SELECT role, message FROM chat_messages WHERE chat_id=? ORDER BY message_id ASC",
+                (chat_id,),
+            ).fetchall()
+        ]
 
     # Images
     images = [
@@ -357,11 +383,7 @@ def export_all_chats(cur) -> dict:
 
 
 def import_chat_data(con, cur, data: dict) -> list[int]:
-    """Import chats from a JSON-serializable dict. Returns list of new chat_ids.
-
-    Accepts either a single-chat export (keys: chat, messages, images, files)
-    or a multi-chat export with key 'chats' being a list of single-chat exports.
-    """
+    """Import chats from a JSON-serializable dict. Returns list of new chat_ids."""
     def _insert_single(single: dict) -> int:
         chat_meta = single.get("chat", {})
         messages = single.get("messages", [])
@@ -393,9 +415,10 @@ def import_chat_data(con, cur, data: dict) -> list[int]:
 
         # Insert messages
         for m in messages:
+            cache_val = 1 if m.get("cache_control", False) else 0
             cur.execute(
-                "INSERT INTO chat_messages (chat_id, role, message) VALUES (?, ?, ?)",
-                (new_chat_id, m.get("role", "user"), m.get("content", "")),
+                "INSERT INTO chat_messages (chat_id, role, message, cache_control) VALUES (?, ?, ?, ?)",
+                (new_chat_id, m.get("role", "user"), m.get("content", ""), cache_val),
             )
         con.commit()
 
@@ -492,7 +515,7 @@ def overwrite_current_chat_from_import(single: dict) -> None:
     chat["description"] = description
     chat["temperature"] = float(chat_meta.get("temperature", chat.get("temperature", 0.7)))
     chat["max_tokens"] = int(chat_meta.get("max_tokens", chat.get("max_tokens", 4048)))
-    chat["frequency_penalty"] = float(chat_meta.get("frequency_penalty", chat.get("frequency_penalty", 1)))
+    chat["frequency_penalty"] = float(chat_meta.get("frequency_penalty", 1))
     chat["dalle"] = bool(chat_meta.get("dalle", False))
     chat["bash"] = bool(chat_meta.get("bash", False))
     chat["autosave"] = bool(chat_meta.get("autosave", False))
@@ -501,7 +524,8 @@ def overwrite_current_chat_from_import(single: dict) -> None:
     for m in messages:
         role = m.get("role", "user")
         content = m.get("content", "")
-        add_message_to_chat(role, content)
+        cache_control = m.get("cache_control", False)
+        add_message_to_chat(role, content, cache_control)
 
     chat["images"].extend(images)
     chat["files"].extend(files)
@@ -568,3 +592,4 @@ def change_defaults(target, newValue):
 
     with open(path + "defaults.json", "w") as def_file:
         def_file.write(json.dumps(defaults, indent=4))
+

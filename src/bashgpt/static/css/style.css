@@ -2062,3 +2062,39 @@ input[type="number"]:focus {
 .notification span {
     color: inherit;
 }
+
+/* Cache Control Styles */
+.cache-control-wrapper {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 5px;
+}
+
+.cache-checkbox {
+    display: none;
+}
+
+.cache-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text-light);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.cache-label:hover {
+    color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.cache-checkbox:checked + .cache-label {
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+    background-color: rgba(251, 191, 36, 0.1);
+}

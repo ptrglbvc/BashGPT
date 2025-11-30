@@ -15,7 +15,8 @@ def setup_db(path):
                     "(chat_id INTEGER,"
                     "message_id INTEGER PRIMARY KEY,"
                     "role TEXT,"
-                    "message TEXT);")
+                    "message TEXT,"
+                    "cache_control INTEGER DEFAULT 0);")
                 )
             cur.execute(
                 ("CREATE TABLE chats "
@@ -66,3 +67,4 @@ def setup_key():
     else:
         alert("Environment variable for key not found, please add one.")
         exit()
+
