@@ -93,7 +93,7 @@
         }
     },
     {
-        "name": "deepseek/deepseek-v3.2-exp",
+        "name": "deepseek/deepseek-v3.2",
         "shortcut": "ds",
         "provider": "openrouter",
         "vision_enabled": false,
@@ -107,6 +107,23 @@
                 "max_tokens": 2000, 
                 "exclude": false 
       }
+      }
+    },
+    {
+        "name": "deepseek/deepseek-v3.2-speciale",
+        "shortcut": "speciale",
+        "provider": "openrouter",
+        "vision_enabled": false,
+        "extra_body": {
+            "provider": {
+                "order": ["deepseek"],
+                "allow_fallbacks": false
+            },
+            "reasoning": {
+                "enabled": true,
+                "max_tokens": 2000, 
+                "exclude": false 
+          }
       }
     },
     {
@@ -153,18 +170,10 @@
         "vision_enabled": false
     },
     {
-        "name": "claude-3-5-sonnet-20241022",
-        "shortcut": "sonnet-3.5",
-        "provider": "anthropic",
-        "vision_enabled": true,
-        "anthropic_cache_control": true
-    },
-    {
-        "name": "claude-3-opus-20240229",
-        "shortcut": "opus-3",
-        "provider": "anthropic",
-        "vision_enabled": true,
-        "anthropic_cache_control": true
+        "name": "openrouter/bert-nebulon-alpha",
+        "shortcut": "mistral",
+        "provider": "openrouter",
+        "vision_enabled": true 
     }
 ]
 
