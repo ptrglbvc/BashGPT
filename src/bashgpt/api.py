@@ -95,27 +95,33 @@ def attach_images_anthropic_openai(all_messages):
 
 
 def apply_caching(all_messages):
-    # Only apply if the current model supports Anthropic cache control
-    if not chat.get("anthropic_cache_control"):
-        return all_messages
-    
-    # Check if any message actually has cache_control enabled
-    # We check the raw message dicts from the chat logic
-    has_cache = any(m.get("cache_control") for m in all_messages)
-    if not has_cache:
-        return all_messages
-
+    """
+    Applies Anthropic-style prompt caching to messages if enabled for the model.
+    CRITICAL: Always returns a copy of messages with the internal 'cache_control' 
+    key stripped out, ensuring clean payloads for APIs that strictly validate keys.
+    """
     memo = {}
-    messages_with_cache = copy.deepcopy(all_messages, memo)
+    # Always deepcopy to avoid modifying chat state and to safely strip internal keys
+    messages_processed = copy.deepcopy(all_messages, memo)
     
-    for msg in messages_with_cache:
-        # Check if this specific message needs caching
-        if msg.get("cache_control"):
+    # Check if the current model actually supports caching
+    is_caching_enabled = chat.get("anthropic_cache_control", False)
+    
+    for msg in messages_processed:
+        # Check internal flag
+        wants_cache = msg.get("cache_control", False)
+        
+        # 1. Clean up the internal key so it's never sent to the API provider
+        if "cache_control" in msg:
+            del msg["cache_control"]
+
+        # 2. Only apply the API-specific structure if the model supports it
+        #    AND the specific message requested it.
+        if is_caching_enabled and wants_cache:
             cache_payload = {
-                "type": "ephemeral"
+                "type": "ephemeral",
+                "ttl": "1h"
             }
-            # Default TTL as requested
-            cache_payload["ttl"] = "1h"
             
             # If content is a simple string, convert to list of blocks
             if isinstance(msg["content"], str):
@@ -130,12 +136,8 @@ def apply_caching(all_messages):
                 # Attach to the last block of content
                 if len(msg["content"]) > 0:
                     msg["content"][-1]["cache_control"] = cache_payload
-        
-        # Clean up the internal key
-        if "cache_control" in msg:
-            del msg["cache_control"]
 
-    return messages_with_cache
+    return messages_processed
 
 
 def attach_files(all_messages):
@@ -320,6 +322,14 @@ def attach_system_messages(all_messages):
 def get_response(messages=None):
     if messages is None:
         messages = chat["all_messages"]
+
+    # Filter out trailing empty assistant message (placeholder).
+    # Some providers (Anthropic, Bedrock, Vercel) strictly reject empty content.
+    # The server adds an empty assistant message to capture the stream, but it 
+    # shouldn't be sent in the prompt unless it's a specific prefill (non-empty).
+    if messages and messages[-1]['role'] == 'assistant' and not messages[-1]['content']:
+        messages = messages[:-1]
+
     # I reversed this just to confuse you, dear reader (including myself, yes)
     messages = attach_files(messages) if chat["files"] else messages
     messages = attach_system_messages(messages)

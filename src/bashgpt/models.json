@@ -5,7 +5,9 @@
         "provider": "openrouter",
         "vision_enabled": true,
         "extra_body": {
-            "reasoning": { "effort": "low" }
+            "reasoning": {
+                "effort": "low"
+            }
         }
     },
     {
@@ -21,18 +23,15 @@
         "vision_enabled": true
     },
     {
-        "name": "openai/gpt-5.1",
-        "shortcut": "5.1",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "extra_body": {
-            "reasoning": { "effort": "medium" }
-        }
+        "name": "openai/gpt-5.2",
+        "shortcut": "5.2",
+        "provider": "vercel",
+        "vision_enabled": true
     },
     {
-        "name": "openai/gpt-5.1-chat",
-        "shortcut": "5.1-chat",
-        "provider": "openrouter",
+        "name": "openai/gpt-5.2-chat",
+        "shortcut": "5.2-chat",
+        "provider": "vercel",
         "vision_enabled": true
     },
     {
@@ -47,7 +46,9 @@
         "provider": "openrouter",
         "vision_enabled": true,
         "extra_body": {
-            "reasoning": { "reasoning_effort": "medium" }
+            "reasoning": {
+                "reasoning_effort": "medium"
+            }
         }
     },
     {
@@ -63,7 +64,9 @@
         "vision_enabled": false,
         "extra_body": {
             "provider": {
-                "order": ["moonshotai"],
+                "order": [
+                    "moonshotai"
+                ],
                 "allow_fallbacks": false
             }
         }
@@ -75,7 +78,9 @@
         "vision_enabled": false,
         "extra_body": {
             "provider": {
-                "order": ["deepinfra"],
+                "order": [
+                    "deepinfra"
+                ],
                 "allow_fallbacks": false
             }
         }
@@ -87,7 +92,9 @@
         "vision_enabled": false,
         "extra_body": {
             "provider": {
-                "order": ["deepinfra"],
+                "order": [
+                    "deepinfra"
+                ],
                 "allow_fallbacks": false
             }
         }
@@ -99,63 +106,35 @@
         "vision_enabled": false,
         "extra_body": {
             "provider": {
-                "order": ["deepseek"],
+                "order": [
+                    "deepseek"
+                ],
                 "allow_fallbacks": false
             },
             "reasoning": {
                 "enabled": true,
-                "max_tokens": 2000, 
-                "exclude": false 
-      }
-      }
-    },
-    {
-        "name": "deepseek/deepseek-v3.2-speciale",
-        "shortcut": "speciale",
-        "provider": "openrouter",
-        "vision_enabled": false,
-        "extra_body": {
-            "provider": {
-                "order": ["deepseek"],
-                "allow_fallbacks": false
-            },
-            "reasoning": {
-                "enabled": true,
-                "max_tokens": 2000, 
-                "exclude": false 
-          }
-      }
-    },
-    {
-        "name": "anthropic/claude-opus-4.5",
-        "shortcut": "opus-thinking",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "anthropic_cache_control": true,
-        "extra_body": {
-            "reasoning": { "enabled": true, "max_tokens": 1024}
+                "max_tokens": 2000,
+                "exclude": false
+            }
         }
     },
     {
         "name": "anthropic/claude-opus-4.5",
         "shortcut": "opus",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "anthropic_cache_control": true
+        "provider": "vercel",
+        "vision_enabled": true
     },
     {
         "name": "anthropic/claude-sonnet-4.5",
         "shortcut": "sonnet",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "anthropic_cache_control": true
+        "provider": "vercel",
+        "vision_enabled": true
     },
     {
         "name": "anthropic/claude-haiku-4.5",
         "shortcut": "haiku",
-        "provider": "openrouter",
-        "vision_enabled": true,
-        "anthropic_cache_control": true
+        "provider": "vercel",
+        "vision_enabled": true
     },
     {
         "name": "x-ai/grok-4.1-fast",
@@ -170,10 +149,15 @@
         "vision_enabled": false
     },
     {
-        "name": "openrouter/bert-nebulon-alpha",
-        "shortcut": "mistral",
+        "name": "mistralai/ministral-14b-2512",
+        "shortcut": "ministral",
         "provider": "openrouter",
-        "vision_enabled": true 
+        "vision_enabled": true
+    },
+    {
+        "name": "mistralai/mistral-large-2512",
+        "shortcut": "mistral-large",
+        "provider": "openrouter",
+        "vision_enabled": true
     }
 ]
-

@@ -12,7 +12,6 @@ from time import sleep
 from typing import Literal, cast
 
 import httpx
-import vlc
 from PIL import Image, ImageGrab
 
 from bashgpt.api import client, get_and_print_response, googleai
@@ -391,23 +390,6 @@ def command(message, con, cur):
             get_and_print_response()
             return 1
 
-        case "speak":
-            if len(command) == 2:
-                voice = command[1]
-                validated_voice = cast(VoicesLiteral, voice)
-                alert("Speech will begin shortly")
-                threading.Thread(
-                    target=speak, args=[all_messages[-1]["content"], validated_voice]
-                ).start()
-                alert("Invalid voice")
-                return 1
-            elif len(command) == 1:
-                alert("Speech will begin shortly")
-                threading.Thread(
-                    target=speak, args=[all_messages[-1]["content"]]
-                ).start()
-                return 1
-            alert("Invalid voice")
 
         case "cd" | "change-default":
             if len(command) == 3:
@@ -647,23 +629,6 @@ VoicesLiteral = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 def is_valid_voice(value: str) -> bool:
     allowed_values = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
     return value in allowed_values
-
-
-def speak(message, voice="nova"):
-    try:
-        speech_file_path = path + "speech.mp3"
-        if not is_valid_voice(voice):
-            voice = "nova"
-        with client.audio.speech.with_streaming_response.create(
-            model="tts-1",
-            voice=voice,  # type: ignore
-            input=message,
-        ) as response:
-            response.stream_to_file(speech_file_path)
-            player = vlc.MediaPlayer(speech_file_path)
-            player.play()  # type: ignore
-    except Exception as e:
-        alert(f"Error: {e}")
 
 
 def print_chat(newline_in_the_end=True):
