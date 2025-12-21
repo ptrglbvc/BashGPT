@@ -321,16 +321,17 @@
                 this.style.height = Math.min(200, this.scrollHeight) + "px";
             });
 
-            // this makes so that the message is sent on enter
+            // Handle Enter key for submission (without triggering double events)
             document.addEventListener("DOMContentLoaded", function () {
                 const messageInput = document.getElementById("message-input");
-                const messageForm = document.getElementById("message-form");
-                const sendButton = document.getElementById("send-btn");
-
-                messageInput.addEventListener("keypress", function (event) {
+                
+                messageInput.addEventListener("keydown", function (event) {
                     if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
-                        sendButton.click();
+                        // Dispatch submit event to form directly
+                        if (this.form) {
+                            this.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                        }
                     }
                 });
             });
@@ -342,19 +343,21 @@
 
                 messageTexts.forEach((mt) => {
                     const content = mt.innerHTML.trim();
-                    mt.innerHTML = "";
+                    // Avoid reparsing if already rendered
+                    if (mt.children.length === 0 && content) {
+                         mt.innerHTML = "";
+                         const escapedContent = content
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;");
 
-                    const escapedContent = content
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;");
-
-                    try {
-                        mt.innerHTML = DOMPurify.sanitize(
-                            marked.parse(escapedContent)
-                        );
-                    } catch (err) {
-                        console.error("Error parsing markdown:", err);
-                        mt.innerHTML = content;
+                        try {
+                            mt.innerHTML = DOMPurify.sanitize(
+                                marked.parse(escapedContent)
+                            );
+                        } catch (err) {
+                            console.error("Error parsing markdown:", err);
+                            mt.innerHTML = content;
+                        }
                     }
                 });
             } else {
@@ -363,6 +366,8 @@
 
             // for the copy button in code blocks
             function attach_copy_button_to_code_block(pre) {
+                if (pre.querySelector(".code-copy-button")) return;
+
                 const copyButton = document.createElement("button");
                 copyButton.className = "code-copy-button";
                 copyButton.innerHTML =

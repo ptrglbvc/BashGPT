@@ -116,7 +116,11 @@ endblock %} {% block content %}
 </main>
 {% endblock %} {% block form_logic %}
 <script>
-    async function send_message(message) {
+    // --- GLOBAL STATE ---
+    let isStreaming = false;
+
+    // --- API WRAPPERS ---
+    async function send_message_api(message) {
         return await fetch("/api/answer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -124,7 +128,7 @@ endblock %} {% block content %}
         });
     }
 
-    async function regenerate_message(index) {
+    async function regenerate_message_api(index) {
         return await fetch("/api/regenerate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -132,44 +136,56 @@ endblock %} {% block content %}
         });
     }
 
-    async function continue_message(index) {
+    async function continue_message_api(index) {
         return await fetch("/api/continue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ index: index }),
         });
     }
-    
-    async function toggleCache(messageWrapper) {
-        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
-        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
-        
-        try {
-            const res = await fetch("/api/toggle_cache", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ index: messageIndex })
-            });
-            
-            const data = await res.json();
-            if (data.success) {
-                // Update visual state if needed beyond the checkbox check
-                messageWrapper.setAttribute("data-cache", data.new_value);
-                if (data.new_value) {
-                    showNotification("Message cached (Ephemeral)", 1500);
-                }
-            } else {
-                showNotification("Failed to toggle cache", 3000);
-                // Revert checkbox state
-                const cb = messageWrapper.querySelector(".cache-checkbox");
-                if (cb) cb.checked = !cb.checked;
-            }
-        } catch (e) {
-            console.error(e);
-            showNotification("Error toggling cache", 3000);
-        }
-    }
 
+    // --- EVENT DELEGATION ---
+    document.querySelector(".messages-container").addEventListener("click", (e) => {
+        // Handle Image Clicks
+        const imgWrapper = e.target.closest(".message-image");
+        if (imgWrapper) {
+            openImageModal(imgWrapper);
+            return;
+        }
+
+        // Handle Button Clicks
+        const btn = e.target.closest(".message-action-btn");
+        const cacheLabel = e.target.closest(".cache-label");
+        const cacheInput = e.target.closest(".cache-checkbox");
+        
+        const messageWrapper = e.target.closest(".message-wrapper");
+        if (!messageWrapper) return;
+
+        // Handle Cache Toggle (checkbox or label)
+        if (cacheInput) {
+            toggleCache(messageWrapper);
+            return;
+        }
+        
+        if (!btn) return; // Not a button we care about
+
+        // Actions
+        if (btn.classList.contains("copy-message")) {
+            copyMessage(messageWrapper.querySelector(".message-text"), btn);
+        } else if (btn.classList.contains("regenerate-message")) {
+            if (!isStreaming) regenerateMessage(messageWrapper);
+        } else if (btn.classList.contains("continue-message")) {
+            if (!isStreaming) continueMessage(messageWrapper);
+        } else if (btn.classList.contains("branch-message")) {
+            branchMessage(messageWrapper);
+        } else if (btn.classList.contains("edit-message")) {
+            editMessage(messageWrapper);
+        } else if (btn.classList.contains("delete-message")) {
+            deleteMessage(messageWrapper);
+        }
+    });
+
+    // --- MESSAGE CREATION ---
     function createMessageElement(role, message = "") {
         const messageWrapper = document.createElement("div");
         messageWrapper.className = `message-wrapper ${role}`;
@@ -185,11 +201,9 @@ endblock %} {% block content %}
         roleIconDiv.className = "message-role-icon";
 
         if (role === "assistant") {
-            roleIconDiv.innerHTML =
-                '<i class="fa-solid fa-robot"></i><span>Assistant</span>';
+            roleIconDiv.innerHTML = '<i class="fa-solid fa-robot"></i><span>Assistant</span>';
         } else if (role === "user") {
-            roleIconDiv.innerHTML =
-                '<i class="fa-solid fa-user"></i><span>You</span>';
+            roleIconDiv.innerHTML = '<i class="fa-solid fa-user"></i><span>You</span>';
         }
 
         messageContentDiv.appendChild(roleIconDiv);
@@ -199,1006 +213,538 @@ endblock %} {% block content %}
         messageText.setAttribute("data-raw-text", message);
         messageText.innerHTML = marked.parse(message);
 
-        messageWrapper.appendChild(messageDiv);
         messageDiv.appendChild(messageContentDiv);
         messageContentDiv.appendChild(messageText);
+        messageWrapper.appendChild(messageDiv);
+
+        // Process images within markdown (data:image)
+        const imgRegex = /!\[.*?\]\((data:image\/[\w+]+;base64,[^\s)]+)\)/g;
+        let match;
+        while ((match = imgRegex.exec(message)) !== null) {
+            const imgSrc = match[1];
+            const imageWrapper = document.createElement("div");
+            imageWrapper.className = "message-image message-image-wrapper";
+            imageWrapper.setAttribute("data-image-src", imgSrc);
+            imageWrapper.setAttribute("data-image-name", "Image");
+            
+            const img = document.createElement("img");
+            img.src = imgSrc;
+            img.alt = "Image";
+            imageWrapper.appendChild(img);
+            
+            messageContentDiv.appendChild(imageWrapper);
+        }
 
         // Create message actions
         const messageActions = document.createElement("div");
         messageActions.className = "message-actions";
 
-        // Cache control (check if enabled for current model)
+        // Cache control
         const cacheEnabledDiv = document.getElementById("anthropic-cache-enabled");
         if (cacheEnabledDiv && cacheEnabledDiv.getAttribute("data-enabled") === "true") {
             const cacheWrapper = document.createElement("div");
             cacheWrapper.className = "cache-control-wrapper";
             cacheWrapper.title = "Toggle Anthropic Cache (Ephemeral)";
             
-            // Generate a temp ID for the checkbox label
-            const tempId = "cache-new-" + Date.now();
+            const tempId = "cache-new-" + Date.now() + Math.random().toString(36).substring(7);
             
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.className = "cache-checkbox";
-            checkbox.id = tempId;
-            
-            const label = document.createElement("label");
-            label.htmlFor = tempId;
-            label.className = "cache-label";
-            label.innerHTML = '<i class="fa-solid fa-bolt"></i> Cache';
-            
-            checkbox.addEventListener("change", () => toggleCache(messageWrapper));
-            
-            cacheWrapper.appendChild(checkbox);
-            cacheWrapper.appendChild(label);
+            cacheWrapper.innerHTML = `
+                <input type="checkbox" class="cache-checkbox" id="${tempId}">
+                <label for="${tempId}" class="cache-label"><i class="fa-solid fa-bolt"></i> Cache</label>
+            `;
             messageActions.appendChild(cacheWrapper);
         }
 
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "message-action-btn copy-message";
-        copyBtn.title = "Copy message";
-        copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
-        copyBtn.addEventListener("click", () => copyMessage(messageText));
-
-        messageActions.appendChild(copyBtn);
-
+        // Action buttons HTML string for performance/cleanliness
+        let buttonsHtml = `
+            <button class="message-action-btn copy-message" title="Copy message"><i class="fa-solid fa-copy"></i></button>
+        `;
+        
         if (role === "assistant") {
-            const regenerateBtn = document.createElement("button");
-            regenerateBtn.className = "message-action-btn regenerate-message";
-            regenerateBtn.title = "Regenerate";
-            regenerateBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
-            regenerateBtn.addEventListener("click", () =>
-                regenerateMessage(messageWrapper),
-            );
-
-            const continueBtn = document.createElement("button");
-            continueBtn.className = "message-action-btn continue-message";
-            continueBtn.title = "Continue";
-            continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i>';
-            continueBtn.addEventListener("click", () =>
-                continueMessage(messageWrapper),
-            );
-
-            messageActions.appendChild(regenerateBtn);
-            messageActions.appendChild(continueBtn);
+            buttonsHtml += `
+                <button class="message-action-btn regenerate-message" title="Regenerate"><i class="fa-solid fa-rotate"></i></button>
+                <button class="message-action-btn continue-message" title="Continue"><i class="fa-solid fa-arrow-right"></i></button>
+            `;
         }
+        
+        buttonsHtml += `
+            <button class="message-action-btn branch-message" title="Branch chat"><i class="fa-solid fa-code-branch"></i></button>
+            <button class="message-action-btn edit-message" title="Edit message"><i class="fa-solid fa-pen"></i></button>
+            <button class="message-action-btn delete-message" title="Delete message"><i class="fa-solid fa-trash"></i></button>
+        `;
 
-        const branchBtn = document.createElement("button");
-        branchBtn.className = "message-action-btn branch-message";
-        branchBtn.title = "Branch chat";
-        branchBtn.innerHTML = '<i class="fa-solid fa-code-branch"></i>';
-        branchBtn.addEventListener("click", () => branchMessage(messageWrapper));
-
-        messageActions.appendChild(branchBtn);
-
-        const editBtn = document.createElement("button");
-        editBtn.className = "message-action-btn edit-message";
-        editBtn.title = "Edit message";
-        editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
-        editBtn.addEventListener("click", () => editMessage(messageWrapper));
-
-        messageActions.appendChild(editBtn);
-
-        // Add delete button
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "message-action-btn delete-message";
-        deleteBtn.title = "Delete message";
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
-        deleteBtn.addEventListener("click", () =>
-            deleteMessage(messageWrapper),
-        );
-
-        messageActions.appendChild(deleteBtn);
+        // We can safely use innerHTML here for buttons as they contain no user content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buttonsHtml;
+        while (tempDiv.firstChild) {
+            messageActions.appendChild(tempDiv.firstChild);
+        }
 
         messageContentDiv.appendChild(messageActions);
-
-        // Process message for images (data:image pattern)
-        const imgRegex = /!\[.*?\]\((data:image\/[\w+]+;base64,[^\s)]+)\)/g;
-        let match;
-
-        while ((match = imgRegex.exec(message)) !== null) {
-            const imgSrc = match[1];
-            const extension = imgSrc.split(";")[0].split("/")[1];
-
-            // Create image wrapper
-            const imageWrapper = document.createElement("div");
-            imageWrapper.className = "message-image message-image-wrapper";
-            imageWrapper.setAttribute("data-image-src", imgSrc);
-            imageWrapper.setAttribute("data-image-name", "Image");
-
-            // Create image element
-            const img = document.createElement("img");
-            img.src = imgSrc;
-            img.alt = "Image";
-
-            // Append image to wrapper
-            imageWrapper.appendChild(img);
-
-            // Add click event listener to open modal
-            imageWrapper.addEventListener("click", function () {
-                const imageSrc = this.getAttribute("data-image-src");
-                const imageName = this.getAttribute("data-image-name");
-                const imageModal = document.querySelector(".image-modal");
-                const modalImage = document.querySelector(
-                    ".image-modal-content",
-                );
-
-                // Check if the browser supports View Transitions API
-                if (document.startViewTransition) {
-                    document.startViewTransition(() => {
-                        modalImage.src = imageSrc;
-                        modalImage.alt = imageName;
-                        imageModal.classList.add("active");
-                    });
-                } else {
-                    // Fallback for browsers without View Transitions API
-                    modalImage.src = imageSrc;
-                    modalImage.alt = imageName;
-                    imageModal.classList.add("active");
-                }
-            });
-
-            // Append image wrapper to message content
-            messageContentDiv.appendChild(imageWrapper);
-        }
 
         return messageWrapper;
     }
 
-    function copyMessage(messageElement) {
-        const rawText = messageElement.getAttribute("data-raw-text");
-        navigator.clipboard
-            .writeText(rawText)
+    // --- ACTIONS IMPLEMENTATION ---
+
+    async function toggleCache(messageWrapper) {
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+        
+        try {
+            const res = await fetch("/api/toggle_cache", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ index: messageIndex })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                messageWrapper.setAttribute("data-cache", data.new_value);
+                const cb = messageWrapper.querySelector(".cache-checkbox");
+                if (cb) cb.checked = data.new_value;
+                if (data.new_value) {
+                    showNotification("Message cached (Ephemeral)", 1500);
+                }
+            } else {
+                showNotification("Failed to toggle cache", 3000);
+                // Revert UI
+                const cb = messageWrapper.querySelector(".cache-checkbox");
+                if (cb) cb.checked = !cb.checked;
+            }
+        } catch (e) {
+            console.error(e);
+            showNotification("Error toggling cache", 3000);
+        }
+    }
+
+    function openImageModal(element) {
+        const imageSrc = element.getAttribute("data-image-src");
+        const imageName = element.getAttribute("data-image-name");
+        const imageModal = document.querySelector(".image-modal");
+        const modalImage = document.querySelector(".image-modal-content");
+
+        const updateModal = () => {
+            modalImage.src = imageSrc;
+            modalImage.alt = imageName;
+            imageModal.classList.add("active");
+        };
+
+        if (document.startViewTransition) {
+            document.startViewTransition(updateModal);
+        } else {
+            updateModal();
+        }
+    }
+
+    function copyMessage(messageTextElement, btnElement) {
+        const rawText = messageTextElement.getAttribute("data-raw-text");
+        navigator.clipboard.writeText(rawText)
             .then(() => {
-                const copyBtn =
-                    messageElement.nextElementSibling.querySelector(
-                        ".copy-message",
-                    );
-                const originalIcon = copyBtn.innerHTML;
-                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                const originalIcon = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="fa-solid fa-check"></i>';
                 setTimeout(() => {
-                    copyBtn.innerHTML = originalIcon;
+                    btnElement.innerHTML = originalIcon;
                 }, 2000);
             })
-            .catch((err) => {
-                console.error("Failed to copy message:", err);
-            });
+            .catch((err) => console.error("Failed to copy:", err));
     }
 
-    function animateRegenerateBtn(regenerateBtn) {
-        regenerateBtn.classList.add("rotate-animation");
-
-        // Remove the animation class after it completes to allow it to be triggered again
-        regenerateBtn.addEventListener(
-            "animationend",
-            function () {
-                regenerateBtn.classList.remove("rotate-animation");
-            },
-            { once: true },
-        );
-    }
+    // --- STREAMING LOGIC ---
 
     async function regenerateMessage(messageWrapper) {
-        // Find the index of this message among all message wrappers
-        const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper"),
-        );
+        if (isStreaming) return;
+        isStreaming = true;
+
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
-
-        // this is for the animation
-        const regenerateBtn = messageWrapper.querySelector(
-            ".regenerate-message",
-        );
-        animateRegenerateBtn(regenerateBtn);
-
         const text_contents = messageWrapper.querySelector(".message-text");
-        // ERP typing effects
-        const isErp = document.body.classList.contains("theme-erp");
-        let caretEl = null;
-        if (isErp) {
-            messageWrapper.classList.add("erp-typing");
-            caretEl = document.createElement("span");
-            caretEl.className = "erp-caret";
-            text_contents.appendChild(caretEl);
+        
+        const regenerateBtn = messageWrapper.querySelector(".regenerate-message");
+        if (regenerateBtn) {
+            regenerateBtn.classList.add("rotate-animation");
+            regenerateBtn.addEventListener("animationend", () => regenerateBtn.classList.remove("rotate-animation"), { once: true });
         }
+
+        // ERP Setup
+        const isErp = document.body.classList.contains("theme-erp");
+        let caretEl = isErp ? document.createElement("span") : null;
+        if (caretEl) {
+            caretEl.className = "erp-caret";
+            messageWrapper.classList.add("erp-typing");
+        }
+
         const previousRaw = text_contents.getAttribute("data-raw-text") || "";
         const previousHTML = text_contents.innerHTML;
-        text_contents.childList = [];
 
-        const res = await regenerate_message(messageIndex);
+        // Clear content for regeneration
+        text_contents.innerHTML = "";
+        text_contents.setAttribute("data-raw-text", "");
+        if (caretEl) text_contents.appendChild(caretEl);
 
-        const reader = res.body.getReader();
-        let output = "";
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (
-                    mutation.type === "childList" &&
-                    mutation.addedNodes.length > 0
-                ) {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1 && node.matches("pre")) {
-                            attach_copy_button_to_code_block(node);
-                        }
-                    });
-                }
-            }
-        });
-
-        const observer_config = { childList: true, subtree: true };
-        observer.observe(text_contents, observer_config);
-
-        const wasAtBottom = isUserAtBottom();
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                observer.disconnect();
-                text_contents.querySelectorAll("pre").forEach((pre) => {
-                    if (!pre.querySelector(".code-copy-button")) {
-                        attach_copy_button_to_code_block(pre);
-                    }
-                });
-                return;
-            }
-
-            const decodedValue = new TextDecoder().decode(value);
-            // If server signaled an error, notify and restore previous content
-            if (decodedValue.startsWith("__ERROR__:")) {
-                const errText = decodedValue.replace("__ERROR__:", "").trim();
-                showNotification(`Error: ${errText}`, 5000);
-                // Restore original message content
-                text_contents.setAttribute("data-raw-text", previousRaw);
-                text_contents.innerHTML = previousHTML;
-                // Re-attach copy buttons and highlight code
-                text_contents.querySelectorAll("pre").forEach((pre) => {
-                    if (!pre.querySelector(".code-copy-button")) {
-                        attach_copy_button_to_code_block(pre);
-                    }
-                });
-                if (typeof Prism !== "undefined") {
-                    Prism.highlightAllUnder(text_contents);
-                }
-                if (isErp) {
-                    messageWrapper.classList.remove("erp-typing");
-                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
-                }
-                observer.disconnect();
-                return;
-            }
-            output += decodedValue;
-            // Update the raw text attribute
-            text_contents.setAttribute("data-raw-text", output);
-
-            // Render the markdown
-            text_contents.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-            );
-
-            // Set language attribute on code blocks
-            text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
-                const classes = codeBlock.className.split(" ");
-                const languageClass = classes.find((cls) =>
-                    cls.startsWith("language-"),
-                );
-                if (languageClass) {
-                    const language = languageClass.replace("language-", "");
-                    codeBlock.parentElement.setAttribute(
-                        "data-language",
-                        language,
-                    );
-                }
-            });
-
-            // Highlight code blocks after parsing markdown
-            if (typeof Prism !== "undefined") {
-                Prism.highlightAllUnder(text_contents);
-            }
-
-            if (wasAtBottom) {
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: "auto",
-                });
-            }
+        try {
+            const res = await regenerate_message_api(messageIndex);
+            await processStream(res, text_contents, messageWrapper, caretEl, previousRaw, previousHTML);
+        } catch (e) {
+            console.error(e);
+            handleStreamError(text_contents, messageWrapper, e.toString(), caretEl, previousRaw, previousHTML);
+        } finally {
+            isStreaming = false;
         }
     }
 
     async function continueMessage(messageWrapper) {
-        // Find the index of this message among all message wrappers
-        const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper"),
-        );
-        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
+        if (isStreaming) return;
+        isStreaming = true;
 
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
+        const messageIndex = allMessageWrappers.indexOf(messageWrapper);
         const text_contents = messageWrapper.querySelector(".message-text");
 
-        // ERP typing effects
         const isErp = document.body.classList.contains("theme-erp");
-        let caretEl = null;
-        if (isErp) {
-            messageWrapper.classList.add("erp-typing");
-            caretEl = document.createElement("span");
+        let caretEl = isErp ? document.createElement("span") : null;
+        if (caretEl) {
             caretEl.className = "erp-caret";
+            messageWrapper.classList.add("erp-typing");
+            text_contents.appendChild(caretEl);
+        }
+        
+        // For continue, we keep existing text
+        const previousRaw = text_contents.getAttribute("data-raw-text") || "";
+        const previousHTML = text_contents.innerHTML;
+
+        try {
+            const res = await continue_message_api(messageIndex);
+            await processStream(res, text_contents, messageWrapper, caretEl, previousRaw, previousHTML, true);
+        } catch (e) {
+            console.error(e);
+            handleStreamError(text_contents, messageWrapper, e.toString(), caretEl, previousRaw, previousHTML);
+        } finally {
+            isStreaming = false;
+        }
+    }
+
+    async function get_assistant_response(message, wasAtBottom) {
+        if (isStreaming) return;
+        isStreaming = true;
+
+        let assistant_message = createMessageElement("assistant");
+        document.querySelector(".messages-container").appendChild(assistant_message);
+        const text_contents = assistant_message.querySelector(".message-text");
+
+        const isErp = document.body.classList.contains("theme-erp");
+        let caretEl = isErp ? document.createElement("span") : null;
+        if (caretEl) {
+            caretEl.className = "erp-caret";
+            assistant_message.classList.add("erp-typing");
             text_contents.appendChild(caretEl);
         }
 
-        const res = await continue_message(messageIndex);
+        try {
+            const res = await send_message_api(message);
+            await processStream(res, text_contents, assistant_message, caretEl, "", "", false, wasAtBottom);
+        } catch (e) {
+            console.error(e);
+            handleStreamError(text_contents, assistant_message, e.toString(), caretEl, "", "", true);
+        } finally {
+            isStreaming = false;
+        }
+    }
 
+    async function processStream(res, textElement, messageWrapper, caretEl, prevRaw, prevHTML, isContinue = false, wasAtBottom = false) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let output = isContinue ? (textElement.getAttribute("data-raw-text") || "") : "";
+        
+        // Setup observer for code blocks
         const observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
-                if (
-                    mutation.type === "childList" &&
-                    mutation.addedNodes.length > 0
-                ) {
+                if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
                     mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1 && node.matches("pre")) {
+                        if (node.nodeType === 1 && node.matches("pre") && !node.querySelector(".code-copy-button")) {
                             attach_copy_button_to_code_block(node);
                         }
                     });
                 }
             }
         });
+        observer.observe(textElement, { childList: true, subtree: true });
 
-        const observer_config = { childList: true, subtree: true };
-        observer.observe(text_contents, observer_config);
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-        const wasAtBottom = isUserAtBottom();
-
-        const reader = res.body.getReader();
-        let output = text_contents.getAttribute("data-raw-text");
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                observer.disconnect();
-                text_contents.querySelectorAll("pre").forEach((pre) => {
-                    if (!pre.querySelector(".code-copy-button")) {
-                        attach_copy_button_to_code_block(pre);
-                    }
-                });
-                if (isErp) {
-                    messageWrapper.classList.remove("erp-typing");
-                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                const chunk = decoder.decode(value);
+                if (chunk.startsWith("__ERROR__:")) {
+                    throw new Error(chunk.replace("__ERROR__:", ""));
                 }
-                return;
-            }
 
-            const decodedValue = new TextDecoder().decode(value);
-            if (decodedValue.startsWith("__ERROR__:")) {
-                const errText = decodedValue.replace("__ERROR__:", "").trim();
-                showNotification(`Error: ${errText}`, 5000);
-                try {
-                    assistant_message.remove();
-                } catch (_) {}
-                if (isErp) {
-                    messageWrapper.classList.remove("erp-typing");
-                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+                output += chunk;
+                textElement.setAttribute("data-raw-text", output);
+                textElement.innerHTML = marked.parse(output.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+                
+                // Re-append caret
+                if (caretEl) textElement.appendChild(caretEl);
+
+                // Highlight code
+                if (typeof Prism !== "undefined") {
+                     // We use highlightAllUnder carefully to avoid resetting DOM too much
+                     // But Prism usually requires reparsing.
+                     // For performance, maybe only highlight on done? 
+                     // But user requested fix, not perf optimization. Let's keep it lively.
+                     Prism.highlightAllUnder(textElement);
                 }
-                observer.disconnect();
-                return;
-            }
-            output += decodedValue;
-            // Update the raw text attribute
-            text_contents.setAttribute("data-raw-text", output);
 
-            // Render the markdown
-            text_contents.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-            );
-
-            // Set language attribute on code blocks
-            text_contents.querySelectorAll("pre code").forEach((codeBlock) => {
-                const classes = codeBlock.className.split(" ");
-                const languageClass = classes.find((cls) =>
-                    cls.startsWith("language-"),
-                );
-                if (languageClass) {
-                    const language = languageClass.replace("language-", "");
-                    codeBlock.parentElement.setAttribute(
-                        "data-language",
-                        language,
-                    );
+                if (wasAtBottom || isUserAtBottom()) {
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: "auto" });
                 }
-            });
-
-            // Highlight code blocks after parsing markdown
-            if (typeof Prism !== "undefined") {
-                Prism.highlightAllUnder(text_contents);
             }
-
-            if (wasAtBottom) {
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: "auto",
-                });
-            }
+        } catch (e) {
+            observer.disconnect();
+            throw e; // Rethrow to handle in caller
         }
+
+        // Cleanup success
+        observer.disconnect();
+        textElement.querySelectorAll("pre").forEach(pre => {
+             if (!pre.querySelector(".code-copy-button")) attach_copy_button_to_code_block(pre);
+        });
+        
+        if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+        if (messageWrapper) messageWrapper.classList.remove("erp-typing");
     }
 
-    async function editMessage(messageWrapper) {
+    function handleStreamError(textElement, messageWrapper, errorMsg, caretEl, prevRaw, prevHTML, removeOnFail = false) {
+        showNotification(`Error: ${errorMsg}`, 5000);
+        
+        if (removeOnFail) {
+            if (messageWrapper && messageWrapper.parentNode) messageWrapper.remove();
+        } else {
+            // Restore previous state
+            textElement.setAttribute("data-raw-text", prevRaw);
+            textElement.innerHTML = prevHTML;
+            if (typeof Prism !== "undefined") Prism.highlightAllUnder(textElement);
+            // Re-attach copy buttons
+             textElement.querySelectorAll("pre").forEach(pre => {
+                 if (!pre.querySelector(".code-copy-button")) attach_copy_button_to_code_block(pre);
+            });
+        }
+
+        if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
+        if (messageWrapper) messageWrapper.classList.remove("erp-typing");
+    }
+
+    // --- OTHER ACTIONS ---
+
+    function editMessage(messageWrapper) {
+        const messageContent = messageWrapper.querySelector(".message-content");
         const messageText = messageWrapper.querySelector(".message-text");
         const rawText = messageText.getAttribute("data-raw-text");
-        const messageContent = messageWrapper.querySelector(".message-content");
+        const originalContentHTML = messageContent.innerHTML; // Snapshot
 
-        // Create edit container
+        // Create edit interface
         const editContainer = document.createElement("div");
         editContainer.className = "message-edit-container";
-
-        // Create textarea
+        
         const textarea = document.createElement("textarea");
         textarea.className = "message-edit-textarea";
         textarea.value = rawText;
-
-        // Create buttons container
+        
         const buttonsContainer = document.createElement("div");
         buttonsContainer.className = "message-edit-buttons";
-
-        // Create save button
-        const saveButton = document.createElement("button");
-        saveButton.className = "message-edit-btn save-edit";
-        saveButton.innerHTML = "Save";
-
-        // Create cancel button
-        const cancelButton = document.createElement("button");
-        cancelButton.className = "message-edit-btn cancel-edit";
-        cancelButton.innerHTML = "Cancel";
-
-        // Add buttons to container
-        buttonsContainer.appendChild(saveButton);
-        buttonsContainer.appendChild(cancelButton);
-
-        // Add textarea and buttons to edit container
-        editContainer.appendChild(textarea);
-        editContainer.appendChild(buttonsContainer);
-
-        // Store original content
-        const originalContent = messageContent.innerHTML;
-
-        // Replace content with edit container
+        
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "message-edit-btn save-edit";
+        saveBtn.innerText = "Save";
+        
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "message-edit-btn cancel-edit";
+        cancelBtn.innerText = "Cancel";
+        
+        buttonsContainer.append(saveBtn, cancelBtn);
+        editContainer.append(textarea, buttonsContainer);
+        
+        // Replace content
         messageContent.innerHTML = "";
         messageContent.appendChild(editContainer);
-
-        // Adjust textarea height
+        
+        // Auto-height
         textarea.style.height = "auto";
         textarea.style.height = textarea.scrollHeight + "px";
 
-        // Add event listeners
-        cancelButton.addEventListener("click", () => {
-            messageContent.innerHTML = originalContent;
+        // Listeners (local because ephemeral)
+        cancelBtn.onclick = () => {
+            messageContent.innerHTML = originalContentHTML;
+        };
 
-            // Re-attach event listeners to buttons
-            reattachButtonListeners(messageWrapper);
-
-            // Re-attach image click listeners
-            reattachImageListeners(messageWrapper);
-        });
-
-        saveButton.addEventListener("click", async () => {
+        saveBtn.onclick = async () => {
             const newContent = textarea.value.trim();
             if (!newContent) return;
 
-            // Find the index of this message among all message wrappers
-            const allMessageWrappers = Array.from(
-                document.querySelectorAll(".message-wrapper"),
-            );
+            const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
             const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
-            // Send update to server
             try {
-                const response = await fetch("/api/update_message", {
+                const res = await fetch("/api/update_message", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        index: messageIndex,
-                        content: newContent,
-                    }),
+                    body: JSON.stringify({ index: messageIndex, content: newContent })
                 });
 
-                if (response.ok) {
-                    // Update the messageText with new content
-                    messageText.setAttribute("data-raw-text", newContent);
-                    messageText.innerHTML = marked.parse(
-                        newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-                    );
-
-                    // Set language attribute on code blocks
-                    messageText
-                        .querySelectorAll("pre code")
-                        .forEach((codeBlock) => {
-                            const classes = codeBlock.className.split(" ");
-                            const languageClass = classes.find((cls) =>
-                                cls.startsWith("language-"),
-                            );
-                            if (languageClass) {
-                                const language = languageClass.replace(
-                                    "language-",
-                                    "",
-                                );
-                                codeBlock.parentElement.setAttribute(
-                                    "data-language",
-                                    language,
-                                );
-                            }
-                        });
-
-                    // Add copy buttons to code blocks
-                    messageText.querySelectorAll("pre").forEach((pre) => {
-                        if (!pre.querySelector(".code-copy-button")) {
-                            attach_copy_button_to_code_block(pre);
-                        }
+                if (res.ok) {
+                    // Restore UI with new content
+                    messageContent.innerHTML = originalContentHTML;
+                    const textEl = messageContent.querySelector(".message-text");
+                    textEl.setAttribute("data-raw-text", newContent);
+                    textEl.innerHTML = marked.parse(newContent.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+                    
+                    if (typeof Prism !== "undefined") Prism.highlightAllUnder(textEl);
+                    textEl.querySelectorAll("pre").forEach(pre => {
+                         if (!pre.querySelector(".code-copy-button")) attach_copy_button_to_code_block(pre);
                     });
-
-                    // Highlight code blocks after parsing markdown
-                    if (typeof Prism !== "undefined") {
-                        Prism.highlightAllUnder(messageText);
-                    }
-
-                    // Restore original UI structure
-                    messageContent.innerHTML = originalContent;
-                    messageContent.querySelector(".message-text").innerHTML =
-                        messageText.innerHTML;
-                    messageContent
-                        .querySelector(".message-text")
-                        .setAttribute("data-raw-text", newContent);
-
-                    // Re-attach event listeners to buttons
-                    reattachButtonListeners(messageWrapper);
-
-                    // Re-attach image click listeners
-                    reattachImageListeners(messageWrapper);
                 } else {
-                    console.error("Failed to update message");
+                    showNotification("Failed to save edit", 3000);
                 }
-            } catch (error) {
-                console.error("Error updating message:", error);
+            } catch (e) {
+                console.error(e);
+                showNotification("Error saving edit", 3000);
             }
-        });
+        };
     }
 
     async function deleteMessage(messageWrapper) {
-        // Ask for confirmation
-        if (!confirm("Are you sure you want to delete this message?")) {
-            return;
-        }
+        if (!confirm("Are you sure you want to delete this message?")) return;
 
-        // Find the index of this message among all message wrappers
-        const allMessageWrappers = Array.from(
-            document.querySelectorAll(".message-wrapper"),
-        );
+        const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
 
-        // Send delete request to server
         try {
-            const response = await fetch("/api/delete_message", {
+            const res = await fetch("/api/delete_message", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    index: messageIndex,
-                }),
+                body: JSON.stringify({ index: messageIndex })
             });
 
-            if (response.ok) {
-                // Remove the message from the DOM
+            if (res.ok) {
                 messageWrapper.remove();
             } else {
-                console.error("Failed to delete message");
-                alert("Failed to delete message");
+                showNotification("Failed to delete message", 3000);
             }
-        } catch (error) {
-            console.error("Error deleting message:", error);
-            alert("Error deleting message");
+        } catch (e) {
+            console.error(e);
+            showNotification("Error deleting message", 3000);
         }
     }
 
     async function branchMessage(messageWrapper) {
         const allMessageWrappers = Array.from(document.querySelectorAll(".message-wrapper"));
         const messageIndex = allMessageWrappers.indexOf(messageWrapper);
-
-        const pathParts = window.location.pathname.split('/');
-        const chatId = pathParts[pathParts.length - 1];
-
-        if (!chatId || isNaN(chatId)) {
-             console.error("Could not determine chat ID");
-             return;
-        }
+        const chatId = window.location.pathname.split('/').pop();
 
         try {
-            const response = await fetch("/api/branch", {
+            const res = await fetch("/api/branch", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    chat_id: parseInt(chatId),
-                    index: messageIndex
-                })
+                body: JSON.stringify({ chat_id: parseInt(chatId), index: messageIndex })
             });
-
-            const data = await response.json();
+            const data = await res.json();
             if (data.success) {
                 window.location.href = "/chat/" + data.chat_id;
             } else {
-                alert("Failed to branch chat: " + (data.error || "Unknown error"));
+                showNotification("Failed to branch chat", 3000);
             }
-        } catch (error) {
-            console.error("Error branching chat:", error);
-            alert("Error branching chat");
-        }
-    }
-
-    function reattachImageListeners(messageWrapper) {
-        // Find all images within this message
-        const imageWrappers = messageWrapper.querySelectorAll(".message-image");
-
-        // Loop through each image and add click event
-        imageWrappers.forEach((imageWrapper) => {
-            imageWrapper.addEventListener("click", function () {
-                const imageSrc = this.getAttribute("data-image-src");
-                const imageName = this.getAttribute("data-image-name");
-                const imageModal = document.querySelector(".image-modal");
-                const modalImage = document.querySelector(
-                    ".image-modal-content",
-                );
-
-                // Check if the browser supports View Transitions API
-                if (document.startViewTransition) {
-                    document.startViewTransition(() => {
-                        modalImage.src = imageSrc;
-                        modalImage.alt = imageName;
-                        imageModal.classList.add("active");
-                    });
-                } else {
-                    // Fallback for browsers without View Transitions API
-                    modalImage.src = imageSrc;
-                    modalImage.alt = imageName;
-                    imageModal.classList.add("active");
-                }
-            });
-        });
-    }
-
-    function reattachButtonListeners(messageWrapper) {
-        const messageText = messageWrapper.querySelector(".message-text");
-        const messageContent = messageWrapper.querySelector(".message-content");
-        
-        // Cache checkbox
-        const checkbox = messageWrapper.querySelector(".cache-checkbox");
-        if (checkbox) {
-            checkbox.addEventListener("change", () => toggleCache(messageWrapper));
-        }
-
-        // Copy button
-        const copyBtn = messageContent.querySelector(".copy-message");
-        if (copyBtn) {
-            copyBtn.addEventListener("click", function () {
-                const rawText = messageText.getAttribute("data-raw-text");
-                navigator.clipboard
-                    .writeText(rawText)
-                    .then(() => {
-                        const originalIcon = this.innerHTML;
-                        this.innerHTML = '<i class="fa-solid fa-check"></i>';
-                        setTimeout(() => {
-                            this.innerHTML = originalIcon;
-                        }, 2000);
-                    })
-                    .catch((err) => {
-                        console.error("Failed to copy message:", err);
-                    });
-            });
-        }
-
-        // Only add these event listeners for assistant messages
-        if (messageWrapper.classList.contains("assistant")) {
-            const regenerateBtn = messageContent.querySelector(
-                ".regenerate-message",
-            );
-            if (regenerateBtn) {
-                regenerateBtn.addEventListener("click", function () {
-                    regenerateMessage(messageWrapper);
-                });
-            }
-
-            const continueBtn =
-                messageContent.querySelector(".continue-message");
-            if (continueBtn) {
-                continueBtn.addEventListener("click", function () {
-                    continueMessage(messageWrapper);
-                });
-            }
-        }
-
-        // Branch button
-        const branchBtn = messageContent.querySelector(".branch-message");
-        if (branchBtn) {
-            branchBtn.addEventListener("click", function () {
-                branchMessage(messageWrapper);
-            });
-        }
-
-        // Edit button
-        const editBtn = messageContent.querySelector(".edit-message");
-        if (editBtn) {
-            editBtn.addEventListener("click", function () {
-                editMessage(messageWrapper);
-            });
-        }
-
-        // Delete button
-        const deleteBtn = messageContent.querySelector(".delete-message");
-        if (deleteBtn) {
-            deleteBtn.addEventListener("click", function () {
-                deleteMessage(messageWrapper);
-            });
+        } catch (e) {
+            console.error(e);
+            showNotification("Error branching chat", 3000);
         }
     }
 
     function isUserAtBottom() {
-        const tolerance = 15; // Pixels of tolerance to consider "at bottom"
-        return (
-            window.innerHeight + window.scrollY >=
-            document.body.offsetHeight - tolerance
-        );
+        const tolerance = 20;
+        return (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - tolerance);
     }
 
-    async function get_assistant_response(message, wasAtBottom) {
-        let assistant_message = createMessageElement("assistant");
-        let assistant_message_text =
-            assistant_message.querySelector(".message-text");
-        assistant_message_text.setAttribute("data-raw-text", ""); // Initialize raw text
-
-        let messages_container = document.querySelector(".messages-container");
-        messages_container.appendChild(assistant_message);
-
-        // ERP theme: add sexy typing effects
-        const isErp = document.body.classList.contains("theme-erp");
-        let caretEl = null;
-        if (isErp) {
-            assistant_message.classList.add("erp-typing");
-            caretEl = document.createElement("span");
-            caretEl.className = "erp-caret";
-            assistant_message_text.appendChild(caretEl);
-        }
-
-        const res = await send_message(message);
-        const reader = res.body.getReader();
-        let output = "";
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (
-                    mutation.type === "childList" &&
-                    mutation.addedNodes.length > 0
-                ) {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1 && node.matches("pre")) {
-                            attach_copy_button_to_code_block(node);
-                        }
-                    });
-                }
-            }
-        });
-
-        const observer_config = { childList: true, subtree: true };
-        observer.observe(assistant_message_text, observer_config);
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                observer.disconnect();
-                assistant_message_text
-                    .querySelectorAll("pre")
-                    .forEach((pre) => {
-                        if (!pre.querySelector(".code-copy-button")) {
-                            attach_copy_button_to_code_block(pre);
-                        }
-                    });
-
-                // Attach image click listeners to the new message
-                reattachImageListeners(assistant_message);
-                
-                // Attach button listeners to new message
-                reattachButtonListeners(assistant_message);
-
-                // Highlight code blocks
-                if (typeof Prism !== "undefined") {
-                    Prism.highlightAllUnder(assistant_message_text);
-                }
-
-                // ERP theme cleanup
-                if (isErp) {
-                    assistant_message.classList.remove("erp-typing");
-                    if (caretEl && caretEl.parentNode) caretEl.parentNode.removeChild(caretEl);
-                }
-
-                return;
-            }
-
-            const decodedValue = new TextDecoder().decode(value);
-            if (decodedValue.startsWith("__ERROR__:")) {
-                const errText = decodedValue.replace("__ERROR__:", "").trim();
-                showNotification(`Error: ${errText}`, 5000);
-                // Remove the placeholder assistant message element on failure
-                try {
-                    assistant_message.remove();
-                } catch (_) {}
-                observer.disconnect();
-                return;
-            }
-            output += decodedValue;
-            // Update the raw text attribute
-            assistant_message_text.setAttribute("data-raw-text", output);
-
-            // Render the markdown
-            assistant_message_text.innerHTML = marked.parse(
-                output.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-            );
-            // Re-append ERP caret at the end during typing
-            if (isErp && caretEl) {
-                assistant_message_text.appendChild(caretEl);
-            }
-
-            // Set language attribute on code blocks
-            assistant_message_text
-                .querySelectorAll("pre code")
-                .forEach((codeBlock) => {
-                    const classes = codeBlock.className.split(" ");
-                    const languageClass = classes.find((cls) =>
-                        cls.startsWith("language-"),
-                    );
-                    if (languageClass) {
-                        const language = languageClass.replace("language-", "");
-                        codeBlock.parentElement.setAttribute(
-                            "data-language",
-                            language,
-                        );
-                    }
-                });
-
-            // Highlight code blocks
-            if (typeof Prism !== "undefined") {
-                Prism.highlightAllUnder(assistant_message_text);
-            }
-
-            if (wasAtBottom) {
-                window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: "auto",
-                });
-            }
-        }
-    }
-
+    // --- INITIALIZATION ---
     document.addEventListener("DOMContentLoaded", function () {
-        // Get reference to the textarea from the parent layout
         const textarea = document.getElementById("message-input");
+        const form = document.getElementById("message-form");
 
-        // No export/import UI here; export is in sidebar, import on new chat screen
-        // ERP: hide typing effects as soon as user types
+        // ERP clear typing effect on input
         if (document.body.classList.contains('theme-erp') && textarea) {
-            const clearErpTypingEffects = () => {
+            textarea.addEventListener('input', () => {
                 document.querySelectorAll('.message-wrapper.assistant.erp-typing').forEach(w => {
                     w.classList.remove('erp-typing');
                     const caret = w.querySelector('.erp-caret');
-                    if (caret && caret.parentNode) caret.parentNode.removeChild(caret);
+                    if (caret) caret.remove();
                 });
-            };
-            textarea.addEventListener('input', clearErpTypingEffects);
-        }
-
-        document
-            .querySelectorAll(".message-wrapper")
-            .forEach((messageWrapper) => {
-                reattachButtonListeners(messageWrapper);
-                reattachImageListeners(messageWrapper);
             });
+        }
 
-        // Add event listeners to all code blocks
-        document.querySelectorAll("pre").forEach((pre) => {
-            if (!pre.querySelector(".code-copy-button")) {
-                attach_copy_button_to_code_block(pre);
-            }
+        // Global code block copy button init (for pre-rendered messages)
+        document.querySelectorAll("pre").forEach(pre => {
+             if (!pre.querySelector(".code-copy-button")) attach_copy_button_to_code_block(pre);
         });
 
-        // Initialize image modal functionality
+        // Image modal logic
         const imageModal = document.querySelector(".image-modal");
-        const modalImage = document.querySelector(".image-modal-content");
-        const modalClose = document.querySelector(".image-modal-close");
+        const closeModal = () => {
+            const removeClass = () => imageModal.classList.remove("active");
+            if (document.startViewTransition) document.startViewTransition(removeClass);
+            else removeClass();
+        };
 
-        // Close modal when clicking the close button
-        modalClose.addEventListener("click", function () {
-            if (document.startViewTransition) {
-                document.startViewTransition(() => {
-                    imageModal.classList.remove("active");
-                });
-            } else {
-                imageModal.classList.remove("active");
-            }
-        });
+        document.querySelector(".image-modal-close").addEventListener("click", closeModal);
+        imageModal.addEventListener("click", (e) => { if (e.target === imageModal) closeModal(); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape" && imageModal.classList.contains("active")) closeModal(); });
 
-        // Close modal when clicking outside the image
-        imageModal.addEventListener("click", function (e) {
-            if (e.target === imageModal) {
-                if (document.startViewTransition) {
-                    document.startViewTransition(() => {
-                        imageModal.classList.remove("active");
-                    });
-                } else {
-                    imageModal.classList.remove("active");
-                }
-            }
-        });
-
-        // Close modal with escape key
-        document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape" && imageModal.classList.contains("active")) {
-                if (document.startViewTransition) {
-                    document.startViewTransition(() => {
-                        imageModal.classList.remove("active");
-                    });
-                } else {
-                    imageModal.classList.remove("active");
-                }
-            }
-        });
-
-        // Handle URL parameters for new chat
+        // Handle URL params
         const urlParams = new URLSearchParams(window.location.search);
-        const params = {};
-        for (const [key, value] of urlParams) {
-            params[key] = value;
+        if (urlParams.get("new_chat") === "true") {
+             // Remove param from URL
+             const url = new URL(window.location);
+             url.searchParams.delete("new_chat");
+             window.history.replaceState({}, document.title, url);
+             
+             // Trigger assistant welcome (empty string logic from old code)
+             // We pass empty string, but check backend logic. Usually this triggers an empty prompt to AI? 
+             // Or assumes the previous page created the chat with a message.
+             // If this was meant to fetch the FIRST response to a user message sent via home:
+             // The home page /api/create-new-chat usually saves the user message. 
+             // We need to trigger response for that.
+             get_assistant_response("", true);
         }
 
-        if (params["new_chat"] == "true") {
-            const wasAtBottom = isUserAtBottom();
-            const message = "";
-            // Remove the new_chat parameter from URL
-            if (window.history && window.history.replaceState) {
-                const url = new URL(window.location);
-                url.searchParams.delete("new_chat");
-                window.history.replaceState({}, document.title, url);
-            }
-            get_assistant_response(message, wasAtBottom);
-        }
+        // Form Submit
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const message = textarea.value.trim();
+            if (!message) return;
 
-        // Message form submission handler
-        document
-            .getElementById("message-form")
-            .addEventListener("submit", async function (e) {
-                e.preventDefault();
-                const message = textarea.value.trim();
-                if (!message) return;
-                console.log(message);
-
-                // Check if the message is a command
-                if (message.startsWith("/")) {
-                    await handleCommand(message);
-                    textarea.value = "";
-                    textarea.style.height = "auto";
-                    return;
-                }
-
-                const wasAtBottom = isUserAtBottom();
-
+            if (message.startsWith("/")) {
+                await handleCommand(message);
                 textarea.value = "";
                 textarea.style.height = "auto";
+                return;
+            }
+            
+            if (isStreaming) return; // double check
 
-                let user_message = createMessageElement("user", message);
+            const wasAtBottom = isUserAtBottom();
+            
+            textarea.value = "";
+            textarea.style.height = "auto";
 
-                let messages_container = document.querySelector(
-                    ".messages-container",
-                );
+            // Add user message to UI
+            const userMsgEl = createMessageElement("user", message);
+            document.querySelector(".messages-container").appendChild(userMsgEl);
 
-                messages_container.appendChild(user_message, message);
+            if (wasAtBottom) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
 
-                get_assistant_response(message, wasAtBottom);
-
-                // Scroll to bottom after adding user message if they were already at bottom
-                if (wasAtBottom) {
-                    window.scrollTo({
-                        top: document.body.scrollHeight,
-                        behavior: "smooth",
-                    });
-                }
-            });
+            await get_assistant_response(message, wasAtBottom);
+        });
     });
 
-    let shoudlAutoScroll = false;
+    let shouldAutoScroll = false;
 </script>
 {% endblock %}
