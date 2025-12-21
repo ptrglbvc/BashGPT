@@ -11,9 +11,9 @@
         }
     },
     {
-        "name": "gemini-flash-latest",
+        "name": "google/gemini-3-flash-preview",
         "shortcut": "flash",
-        "provider": "google",
+        "provider": "openrouter",
         "vision_enabled": true
     },
     {
@@ -119,10 +119,33 @@
         }
     },
     {
+        "name": "xiaomi/mimo-v2-flash:free",
+        "shortcut": "mimo",
+        "provider": "openrouter",
+        "vision_enabled": false,
+        "extra_body": {
+            "provider": {
+                "order": [
+                    "xiaomi"
+                ],
+                "allow_fallbacks": false
+            }
+        }
+    },
+    {
         "name": "anthropic/claude-opus-4.5",
         "shortcut": "opus",
-        "provider": "vercel",
-        "vision_enabled": true
+        "provider": "openrouter",
+        "vision_enabled": true,
+        "anthropic_cache_control": true,
+        "extra_body": {
+            "provider": {
+                "order": [
+                    "anthropic"
+                ],
+                "allow_fallbacks": false
+            }
+        }
     },
     {
         "name": "anthropic/claude-sonnet-4.5",
